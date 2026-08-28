@@ -265,16 +265,21 @@ function addItems(window)
         end
 
         if (#newItem.lootData > 0) then
-            if (not exactItemQuality and newItem.quality >= qualityValue) then
+            local quality = newItem.quality or 0 -- records written before 1.1.0 can hold a nil quality
+
+            if (not exactItemQuality and quality >= qualityValue) then
                 canBeAdded = true
-            elseif (exactItemQuality and newItem.quality == qualityValue) then
+            elseif (exactItemQuality and quality == qualityValue) then
                 canBeAdded = true
             else
                 canBeAdded = false
             end
         end
 
-        newItem.totalQuantity = #newItem.lootData
+        -- sum the looted quantities, not the number of loot events
+        for j = 1, #newItem.lootData do
+            newItem.totalQuantity = newItem.totalQuantity + (tonumber(newItem.lootData[j].quantity) or 1)
+        end
 
         if (canBeAdded) then
             table.sort(newItem.lootData, function(l, r) return l.foundOn < r.foundOn end) -- desc
@@ -326,13 +331,16 @@ function addItems(window)
             local item = items[i]
             local itemID = item.itemId
 
-            local itemLink = select(2, GetItemInfo(itemID)) or item.itemLink
-            local itemName = GetItemInfo(itemID) or item.itemName
-            local itemTexture = select(10, GetItemInfo(itemID)) or item.itemTexture
+            local cachedName, cachedLink, cachedQuality, _, _, _, _, _, _, cachedTexture, cachedSellPrice =
+                C_Item.GetItemInfo(itemID)
+
+            local itemLink = cachedLink or item.itemLink
+            local itemName = cachedName or item.itemName or ("#"..itemID)
+            local itemTexture = cachedTexture or item.itemTexture
             local itemQuantity = item.totalQuantity
             local itemFoundOn = item.dateRange
-            local itemQuality = select(3, GetItemInfo(itemID)) or item.quality
-            local sellPrice = select(11, GetItemInfo(itemID)) or item.sellPrice
+            local itemQuality = cachedQuality or item.quality or 0
+            local sellPrice = cachedSellPrice or item.sellPrice
 
             totalQuantity = totalQuantity + itemQuantity
             totalSellPrice = totalSellPrice + (sellPrice or 0) * itemQuantity
@@ -457,7 +465,7 @@ end
 
 function addItemDetailsRow(frame, itemName, itemId, itemQuality)
     local nameLabel = AGUI:Create("Label")
-    local _, _, _, hex = GetItemQualityColor(itemQuality)
+    local _, _, _, hex = C_Item.GetItemQualityColor(itemQuality)
     local itemText = '|c'..hex..itemName..'|r'
     -- local itemText = itemLink
 
@@ -522,7 +530,7 @@ function getQualityList()
 
     -- ignores artifact, wow token and legacy items
     for i = 0, Enum.ItemQualityMeta.NumValues - 4 do
-        local _, _, _, hex = GetItemQualityColor(i)
+        local _, _, _, hex = C_Item.GetItemQualityColor(i)
         result[i] = '|c'..hex.._G["ITEM_QUALITY" .. i .. "_DESC"]..'|r'
      end
 

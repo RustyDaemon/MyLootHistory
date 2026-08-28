@@ -1,12 +1,11 @@
-## Interface: 110005
+## Interface: 120100
 ## Title: My Loot History
 ## Author: Rustam Irzaiev
-## Version: 1.0.5
+## Version: 1.1.0
 ## Notes: Look through |cFF00FF00everything|r you looted
 ## IconTexture: Interface\Icons\9xp_sigil_ardenweald01
 ## OptionalDeps: Ace3
 ## SavedVariables: MyLootHistoryDB
-## SavedVariablesPerCharacter: MyLootHistoryDBChar
 ## X-License: GPL v3
 
 libs\embeds.xml

@@ -22,6 +22,7 @@ end
 L["D_NotMyItem"] = "not my item"
 L["D_QuestItem"] = "quest item"
 L["D_ZeroSellPrice"] = "sell price is 0"
+L["D_NoMoneyMatched"] = "money pattern matched nothing"
 
 -- minimap
 L["MM_IconTitle"] = "My Loot History"
