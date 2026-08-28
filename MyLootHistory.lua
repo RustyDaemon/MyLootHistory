@@ -176,10 +176,29 @@ function MLH:getLootDetails(message)
 end
 
 function MLH:getZoneID()
-    local zoneID = C_Map.GetBestMapForUnit("player")
-    -- local zoneInfo = C_Map.GetMapInfo(zoneID)
+    return C_Map.GetBestMapForUnit("player")
+end
 
-    return zoneID
+-- Map IDs never change name within a session, and the report resolves the same handful of
+-- them on every redraw, so the lookup is memoised. `false` marks an ID the client no longer
+-- knows about - a zone removed by a patch - so it is not looked up again either.
+local zoneNameCache = {}
+
+function MLH:getZoneName(zoneID)
+    if (not zoneID) then return nil end
+
+    local cached = zoneNameCache[zoneID]
+
+    if (cached ~= nil) then
+        return cached or nil
+    end
+
+    local zoneInfo = C_Map.GetMapInfo(zoneID)
+    local zoneName = zoneInfo and zoneInfo.name
+
+    zoneNameCache[zoneID] = zoneName or false
+
+    return zoneName
 end
 
 function MLH:SlashCommandListener(input)

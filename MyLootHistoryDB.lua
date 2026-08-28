@@ -21,6 +21,7 @@ local defaults = {
 
         config = {
             showLastLooted = false,
+            showZone = false,
             showItemID = false,
             showTooltip = true,
             showAdditionalTooltipData = false,
@@ -37,6 +38,10 @@ local defaults = {
             selectedRangeValue = 2,
             selectedQualityValue = 0,
             selectedExactItemQuality = false,
+            selectedZoneID = 0, -- 0 is "any zone"
+            searchText = "",
+            sortKey = "quantity",
+            sortDescending = true,
         },
 
         dbVersion = 1,

@@ -44,6 +44,8 @@ L["C_ResizableWindow"] = "Resizable window"
 L["C_ResizableWindow_Desc"] = "Make the report window resizable"
 L["C_ShowLastLootedRow"] = "Show last looted date row"
 L["C_ShowLastLootedRow_Desc"] = "Show or hide the last looted date row"
+L["C_ShowZoneColumn"] = "Show zone column"
+L["C_ShowZoneColumn_Desc"] = "Show the zone an item was mostly looted in. The full breakdown is always in the item tooltip"
 L["C_IgnoreZeroPriceItems"] = "Ignore items with 0 sell price"
 L["C_IgnoreZeroPriceItems_Desc"] = "Ignore items with zero (0) sell price in the report"
 L["C_ShowItemID"] = "Show Item ID"
@@ -64,10 +66,12 @@ L["C_ClearData_Desc"] = "Clear all gathered data: items and gold. Forever. This 
 L["F_WhatFor"] = "What is this addon for?"
 L["F_WhatFor_Desc"] = "The addon that track everything you looted and show you the report with the gathered data. This is useful for the gold farming, for example, to track how much gold you got during the farm session. Or to track how many items you got from the specific zone, etc."
 L["F_SortingFiltering"] = "Sorting and filtering"
-L["F_SortingFiltering_Desc"] = "Everything can be filtered by a date and by a quality.\n\n"..
+L["F_SortingFiltering_Desc"] = "Everything can be filtered by a name, a date, a quality and a zone.\n\n"..
+  "* Type in the search box to keep only the items whose name contains what you typed.\n"..
   "* Items quality can be filtered by a specific quality ('Exact quality checkbox') or by a quality range (for example, from Uncommon and further).\n"..
-  "* Dates can be filtered by a specific date or by a date range. For example, 'Today' or 'This month'. \n\n"..
-  "Sorting is made by descending order by default."
+  "* Dates can be filtered by a specific date or by a date range. For example, 'Today' or 'This month'. \n"..
+  "* The zone dropdown lists every zone you have ever looted in. Picking one narrows the quantities and the gold to that zone.\n\n"..
+  "Click a column header to sort by it, click it again to reverse the order. The choice is remembered per character."
 L["F_CanILinkToChat"] = "Can I link the item from the report?"
 L["F_CanILinkToChat_Desc"] = "Yes, you can. Just Shift+click on the item icon and it will be linked to the chat. The chat should be opened."
 L["F_Restrinctions"] = "Any known restrictions?"
@@ -90,9 +94,32 @@ L["R_Items"] = "Items: "
 L["R_Quantity"] = "Quantity: "
 L["R_SellPrice"] = "Sell price: "
 L["R_GoldEarned"] = "Gold earned: "
-L["R_Looted"] = "Looted: "
 L["R_TotalQuantityGathered"] = "Total quantity gathered:"
 L["R_NothingIsHereYet"] = "Nothing is here yet.\n  Loot something or change the filters :)"
+L["R_Search"] = "Search"
+L["R_Zone"] = "Zone"
+L["R_UnknownZone"] = "Unknown zone"
+L["R_LootedIn"] = "Looted in:"
+
+-- report columns
+L["R_ColQuality"] = "Q"
+L["R_ColItem"] = "Item"
+L["R_ColQuantity"] = "Qty"
+L["R_ColValue"] = "Value"
+L["R_ColZone"] = "Zone"
+L["R_ColLooted"] = "Looted"
+
+L["R_SortBy"] = function (columnName)
+  return 'Click to sort by "'..columnName..'". Click again to reverse the order'
+end
+
+-- export
+L["R_Export"] = "Export CSV"
+L["R_ExportTitle"] = "My Loot History - CSV export"
+
+L["R_ExportHint"] = function (itemCount)
+  return itemCount..' item(s), matching the filters in the report. Press Ctrl+C to copy'
+end
 
 -- report date range
 L["RR_ThisSesion"] = "This session"
@@ -101,3 +128,6 @@ L["RR_Yesterday"] = "Yesterday"
 L["RR_WedToWed"] = "This reset (Wed-to-Wed)"
 L["RR_ThisMonth"] = "This month"
 L["RR_AllTheTime"] = "All the time"
+
+-- report zone filter
+L["RR_AnyZone"] = "Any zone"

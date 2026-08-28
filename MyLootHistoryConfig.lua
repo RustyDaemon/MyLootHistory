@@ -84,8 +84,21 @@ local generalOptions = {
                         MLH.db.char.config.showLastLooted = value
                     end
                 },
-                ignoreItemsWithZeroSellPriceCheckBox = {
+                showZoneColumnCheckBox = {
                     order = 2,
+                    width = "double",
+                    type = "toggle",
+                    name = L["C_ShowZoneColumn"],
+                    desc = L["C_ShowZoneColumn_Desc"],
+                    get = function (_)
+                        return MLH.db.char.config.showZone
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.showZone = value
+                    end
+                },
+                ignoreItemsWithZeroSellPriceCheckBox = {
+                    order = 3,
                     width = "double",
                     type = "toggle",
                     -- descStyle = "inline",
