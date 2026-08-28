@@ -34,7 +34,7 @@ $StageDir  = Join-Path $DistDir $AddonName
 
 # Anything matching these is never shipped to CurseForge.
 $ExcludeDirs  = @('.git', '.vscode', '.github', 'dist', 'node_modules')
-$ExcludeFiles = @('build.ps1', 'build.cmd', 'AUDIT.html', '.gitignore', '.DS_Store', '.luacheckrc')
+$ExcludeFiles = @('build.ps1', 'build.cmd', 'build.sh', 'AUDIT.html', '.gitignore', '.DS_Store', '.luacheckrc')
 
 function Fail($msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; exit 1 }
 function Step($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
