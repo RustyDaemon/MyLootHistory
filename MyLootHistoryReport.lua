@@ -25,8 +25,8 @@ local sessionRefreshInterval = 5
 local addCurrencyRow, addCurrencyRows, addGoldEarnedRow, addHeaderRow, addIconRow, addItemDetailsRow,
       addItems, addLastLootedRow, addNothingIsHereLabel, addQuantityRow, addValueRow, addZoneRow,
       buildCsv, calculateGoldFound, collectCurrencies, collectItems, formatMoneyShort, getQualityList,
-      getRangeList, getZoneList, insertLinkToChat, isInSelectedRange, isInSelectedZone, refreshItems,
-      reportWindowWidth, showExportWindow, sortItems, updateSessionBar, updateSummary
+      getRangeList, getZoneList, iconSize, insertLinkToChat, isInSelectedRange, isInSelectedZone,
+      refreshItems, reportWindowWidth, showExportWindow, sortItems, updateSessionBar, updateSummary
 
 local rowWidth = {
     itemDetails = 220,
@@ -255,10 +255,17 @@ function MLH:gui()
     isWindowShown = true
 end
 
+-- The icon size the report draws at. It was read five different ways, two of them
+-- without a fallback, so a saved variable written before the setting existed left
+-- them doing arithmetic on nil.
+function iconSize()
+    return MLH.db.char.config.reportIconSize or 24
+end
+
 -- the visible columns decide how wide the window has to be; never narrower than it used to be
 function reportWindowWidth()
     local config = MLH.db.char.config
-    local width = (config.reportIconSize or 24) + 4
+    local width = iconSize() + 4
         + rowWidth.itemDetails + rowWidth.quantity + rowWidth.value
 
     if (config.showZone) then width = width + rowWidth.zone end
@@ -347,34 +354,17 @@ function collectCurrencies()
     for i = 1, #foundCurrency do
         local record = foundCurrency[i]
         local lootData = record.lootData
-        local quantity = 0
-        local firstFound, lastFound = nil, nil
-        local zoneCounts = {}
-        local zones = {}
+        local matched = {}
 
         for j = 1, #lootData do
             local entry = lootData[j]
 
             if (isInSelectedZone(entry.zoneID) and isInSelectedRange(entry.foundOn)) then
-                local entryQuantity = tonumber(entry.quantity) or 1
-                local zoneName = MLH:getZoneName(entry.zoneID) or L["R_UnknownZone"]
-
-                quantity = quantity + entryQuantity
-                zoneCounts[zoneName] = (zoneCounts[zoneName] or 0) + entryQuantity
-
-                if (firstFound == nil or entry.foundOn < firstFound) then firstFound = entry.foundOn end
-                if (lastFound == nil or entry.foundOn > lastFound) then lastFound = entry.foundOn end
+                matched[#matched+1] = entry
             end
         end
 
-        for zoneName, zoneQuantity in pairs(zoneCounts) do
-            table.insert(zones, { name = zoneName, quantity = zoneQuantity })
-        end
-
-        table.sort(zones, function(l, r)
-            if (l.quantity == r.quantity) then return l.name < r.name end
-            return l.quantity > r.quantity
-        end)
+        local quantity, zones, firstFound, lastFound = MLH:aggregateLoot(matched, L["R_UnknownZone"])
 
         if (quantity > 0) then
             -- the client wins over the record: a currency can be renamed by a patch
@@ -460,31 +450,13 @@ function collectItems()
             end
 
             if (canBeAdded) then
-                -- oldest first, so lootData[1] is the first find and lootData[#] the last
+                -- oldest first, so lootData[#] is the most recent find - which is the
+                -- entry the fallback sell price below is read from
                 table.sort(newItem.lootData, function(l, r) return l.foundOn < r.foundOn end)
 
-                -- sum the looted quantities, not the number of loot events
-                local zoneCounts = {}
-
-                for j = 1, #newItem.lootData do
-                    local lootData = newItem.lootData[j]
-                    local quantity = tonumber(lootData.quantity) or 1
-
-                    newItem.totalQuantity = newItem.totalQuantity + quantity
-
-                    local zoneName = MLH:getZoneName(lootData.zoneID) or L["R_UnknownZone"]
-                    zoneCounts[zoneName] = (zoneCounts[zoneName] or 0) + quantity
-                end
-
-                for zoneName, quantity in pairs(zoneCounts) do
-                    table.insert(newItem.zones, { name = zoneName, quantity = quantity })
-                end
-
-                -- busiest zone first, so zones[1] is the one worth showing in the row
-                table.sort(newItem.zones, function(l, r)
-                    if (l.quantity == r.quantity) then return l.name < r.name end
-                    return l.quantity > r.quantity
-                end)
+                -- the quantities looted, not the number of loot events
+                newItem.totalQuantity, newItem.zones, newItem.firstFound, newItem.lastFound =
+                    MLH:aggregateLoot(newItem.lootData, L["R_UnknownZone"])
 
                 newItem.zoneName = newItem.zones[1] and newItem.zones[1].name or L["R_UnknownZone"]
 
@@ -499,10 +471,6 @@ function collectItems()
                 newItem.unitPrice, newItem.vendorPriced =
                     MLH:getItemPrice(newItem.itemId, newItem.sellPrice, newItem.itemLink)
                 newItem.totalValue = newItem.unitPrice * newItem.totalQuantity
-
-                --refactor this later
-                newItem.firstFound = newItem.lootData[1].foundOn
-                newItem.lastFound = newItem.lootData[#newItem.lootData].foundOn
 
                 local firstFindDate = date('*t', newItem.firstFound)
                 local lastFindDate = date('*t', newItem.lastFound)
@@ -560,8 +528,9 @@ end
 function addItems(container)
     container:ReleaseChildren()
 
+    local config = MLH.db.char.config
     local items = collectItems()
-    local currencies = MLH.db.char.config.showCurrency and collectCurrencies() or {}
+    local currencies = config.showCurrency and collectCurrencies() or {}
     local totalQuantity = 0
     local totalSellPrice = 0
 
@@ -602,11 +571,11 @@ function addItems(container)
             addQuantityRow(itemFrame, item.totalQuantity)
             addValueRow(itemFrame, item.totalValue, item.vendorPriced)
 
-            if (MLH.db.char.config.showZone) then
+            if (config.showZone) then
                 addZoneRow(itemFrame, item.zoneName)
             end
 
-            if (MLH.db.char.config.showLastLooted) then
+            if (config.showLastLooted) then
                 addLastLootedRow(itemFrame, item.dateRange)
             end
 
@@ -630,6 +599,7 @@ function addItems(container)
 end
 
 function addHeaderRow(parent)
+    local config = MLH.db.char.config
     local header = AGUI:Create("SimpleGroup")
     header:SetLayout("Flow")
     header:SetFullWidth(true)
@@ -668,7 +638,7 @@ function addHeaderRow(parent)
     end
 
     -- the icon column has no name of its own, so it carries the quality sort
-    addColumn("quality", L["R_ColQuality"], (MLH.db.char.config.reportIconSize or 24) + 4)
+    addColumn("quality", L["R_ColQuality"], iconSize() + 4)
     addColumn("name", L["R_ColItem"], rowWidth.itemDetails)
     addColumn("quantity", L["R_ColQuantity"], rowWidth.quantity)
     -- the column says where its numbers come from once they stop being vendor prices
@@ -678,11 +648,11 @@ function addHeaderRow(parent)
 
     addColumn("value", valueText, rowWidth.value)
 
-    if (MLH.db.char.config.showZone) then
+    if (config.showZone) then
         addColumn("zone", L["R_ColZone"], rowWidth.zone)
     end
 
-    if (MLH.db.char.config.showLastLooted) then
+    if (config.showLastLooted) then
         addColumn("lastLooted", L["R_ColLooted"], rowWidth.lastLooted)
     end
 
@@ -734,12 +704,12 @@ function addCurrencyRow(currency)
     frame:SetHeight(40)
 
     local icon = AGUI:Create("Icon")
-    local iconSize = MLH.db.char.config.reportIconSize
+    local size = iconSize()
 
-    icon:SetImageSize(iconSize, iconSize)
+    icon:SetImageSize(size, size)
     icon:SetImage(currency.icon)
-    icon:SetHeight(iconSize + 2)
-    icon:SetWidth(iconSize + 4)
+    icon:SetHeight(size + 2)
+    icon:SetWidth(size + 4)
 
     if (MLH.db.char.config.showTooltip) then
         icon:SetCallback("OnEnter", function()
@@ -772,12 +742,12 @@ function addGoldEarnedRow()
     goldFrame:SetHeight(40)
 
     local itemIcon = AGUI:Create("Icon")
-    local iconSize = MLH.db.char.config.reportIconSize
+    local size = iconSize()
 
-    itemIcon:SetImageSize(iconSize, iconSize)
+    itemIcon:SetImageSize(size, size)
     itemIcon:SetImage(133784)
-    itemIcon:SetHeight(iconSize + 2)
-    itemIcon:SetWidth(iconSize + 4)
+    itemIcon:SetHeight(size + 2)
+    itemIcon:SetWidth(size + 4)
 
     goldFrame:AddChild(itemIcon)
 
@@ -792,14 +762,15 @@ function addGoldEarnedRow()
 end
 
 function addIconRow(frame, item)
+    local config = MLH.db.char.config
     local itemIcon = AGUI:Create("Icon")
-    local iconSize = MLH.db.char.config.reportIconSize
+    local size = iconSize()
     local itemLink = item.itemLink
 
-    itemIcon:SetImageSize(iconSize, iconSize)
+    itemIcon:SetImageSize(size, size)
     itemIcon:SetImage(item.itemTexture)
 
-    if (MLH.db.char.config.showTooltip) then
+    if (config.showTooltip) then
         itemIcon:SetCallback("OnEnter", function(_)
             GameTooltip:SetOwner(itemIcon.frame, "ANCHOR_RIGHT")
 
@@ -809,7 +780,7 @@ function addIconRow(frame, item)
             GameTooltip:SetHyperlink(itemLink)
             MLH:setTooltipSuppressed(false)
 
-            if (MLH.db.char.config.showAdditionalTooltipData) then
+            if (config.showAdditionalTooltipData) then
                 GameTooltip:AddLine(" ")
                 GameTooltip:AddLine("|cFFDDDDDD"..L["R_TotalQuantityGathered"].."|r |cFF00BB00"
                     ..(item.totalQuantity or 0)..'|r', 1, 1, 1, true)
@@ -840,8 +811,8 @@ function addIconRow(frame, item)
         end
     end)
 
-    itemIcon:SetHeight(iconSize + 2)
-    itemIcon:SetWidth(iconSize + 4)
+    itemIcon:SetHeight(size + 2)
+    itemIcon:SetWidth(size + 4)
 
     frame:AddChild(itemIcon)
 end

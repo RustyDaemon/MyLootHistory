@@ -10,6 +10,31 @@ local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
 local SECONDS_PER_HOUR = 3600
 
+-- What a single history contributed since the session began.
+--
+-- Entries are appended in time order, so the walk runs backwards and stops at the
+-- first one older than the session rather than reading the whole history - which
+-- is what keeps this cheap enough for the session bar's five-second tick.
+--
+-- `missingQuantity` is what an entry with no quantity counts as: one for items and
+-- currencies, where the field means "how many", and zero for gold, where it is an
+-- amount of copper and inventing one would be wrong.
+local function sinceSessionStart(entries, sessionStart, missingQuantity)
+    local quantity = 0
+
+    for i = #entries, 1, -1 do
+        local entry = entries[i]
+
+        -- an undated entry cannot be placed in or out of the session, and everything
+        -- below it is older still, so the walk ends here
+        if (entry.foundOn == nil or entry.foundOn < sessionStart) then break end
+
+        quantity = quantity + (tonumber(entry.quantity) or missingQuantity)
+    end
+
+    return quantity
+end
+
 -- Everything the session bar, the minimap tooltip and /mlh session show is derived here, so
 -- the three of them can never disagree. Walking the history costs one pass over the loot
 -- entries; the report already does the same on every redraw.
@@ -34,17 +59,7 @@ function MLH:getSessionStats()
     for i = 1, #foundItems do
         local item = foundItems[i]
         local lootData = item.lootData
-        local sessionQuantity = 0
-
-        for j = #lootData, 1, -1 do
-            local entry = lootData[j]
-
-            -- the entries are appended in time order, so the walk can stop at the first
-            -- one older than the session instead of reading the whole history
-            if (entry.foundOn < sessionStart) then break end
-
-            sessionQuantity = sessionQuantity + (tonumber(entry.quantity) or 1)
-        end
+        local sessionQuantity = sinceSessionStart(lootData, sessionStart, 1)
 
         if (sessionQuantity > 0) then
             local unitPrice = self:getItemPrice(item.itemId, lootData[#lootData].sellPrice or 0, item.itemLink)
@@ -55,25 +70,13 @@ function MLH:getSessionStats()
         end
     end
 
-    local foundGold = self.db.char.foundGold
-
-    for i = #foundGold, 1, -1 do
-        if (foundGold[i].foundOn < sessionStart) then break end
-
-        stats.rawGold = stats.rawGold + (foundGold[i].quantity or 0)
-    end
+    -- gold's "quantity" is an amount of copper, so a missing one is nothing, not one
+    stats.rawGold = sinceSessionStart(self.db.char.foundGold, sessionStart, 0)
 
     local foundCurrency = self.db.char.foundCurrency or {}
 
     for i = 1, #foundCurrency do
-        local lootData = foundCurrency[i].lootData
-        local sessionQuantity = 0
-
-        for j = #lootData, 1, -1 do
-            if (lootData[j].foundOn < sessionStart) then break end
-
-            sessionQuantity = sessionQuantity + (tonumber(lootData[j].quantity) or 1)
-        end
+        local sessionQuantity = sinceSessionStart(foundCurrency[i].lootData, sessionStart, 1)
 
         if (sessionQuantity > 0) then
             stats.currencyTypes = stats.currencyTypes + 1

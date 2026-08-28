@@ -78,6 +78,18 @@ local function buildIndex(records, key)
     return index
 end
 
+-- Every loot entry a record holds, added up. Both addItem and addCurrency answer
+-- with the new running total, and both were counting it out the same way.
+local function totalQuantity(lootData)
+    local total = 0
+
+    for i = 1, #lootData do
+        total = total + (tonumber(lootData[i].quantity) or 1)
+    end
+
+    return total
+end
+
 local function getItemIndex(foundItems)
     if (not itemIndex) then
         itemIndex = buildIndex(foundItems, "itemId")
@@ -122,7 +134,6 @@ end
 function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemName, zoneID, sellPrice)
     local foundItems = self.db.char.foundItems
     local index = getItemIndex(foundItems)[itemID]
-    local totalQuantity = 0
 
     local newLootDataObj = {
         quantity = quantity,
@@ -150,11 +161,7 @@ function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemN
     local lootData = foundItems[index].lootData
     table.insert(lootData, newLootDataObj)
 
-    for i = 1, #lootData do
-        totalQuantity = totalQuantity + lootData[i].quantity
-    end
-
-    return totalQuantity
+    return totalQuantity(lootData)
 end
 
 function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, currencyQuality, zoneID)
@@ -183,7 +190,6 @@ function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, curre
 
     local record = foundCurrency[index]
     local lootData = record.lootData
-    local totalQuantity = 0
 
     -- a currency can be renamed or re-iconed by a patch, so the record follows the client
     record.currencyName = currencyName or record.currencyName
@@ -192,11 +198,7 @@ function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, curre
 
     table.insert(lootData, newLootDataObj)
 
-    for i = 1, #lootData do
-        totalQuantity = totalQuantity + lootData[i].quantity
-    end
-
-    return totalQuantity
+    return totalQuantity(lootData)
 end
 
 -- Retention. `foundItems`, `foundGold` and `foundCurrency` otherwise grow for the life of the
@@ -282,7 +284,5 @@ function MLH:resetData()
     currencyIndex = nil
     MLH:updateStatisticsTextData()
 
-    if (self.db.char.config.debug.printOtherDebugInfo) then
-        print(L["M_DataWasCleared"])
-    end
+    self:debugPrint(L["M_DataWasCleared"])
 end

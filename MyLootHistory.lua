@@ -120,16 +120,25 @@ function MLH:OnEnable()
     self:initTooltip()
 end
 
-function MLH:Disable()
+-- Debug output is off by default, and its two switches were read at every call
+-- site. The guard lives here instead, so a caller only says what it wants to say.
+function MLH:debugPrint(message)
+    if (self.db.char.config.debug.printOtherDebugInfo) then
+        print(message)
+    end
+end
+
+function MLH:debugSummary(message)
+    if (self.db.char.config.debug.printLootedSummary) then
+        print(message)
+    end
 end
 
 function MLH:CHAT_MSG_LOOT(_, message, ...)
     local itemLink, quantity, itemID = self:getLootDetails(message)
 
     if (not itemID) then
-        if (self.db.char.config.debug.printOtherDebugInfo) then
-            print(L["D_NotMyItem"])
-        end
+        self:debugPrint(L["D_NotMyItem"])
         return
     end
 
@@ -148,27 +157,21 @@ function MLH:recordLoot(itemID, itemLink, quantity, zoneID)
         C_Item.GetItemInfo(itemID)
 
     if (self:isQuestItem(classID, subClassID)) then
-        if (self.db.char.config.debug.printOtherDebugInfo) then
-            print(L["D_QuestItem"])
-        end
+        self:debugPrint(L["D_QuestItem"])
         return
     end
 
     sellPrice = sellPrice or 0
 
     if (sellPrice == 0 and self.db.char.config.ignoreItemsWithZeroPrice) then
-        if (self.db.char.config.debug.printOtherDebugInfo) then
-            print(L["D_ZeroSellPrice"])
-        end
+        self:debugPrint(L["D_ZeroSellPrice"])
         return
     end
 
     itemLink = itemLink or cachedLink
     local totalAmount = self:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemName, zoneID, sellPrice)
 
-    if (self.db.char.config.debug.printLootedSummary) then
-        print(L["D_AddedAndTotal"](itemLink, totalAmount))
-    end
+    self:debugSummary(L["D_AddedAndTotal"](itemLink, totalAmount))
 
     self:updateStatisticsTextData()
 end
@@ -180,9 +183,7 @@ function MLH:CHAT_MSG_MONEY(_, message, ...)
     local amount = #moneyTable
 
     if (amount == 0) then
-        if (self.db.char.config.debug.printOtherDebugInfo) then
-            print(L["D_NoMoneyMatched"])
-        end
+        self:debugPrint(L["D_NoMoneyMatched"])
         return
     end
 
@@ -197,9 +198,7 @@ function MLH:CHAT_MSG_CURRENCY(_, message, ...)
     local currencyID, quantity = self:getCurrencyDetails(message)
 
     if (not currencyID) then
-        if (self.db.char.config.debug.printOtherDebugInfo) then
-            print(L["D_NotMyCurrency"])
-        end
+        self:debugPrint(L["D_NotMyCurrency"])
         return
     end
 
@@ -207,10 +206,9 @@ function MLH:CHAT_MSG_CURRENCY(_, message, ...)
     local totalAmount = self:addCurrency(currencyID, quantity, info and info.name,
         info and info.iconFileID, info and info.quality, self:getZoneID())
 
-    if (self.db.char.config.debug.printLootedSummary) then
-        local link = C_CurrencyInfo.GetCurrencyLink(currencyID, quantity)
-        print(L["D_AddedAndTotal"](link or (info and info.name) or currencyID, totalAmount))
-    end
+    local link = C_CurrencyInfo.GetCurrencyLink(currencyID, quantity)
+
+    self:debugSummary(L["D_AddedAndTotal"](link or (info and info.name) or currencyID, totalAmount))
 
     self:updateStatisticsTextData()
 end
@@ -276,6 +274,52 @@ function MLH:getZoneName(zoneID)
     zoneNameCache[zoneID] = zoneName or false
 
     return zoneName
+end
+
+-- Rolls a list of loot entries up into the four numbers every view wants: how many
+-- were looted, which zones they came from busiest-first, and when the first and
+-- last one was. The report rows, the tooltip line and the CSV export all used to
+-- work this out for themselves; doing it in one pass in one place is why they can
+-- no longer disagree about what a history adds up to.
+--
+-- `unknownZoneName` decides what happens to an entry whose zone the client can no
+-- longer name - a zone removed by a patch. Pass a label to group them under it, or
+-- nil to leave them out of the zone tally; either way they still count towards the
+-- quantity, because the item really was looted.
+function MLH:aggregateLoot(entries, unknownZoneName)
+    local quantity, firstFound, lastFound = 0, nil, nil
+    local zoneCounts, zones = {}, {}
+
+    for i = 1, #entries do
+        local entry = entries[i]
+        local entryQuantity = tonumber(entry.quantity) or 1
+        local zoneName = self:getZoneName(entry.zoneID) or unknownZoneName
+        local foundOn = entry.foundOn
+
+        quantity = quantity + entryQuantity
+
+        if (zoneName) then
+            zoneCounts[zoneName] = (zoneCounts[zoneName] or 0) + entryQuantity
+        end
+
+        -- an entry written by a very old version can carry no timestamp at all
+        if (foundOn) then
+            if (firstFound == nil or foundOn < firstFound) then firstFound = foundOn end
+            if (lastFound == nil or foundOn > lastFound) then lastFound = foundOn end
+        end
+    end
+
+    for zoneName, zoneQuantity in pairs(zoneCounts) do
+        zones[#zones+1] = { name = zoneName, quantity = zoneQuantity }
+    end
+
+    -- busiest first, so zones[1] is the one worth showing where there is room for one
+    table.sort(zones, function(l, r)
+        if (l.quantity == r.quantity) then return l.name < r.name end
+        return l.quantity > r.quantity
+    end)
+
+    return quantity, zones, firstFound, lastFound
 end
 
 function MLH:SlashCommandListener(input)

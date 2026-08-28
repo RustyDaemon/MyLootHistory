@@ -29,32 +29,15 @@ local function getSummary(itemID)
 
     if (cached and cached.entries == entries) then return cached end
 
-    local quantity = 0
-    local zoneCounts = {}
-    local topZone, topZoneQuantity = nil, 0
-
-    for i = 1, entries do
-        local entry = lootData[i]
-        local entryQuantity = tonumber(entry.quantity) or 1
-        local zoneName = MLH:getZoneName(entry.zoneID)
-
-        quantity = quantity + entryQuantity
-
-        if (zoneName) then
-            local zoneQuantity = (zoneCounts[zoneName] or 0) + entryQuantity
-            zoneCounts[zoneName] = zoneQuantity
-
-            if (zoneQuantity > topZoneQuantity) then
-                topZone, topZoneQuantity = zoneName, zoneQuantity
-            end
-        end
-    end
+    -- no label for an unnameable zone: the line has room for one zone, and naming
+    -- it "unknown" says less than leaving the zone out of the tooltip altogether
+    local quantity, zones, _, lastFound = MLH:aggregateLoot(lootData, nil)
 
     local summary = {
         entries = entries,
         quantity = quantity,
-        lastFound = entries > 0 and lootData[entries].foundOn or nil,
-        topZone = topZone,
+        lastFound = lastFound,
+        topZone = zones[1] and zones[1].name or nil,
     }
 
     summaryCache[itemID] = summary

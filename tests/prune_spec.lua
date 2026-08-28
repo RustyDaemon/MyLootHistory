@@ -12,6 +12,7 @@ happens, or the tooltip starts reporting one item's history under another's name
 local wow = require("tests.support.wow")
 
 wow.load("utils/DateUtils.lua")
+wow.load("MyLootHistory.lua")     -- the core, for MLH:debugPrint
 wow.load("MyLootHistoryDB.lua")
 
 local MLH = wow.addon
