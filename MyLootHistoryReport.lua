@@ -496,7 +496,8 @@ function collectItems()
 
                 -- with an auction-house price source switched on this is the market price,
                 -- and the vendor price whenever that source has nothing for the item
-                newItem.unitPrice = MLH:getItemPrice(newItem.itemId, newItem.sellPrice)
+                newItem.unitPrice, newItem.vendorPriced =
+                    MLH:getItemPrice(newItem.itemId, newItem.sellPrice, newItem.itemLink)
                 newItem.totalValue = newItem.unitPrice * newItem.totalQuantity
 
                 --refactor this later
@@ -599,7 +600,7 @@ function addItems(container)
             addIconRow(itemFrame, item)
             addItemDetailsRow(itemFrame, item.itemName, item.itemId, item.quality)
             addQuantityRow(itemFrame, item.totalQuantity)
-            addValueRow(itemFrame, item.totalValue)
+            addValueRow(itemFrame, item.totalValue, item.vendorPriced)
 
             if (MLH.db.char.config.showZone) then
                 addZoneRow(itemFrame, item.zoneName)
@@ -869,10 +870,14 @@ function addQuantityRow(frame, itemQuantity)
     frame:AddChild(quantityLabel)
 end
 
-function addValueRow(frame, totalValue)
+-- `vendorPriced` means an auction-house source is selected but had no price for this item, so
+-- the figure is the vendor price. It is greyed rather than hidden: the number is still real,
+-- it just is not a market price, and greying is what tells the two apart at a glance.
+function addValueRow(frame, totalValue, vendorPriced)
     local valueLabel = AGUI:Create("Label")
+    local text = formatMoneyShort(totalValue)
 
-    valueLabel:SetText(formatMoneyShort(totalValue))
+    valueLabel:SetText(vendorPriced and ("|cFF999999"..text.."|r") or text)
     valueLabel:SetWidth(rowWidth.value)
 
     frame:AddChild(valueLabel)

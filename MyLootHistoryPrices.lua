@@ -22,8 +22,19 @@ local sources = {
             return Auctionator ~= nil and Auctionator.API ~= nil and Auctionator.API.v1 ~= nil
                 and Auctionator.API.v1.GetAuctionPriceByItemID ~= nil
         end,
-        getPrice = function(itemID)
-            local ok, price = pcall(Auctionator.API.v1.GetAuctionPriceByItemID, "MyLootHistory", itemID)
+        -- Auctionator keys its database by item link, so anything whose link carries more than
+        -- the ID - gear with an item level, anything with a bonus ID - is only found that way.
+        -- The ID lookup stays as the fallback: it is all a stored record without a link has.
+        getPrice = function(itemID, itemLink)
+            local api = Auctionator.API.v1
+
+            if (itemLink and api.GetAuctionPriceByItemLink) then
+                local ok, price = pcall(api.GetAuctionPriceByItemLink, "MyLootHistory", itemLink)
+
+                if (ok and price) then return price end
+            end
+
+            local ok, price = pcall(api.GetAuctionPriceByItemID, "MyLootHistory", itemID)
 
             return ok and price or nil
         end,
@@ -66,13 +77,16 @@ function MLH:clearPriceCache()
 end
 
 -- The unit price of an item under the active source, falling back to the vendor price the
--- caller already has whenever the source has nothing to say about the item.
-function MLH:getItemPrice(itemID, vendorPrice)
+-- caller already has whenever the source has nothing to say about the item - which is the
+-- common case for soulbound gear, and for anything the auction house has not seen since the
+-- last scan. The second return marks that fallback, so a row showing a vendor price under an
+-- auction-house source can say so rather than looking like a market price of a few silver.
+function MLH:getItemPrice(itemID, vendorPrice, itemLink)
     vendorPrice = vendorPrice or 0
 
     local key, source = self:getPriceSource()
 
-    if (key == "vendor") then return vendorPrice end
+    if (key == "vendor") then return vendorPrice, false end
 
     if (priceCacheSource ~= key) then
         priceCache = {}
@@ -82,11 +96,11 @@ function MLH:getItemPrice(itemID, vendorPrice)
     local cached = priceCache[itemID]
 
     if (cached == nil) then
-        cached = source.getPrice(itemID) or false
+        cached = source.getPrice(itemID, itemLink) or false
         priceCache[itemID] = cached
     end
 
-    if (cached and cached > 0) then return cached end
+    if (cached and cached > 0) then return cached, false end
 
-    return vendorPrice
+    return vendorPrice, true
 end

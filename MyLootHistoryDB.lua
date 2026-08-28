@@ -7,6 +7,7 @@ See License file for details.
 
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local ADB = LibStub("AceDB-3.0")
+local DateUtils = LibStub("DateUtils-1.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
 local defaults = {
@@ -31,6 +32,7 @@ local defaults = {
             trackCurrency = true,
             gameTooltipLine = true,
             priceSource = "vendor",
+            retentionDays = 0, -- 0 is "keep everything", which is how every release before 1.4.0 behaved
             reportIconSize = 24,
             ignoreItemsWithZeroPrice = true,
             resizableReportWindow = false,
@@ -195,6 +197,81 @@ function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, curre
     end
 
     return totalQuantity
+end
+
+-- Retention. `foundItems`, `foundGold` and `foundCurrency` otherwise grow for the life of the
+-- install, and the only tool for that was the Clear Data button. Pruning compacts each table in
+-- place - the saved variables are what the index is derived from, so it is the tables themselves
+-- that have to shrink - and an entry carrying no timestamp is never dropped, since there is no
+-- way to tell whether it is inside the window.
+local function pruneEntries(entries, cutoff)
+    local kept, removed = 0, 0
+
+    for i = 1, #entries do
+        local entry = entries[i]
+
+        if (entry.foundOn == nil or entry.foundOn >= cutoff) then
+            kept = kept + 1
+            entries[kept] = entry
+        else
+            removed = removed + 1
+        end
+    end
+
+    for i = #entries, kept + 1, -1 do
+        entries[i] = nil
+    end
+
+    return removed
+end
+
+-- The same, one level down: each record's own lootData is pruned, and a record left holding
+-- nothing goes with it.
+local function pruneRecords(records, cutoff)
+    local kept, removedEntries, removedRecords = 0, 0, 0
+
+    for i = 1, #records do
+        local record = records[i]
+
+        removedEntries = removedEntries + pruneEntries(record.lootData, cutoff)
+
+        if (#record.lootData > 0) then
+            kept = kept + 1
+            records[kept] = record
+        else
+            removedRecords = removedRecords + 1
+        end
+    end
+
+    for i = #records, kept + 1, -1 do
+        records[i] = nil
+    end
+
+    return removedEntries, removedRecords
+end
+
+-- Drops everything looted before midnight `days` days ago. Returns the number of loot entries
+-- and whole records removed; 0, 0 when retention is off, which is the default.
+function MLH:pruneHistory(days)
+    days = days or self.db.char.config.retentionDays or 0
+
+    if (days <= 0) then return 0, 0 end
+
+    local char = self.db.char
+    local cutoff = time(DateUtils:getDate(-days, true))
+
+    local removedEntries, removedRecords = pruneRecords(char.foundItems, cutoff)
+    local currencyEntries, currencyRecords = pruneRecords(char.foundCurrency, cutoff)
+
+    removedEntries = removedEntries + currencyEntries + pruneEntries(char.foundGold, cutoff)
+    removedRecords = removedRecords + currencyRecords
+
+    if (removedEntries > 0) then
+        itemIndex = nil
+        currencyIndex = nil
+    end
+
+    return removedEntries, removedRecords
 end
 
 function MLH:resetData()

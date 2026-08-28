@@ -47,7 +47,7 @@ function MLH:getSessionStats()
         end
 
         if (sessionQuantity > 0) then
-            local unitPrice = self:getItemPrice(item.itemId, lootData[#lootData].sellPrice or 0)
+            local unitPrice = self:getItemPrice(item.itemId, lootData[#lootData].sellPrice or 0, item.itemLink)
 
             stats.itemTypes = stats.itemTypes + 1
             stats.quantity = stats.quantity + sessionQuantity

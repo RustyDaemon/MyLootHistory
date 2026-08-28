@@ -97,6 +97,14 @@ end
 
 function MLH:OnInitialize()
     self:initDatabase()
+
+    -- retention is applied once, here, so nothing else in the session has to think about it
+    local removedEntries, removedRecords = self:pruneHistory()
+
+    if (removedEntries > 0) then
+        print(L["M_HistoryPruned"](removedEntries, removedRecords, self.db.char.config.retentionDays))
+    end
+
     self:initConfig()
     self:initMinimap()
     self:RegisterChatCommand("mlh", "SlashCommandListener")
@@ -226,7 +234,9 @@ function MLH:getLootDetails(message)
 
     if (not itemLink) then return nil end
 
-    return itemLink, quantity, C_Item.GetItemInfoFromHyperlink(itemLink)
+    -- GetItemInfoInstant returns the ID without needing the item cached, and yields nil for
+    -- non-item links (battle pets, keystones), which is exactly what the caller wants
+    return itemLink, quantity, C_Item.GetItemInfoInstant(itemLink)
 end
 
 -- Returns nil unless the message is one of the "you receive currency" forms. The currency

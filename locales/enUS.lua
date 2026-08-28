@@ -70,6 +70,16 @@ L["C_PrintLootedSummary"] = "Print looted summary"
 L["C_PrintLootedSummary_Desc"] = "Print looted summary in the chat window (for debug purposes). This is visible only to you"
 L["C_PrintOtherDebugInfo"] = "Print other debug info"
 L["C_PrintOtherDebugInfo_Desc"] = "Like 'not my item' or so"
+L["C_Data"] = "Data"
+L["C_RetentionDays"] = "Keep history for"
+L["C_RetentionDays_Desc"] = "Drop loot older than this on login, so the saved data stops growing forever. 'Forever' keeps everything, which is what the addon has always done"
+L["C_RetentionForever"] = "Forever"
+L["C_RetentionValue"] = function (days)
+  return days < 365 and (days..' days') or (days == 365 and '1 year' or (days / 365)..' years')
+end
+L["C_RetentionPrompt"] = function (days)
+  return 'Keep only the last '..days..' days? Everything older is removed from this character\'s history and cannot be recovered.'
+end
 L["C_ClearData"] = "|cFFFF0000!!|r Clear data"
 L["C_ClearData_Desc"] = "Clear all gathered data: items and gold. Forever. This action cannot be undone"
 
@@ -95,6 +105,10 @@ L["F_Restrinctions_Desc"] = "As for now, the addon can't track upgraded items (t
 
 -- messages
 L["M_DataWasCleared"] = "Loot data and gold have been erased"
+L["M_HistoryPruned"] = function (entries, records, days)
+  return 'Removed '..entries..' loot entries older than '..days..' days'
+    ..(records > 0 and (', and '..records..' items that had nothing left') or '')
+end
 L["M_ClearDataPrompt"] = "Are you sure you want to clear the history of everything you looted? This includes items and gold and cannot be undone"
 
 L["M_TotalDifferentItemsGathered"] = "Total different items gathered: "

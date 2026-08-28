@@ -12,6 +12,16 @@ local ACFGDLG = LibStub("AceConfigDialog-3.0")
 local MLH_MMIcon = LibStub("LibDBIcon-1.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
+-- How long a character's history is kept. 0 is "forever", and the dropdown lists it first
+-- because it is the default and the only choice that never deletes anything.
+local retentionOrder = { 0, 30, 90, 180, 365, 730 }
+local retentionValues = {}
+
+for i = 1, #retentionOrder do
+    local days = retentionOrder[i]
+    retentionValues[days] = (days == 0) and L["C_RetentionForever"] or L["C_RetentionValue"](days)
+end
+
 local mainOptions = {
     name = 'My Loot History',
     type = 'group',
@@ -247,9 +257,84 @@ local generalOptions = {
                 }
             }
         },
-        groupDebug = {
+        groupData = {
             type = 'group',
             order = 22,
+            name = L["C_Data"],
+            args = {
+                retentionSelect = {
+                    order = 1,
+                    width = "double",
+                    type = "select",
+                    name = L["C_RetentionDays"],
+                    desc = L["C_RetentionDays_Desc"],
+                    values = retentionValues,
+                    sorting = retentionOrder,
+                    get = function (_)
+                        return MLH.db.char.config.retentionDays or 0
+                    end,
+                    set = function (_, value)
+                        local previous = MLH.db.char.config.retentionDays or 0
+
+                        MLH.db.char.config.retentionDays = value
+
+                        -- Forever removes nothing, so it needs no confirmation; anything else
+                        -- takes effect now rather than at the next login, and that deletes.
+                        if (value <= 0) then return end
+
+                        StaticPopupDialogs["PROMPT_PRUNE_HISTORY"] = {
+                            text = L["C_RetentionPrompt"](value),
+                            button1 = YES,
+                            button2 = NO,
+                            OnAccept = function ()
+                                local entries, records = MLH:pruneHistory()
+
+                                if (entries > 0) then
+                                    print(L["M_HistoryPruned"](entries, records, value))
+                                end
+
+                                MLH:updateStatisticsTextData()
+                            end,
+                            OnCancel = function ()
+                                MLH.db.char.config.retentionDays = previous
+                            end,
+                            whileDead = true,
+                            hideOnEscape = true,
+                            showAlert = true,
+                            enterClicksFirstButton = false,
+                        }
+
+                        StaticPopup_Show("PROMPT_PRUNE_HISTORY")
+                    end
+                },
+                clearData = {
+                    order = 10,
+                    type = "execute",
+                    name = L["C_ClearData"],
+                    desc = L["C_ClearData_Desc"],
+                    func = function ()
+                        StaticPopupDialogs["PROMPT_CLEAR_DATA"] = {
+                            text = L["M_ClearDataPrompt"],
+                            button1 = YES,
+                            button2 = NO,
+                            OnAccept = function()
+                                MLH:resetData()
+                            end,
+                            OnCancel = function (_,_, reason) end,
+                            whileDead = true,
+                            hideOnEscape = true,
+                            showAlert = true,
+                            enterClicksFirstButton = false,
+                          }
+
+                          StaticPopup_Show("PROMPT_CLEAR_DATA")
+                    end
+                }
+            }
+        },
+        groupDebug = {
+            type = 'group',
+            order = 23,
             name = L["C_Debug"],
             args = {
                 printDebugLootedInfo = {
@@ -276,29 +361,6 @@ local generalOptions = {
                     end,
                     set = function (_, value)
                         MLH.db.char.config.debug.printOtherDebugInfo = value
-                    end
-                },
-                clearData = {
-                    order = 10,
-                    type = "execute",
-                    name = L["C_ClearData"],
-                    desc = L["C_ClearData_Desc"],
-                    func = function ()
-                        StaticPopupDialogs["PROMPT_CLEAR_DATA"] = {
-                            text = L["M_ClearDataPrompt"],
-                            button1 = YES,
-                            button2 = NO,
-                            OnAccept = function()
-                                MLH:resetData()
-                            end,
-                            OnCancel = function (_,_, reason) end,
-                            whileDead = true,
-                            hideOnEscape = true,
-                            showAlert = true,
-                            enterClicksFirstButton = false,
-                          }
-
-                          StaticPopup_Show("PROMPT_CLEAR_DATA")
                     end
                 }
             }
