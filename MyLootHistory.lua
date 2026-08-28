@@ -174,7 +174,6 @@ function MLH:recordLoot(itemID, itemLink, quantity, zoneID)
 end
 
 function MLH:CHAT_MSG_MONEY(_, message, ...)
-    local message = message
     local moneyTable = {}
     _ = message:gsub(L["_MoneyPattern"], function(n) moneyTable[#moneyTable+1] = tonumber(n) end)
 

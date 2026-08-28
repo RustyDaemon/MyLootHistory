@@ -407,8 +407,9 @@ function MLH:updateStatisticsTextData()
 
     local currencyTypesAmount = #(self.db.char.foundCurrency or {})
 
-    generalOptions["args"]["groupStatistics"]["args"]["statisticsText"]["name"] = L["M_TotalDifferentItemsGathered"]..itemTypesAmount
-    ..'\n'..L["M_TotalQuantityGathered"]..totalAmount..'\n'..L["M_TotalZonesLooted"]..#zones
-    ..'\n'..L["M_TotalCurrenciesGathered"]..currencyTypesAmount
+    generalOptions["args"]["groupStatistics"]["args"]["statisticsText"]["name"] =
+        L["M_TotalDifferentItemsGathered"]..itemTypesAmount
+        ..'\n'..L["M_TotalQuantityGathered"]..totalAmount..'\n'..L["M_TotalZonesLooted"]..#zones
+        ..'\n'..L["M_TotalCurrenciesGathered"]..currencyTypesAmount
     ..'\n\n'..self:getSessionLine()
 end
