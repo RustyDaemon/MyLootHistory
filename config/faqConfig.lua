@@ -33,6 +33,16 @@ MLH.groupFaq = {
             order = 11,
             name = L["F_SortingFiltering_Desc"]
         },
+        headerSession = {
+            type = 'header',
+            order = 14,
+            name = L["F_Session"],
+        },
+        textSession = {
+            type = 'description',
+            order = 15,
+            name = L["F_Session_Desc"]
+        },
         headerLinking = {
             type = 'header',
             order = 20,

@@ -25,6 +25,9 @@ local minimapIcon = MLH_LDB:NewDataObject("MyLootHistory", {
     OnTooltipShow = function(tooltip)
         tooltip:AddLine(L["MM_Title"])
         tooltip:AddLine(L["MM_Separator"])
+        -- the live numbers, without having to open the report for them
+        tooltip:AddLine("|cFFFFD100"..MLH:getSessionLine().."|r")
+        tooltip:AddLine(L["MM_Separator"])
         tooltip:AddLine(L["MM_LeftClickForReport"])
         tooltip:AddLine(L["MM_RightClickForSettings"])
     end,

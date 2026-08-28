@@ -23,7 +23,15 @@ local lootMessageForms = {
     { global = "LOOT_ITEM_CREATED_SELF",          hasQuantity = false },
 }
 
+-- The same idea for currency. CURRENCY_GAINED carries no amount, so it means one.
+local currencyMessageForms = {
+    { global = "CURRENCY_GAINED_MULTIPLE_BONUS", hasQuantity = true  },
+    { global = "CURRENCY_GAINED_MULTIPLE",       hasQuantity = true  },
+    { global = "CURRENCY_GAINED",                hasQuantity = false },
+}
+
 local lootPatterns = nil
+local currencyPatterns = nil
 
 -- Turns a client format string ("You receive loot: %sx%d.") into a Lua pattern.
 -- The item name is deliberately not captured - the link is pulled straight out of the
@@ -38,24 +46,53 @@ local function toLootPattern(fmt, hasQuantity)
     return "^"..pattern
 end
 
-local function getLootPatterns()
-    if (lootPatterns) then return lootPatterns end
+local function buildPatterns(forms)
+    local patterns = {}
 
-    lootPatterns = {}
-
-    for i = 1, #lootMessageForms do
-        local form = lootMessageForms[i]
+    for i = 1, #forms do
+        local form = forms[i]
         local fmt = _G[form.global]
 
         if (fmt) then
-            lootPatterns[#lootPatterns+1] = {
+            patterns[#patterns+1] = {
                 pattern = toLootPattern(fmt, form.hasQuantity),
                 hasQuantity = form.hasQuantity,
             }
         end
     end
 
+    return patterns
+end
+
+local function getLootPatterns()
+    if (not lootPatterns) then
+        lootPatterns = buildPatterns(lootMessageForms)
+    end
+
     return lootPatterns
+end
+
+local function getCurrencyPatterns()
+    if (not currencyPatterns) then
+        currencyPatterns = buildPatterns(currencyMessageForms)
+    end
+
+    return currencyPatterns
+end
+
+-- Walks a set of patterns and returns the quantity the matching one carries, or nil when
+-- the message is not one of them.
+local function matchQuantity(message, patterns)
+    for i = 1, #patterns do
+        local form = patterns[i]
+        local match = message:match(form.pattern)
+
+        if (match) then
+            return form.hasQuantity and (tonumber(match) or 1) or 1
+        end
+    end
+
+    return nil
 end
 
 function MLH:OnInitialize()
@@ -71,6 +108,8 @@ end
 function MLH:OnEnable()
     self:RegisterEvent("CHAT_MSG_LOOT")
     self:RegisterEvent("CHAT_MSG_MONEY")
+    self:RegisterEvent("CHAT_MSG_CURRENCY")
+    self:initTooltip()
 end
 
 function MLH:Disable()
@@ -145,6 +184,30 @@ function MLH:CHAT_MSG_MONEY(_, message, ...)
     self:addGold(money, self:getZoneID())
 end
 
+function MLH:CHAT_MSG_CURRENCY(_, message, ...)
+    if (not self.db.char.config.trackCurrency) then return end
+
+    local currencyID, quantity = self:getCurrencyDetails(message)
+
+    if (not currencyID) then
+        if (self.db.char.config.debug.printOtherDebugInfo) then
+            print(L["D_NotMyCurrency"])
+        end
+        return
+    end
+
+    local info = C_CurrencyInfo.GetCurrencyInfo(currencyID)
+    local totalAmount = self:addCurrency(currencyID, quantity, info and info.name,
+        info and info.iconFileID, info and info.quality, self:getZoneID())
+
+    if (self.db.char.config.debug.printLootedSummary) then
+        local link = C_CurrencyInfo.GetCurrencyLink(currencyID, quantity)
+        print(L["D_AddedAndTotal"](link or (info and info.name) or currencyID, totalAmount))
+    end
+
+    self:updateStatisticsTextData()
+end
+
 function MLH:isQuestItem(classID, subClassID)
     -- probably, there might be something that is missing, will see
     -- for example itemID=76298 has cID=0 and scID=8 and it IS QUEST ITEM
@@ -155,24 +218,29 @@ end
 -- Returns nil unless the message is one of the six "you looted this" forms.
 -- Parsing only: everything here works without the item being cached.
 function MLH:getLootDetails(message)
-    local patterns = getLootPatterns()
+    local quantity = matchQuantity(message, getLootPatterns())
 
-    for i = 1, #patterns do
-        local form = patterns[i]
-        local match = message:match(form.pattern)
+    if (not quantity) then return nil end
 
-        if (match) then
-            local itemLink = message:match("|c.-|h|r")
+    local itemLink = message:match("|c.-|h|r")
 
-            if (not itemLink) then return nil end
+    if (not itemLink) then return nil end
 
-            local quantity = form.hasQuantity and (tonumber(match) or 1) or 1
+    return itemLink, quantity, C_Item.GetItemInfoFromHyperlink(itemLink)
+end
 
-            return itemLink, quantity, C_Item.GetItemInfoFromHyperlink(itemLink)
-        end
-    end
+-- Returns nil unless the message is one of the "you receive currency" forms. The currency
+-- ID comes out of the link, so no locale ever has to be read.
+function MLH:getCurrencyDetails(message)
+    local quantity = matchQuantity(message, getCurrencyPatterns())
 
-    return nil
+    if (not quantity) then return nil end
+
+    local currencyID = tonumber(message:match("|Hcurrency:(%d+)"))
+
+    if (not currencyID) then return nil end
+
+    return currencyID, quantity
 end
 
 function MLH:getZoneID()
@@ -204,6 +272,11 @@ end
 function MLH:SlashCommandListener(input)
     if (input == "config") then
         LibStub("AceConfigDialog-3.0"):Open("MyLootHistory_GeneralOptions")
+    elseif (input == "session") then
+        print(self:getSessionLine())
+    elseif (input == "session reset") then
+        self:resetSession()
+        print(self:getSessionLine())
     elseif (input == "gui") then
         self:gui()
     else

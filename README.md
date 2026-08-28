@@ -10,18 +10,32 @@ My Loot History is a World of Warcraft addon that tracks everything you looted. 
 
 - every item you loot: weapons, junk, herbs and everything else
 - every copper coin you loot
+- every currency you pick up: Valorstones, Crests, Flightstones and the rest
 
 > It does not track quest rewards or similar.
 
 ## What I can do else
 
 - see a big report!
-- with a full list of everything you looted: items and even coins
-- with an item icon, name and quantity
+- with a full list of everything you looted: items, currencies and even coins
+- with an item icon, name, quantity, value and the zone it mostly came from
 - with a date when you looted a particular item (or date range)
 - open a chat and link an item you want
 - with a little gold summary
+- export everything you are looking at to CSV
 - oh! And you can filter this report
+
+## How much gold per hour am I making?
+
+There is a live line across the top of the report: how long you have been at it, how many items per hour that is, and **how much gold per hour** - the value of the loot plus the coins you picked up. It keeps counting while the window is open.
+
+Click it to start a new session from that moment, which is what you want when you move to a new farming spot. The same numbers are on the minimap tooltip and behind `/mlh session`.
+
+By default the value of your loot is the vendor price. If you have [Auctionator](https://www.curseforge.com/wow/addons/auctionator) installed, you can switch the report over to auction house prices in the settings - it is optional, and the vendor price is used for anything Auctionator has no price for.
+
+## Was this worth picking up before?
+
+Hover any item in the game - in your bags, at a vendor, in the auction house, or a link in chat - and the tooltip tells you how many you have looted before and when the last one was. No need to open the report at all. It can be switched off in the settings.
 
 ## What? I can filter all those?
 
@@ -34,6 +48,8 @@ Yes! And history changes according to you filters. It will show you how much gol
   - Wednesday-to-Wednesday
   - This month
   - All the time
+- by item name: type in the search box
+- by zone: the dropdown lists every zone you have ever looted in
 - by item quality
   - Poor
   - Common
@@ -44,16 +60,24 @@ Yes! And history changes according to you filters. It will show you how much gol
 - by default, it filters as a 'item quality and upper'. But you can filter on 'Exact' item quality - there is a checkbox for that
 - gold summary also updates according to date range you change
 
+And you can sort it: click a column header to sort by quality, name, quantity, value, zone or the last looted date, and click it again to reverse the order. The search text, the sort column and its direction are remembered per character.
+
 ## What can be configured
 
 - Show/hide minimap button
 - Make the report window resizable
 - Show looted date in the report
+- Show the zone column in the report
+- Show the session line at the top of the report
+- Show currencies in the report
+- Price source for the value column: vendor price, or auction house prices through Auctionator
 - Ignore items with 0 (zero) sell price
 - Ignore quest items (note, this is a default state and it can't be changed)
 - Show item ID in the report
 - Show item tooltip on mouse hover in the report
-- Show additional information in the tooltip (at the moment it adds a 'Total gathered' summary)
+- Show additional information in the tooltip (a 'Total gathered' summary and the zones it came from)
+- Add the loot summary line to item tooltips everywhere in the game
+- Track currencies
 - Change icon size
 
 ## Some helpful additions
@@ -61,7 +85,7 @@ Yes! And history changes according to you filters. It will show you how much gol
 Besides, some additional features are available:
 
 - print debug information
-- reset everything (this will erase all looted information for items and gold)
+- reset everything (this will erase all looted information for items, currencies and gold)
 - little FAQ
 - small informative statistics (how many items were looted, how many total quantity is and in how many zones you looted them)
 
@@ -69,6 +93,8 @@ Besides, some additional features are available:
 
 - `/mlh` opens the report
 - `/mlh config` opens the configuration window
+- `/mlh session` prints the session summary: elapsed time, items per hour and gold per hour
+- `/mlh session reset` starts a new session from now
 
 ## Limitations
 

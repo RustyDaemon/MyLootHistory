@@ -112,6 +112,53 @@ local generalOptions = {
                     end
                 },
 
+                showSessionBarCheckBox = {
+                    order = 4,
+                    width = "double",
+                    type = "toggle",
+                    name = L["C_ShowSessionBar"],
+                    desc = L["C_ShowSessionBar_Desc"],
+                    get = function (_)
+                        return MLH.db.char.config.showSessionBar
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.showSessionBar = value
+                    end
+                },
+
+                showCurrencyCheckBox = {
+                    order = 5,
+                    width = "double",
+                    type = "toggle",
+                    name = L["C_ShowCurrency"],
+                    desc = L["C_ShowCurrency_Desc"],
+                    get = function (_)
+                        return MLH.db.char.config.showCurrency
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.showCurrency = value
+                    end
+                },
+
+                priceSourceSelect = {
+                    order = 6,
+                    width = "double",
+                    type = "select",
+                    name = L["C_PriceSource"],
+                    desc = L["C_PriceSource_Desc"],
+                    values = function ()
+                        return MLH:getPriceSources()
+                    end,
+                    sorting = { "vendor", "auctionator" },
+                    get = function (_)
+                        return MLH.db.char.config.priceSource or "vendor"
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.priceSource = value
+                        MLH:clearPriceCache()
+                    end
+                },
+
                 showItemIDCheckBox = {
                     order = 7,
                     width = "double",
@@ -154,9 +201,37 @@ local generalOptions = {
                     end
                 },
 
+                gameTooltipLineCheckBox = {
+                    order = 11,
+                    width = "double",
+                    type = "toggle",
+                    name = L["C_GameTooltipLine"],
+                    desc = L["C_GameTooltipLine_Desc"],
+                    get = function (_)
+                        return MLH.db.char.config.gameTooltipLine
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.gameTooltipLine = value
+                    end
+                },
+
+                trackCurrencyCheckBox = {
+                    order = 12,
+                    width = "double",
+                    type = "toggle",
+                    name = L["C_TrackCurrency"],
+                    desc = L["C_TrackCurrency_Desc"],
+                    get = function (_)
+                        return MLH.db.char.config.trackCurrency
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.trackCurrency = value
+                    end
+                },
+
                 iconSizeRange = {
                     type = "range",
-                    order = 12,
+                    order = 13,
                     name = L["C_IconSize"],
                     min = 8,
                     max = 64,
@@ -268,6 +343,10 @@ function MLH:updateStatisticsTextData()
         end
     end
 
+    local currencyTypesAmount = #(self.db.char.foundCurrency or {})
+
     generalOptions["args"]["groupStatistics"]["args"]["statisticsText"]["name"] = L["M_TotalDifferentItemsGathered"]..itemTypesAmount
     ..'\n'..L["M_TotalQuantityGathered"]..totalAmount..'\n'..L["M_TotalZonesLooted"]..#zones
+    ..'\n'..L["M_TotalCurrenciesGathered"]..currencyTypesAmount
+    ..'\n\n'..self:getSessionLine()
 end

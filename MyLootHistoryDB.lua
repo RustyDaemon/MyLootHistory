@@ -13,6 +13,7 @@ local defaults = {
     char = {
         foundItems = {},
         foundGold = {},
+        foundCurrency = {},
         thisSessionStart = time(),
 
         minimapData = {
@@ -25,6 +26,11 @@ local defaults = {
             showItemID = false,
             showTooltip = true,
             showAdditionalTooltipData = false,
+            showSessionBar = true,
+            showCurrency = true,
+            trackCurrency = true,
+            gameTooltipLine = true,
+            priceSource = "vendor",
             reportIconSize = 24,
             ignoreItemsWithZeroPrice = true,
             resizableReportWindow = false,
@@ -52,26 +58,55 @@ local defaults = {
 -- inserts. Never saved: it is derived data, and the saved table is what it is derived from.
 local itemIndex = nil
 
-local function getItemIndex(foundItems)
-    if (itemIndex) then return itemIndex end
+-- the same idea for db.char.foundCurrency, keyed by currencyId
+local currencyIndex = nil
 
-    itemIndex = {}
+local function buildIndex(records, key)
+    local index = {}
 
-    for i = 1, #foundItems do
-        local itemID = foundItems[i].itemId
+    for i = 1, #records do
+        local id = records[i][key]
 
         -- first entry wins, matching the linear scan this replaces
-        if (itemIndex[itemID] == nil) then
-            itemIndex[itemID] = i
+        if (id ~= nil and index[id] == nil) then
+            index[id] = i
         end
+    end
+
+    return index
+end
+
+local function getItemIndex(foundItems)
+    if (not itemIndex) then
+        itemIndex = buildIndex(foundItems, "itemId")
     end
 
     return itemIndex
 end
 
+local function getCurrencyIndex(foundCurrency)
+    if (not currencyIndex) then
+        currencyIndex = buildIndex(foundCurrency, "currencyId")
+    end
+
+    return currencyIndex
+end
+
 function MLH:initDatabase()
     self.db = ADB:New("MyLootHistoryDB", defaults)
     itemIndex = nil
+    currencyIndex = nil
+end
+
+-- The stored record for an item, or nil if it has never been looted. Used by the tooltip
+-- hook, which runs on every item tooltip in the UI and so must not scan the history.
+function MLH:getItemRecord(itemID)
+    if (not itemID) then return nil end
+
+    local foundItems = self.db.char.foundItems
+    local index = getItemIndex(foundItems)[itemID]
+
+    return index and foundItems[index] or nil
 end
 
 function MLH:addGold(quantity, zoneID)
@@ -120,10 +155,54 @@ function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemN
     return totalQuantity
 end
 
+function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, currencyQuality, zoneID)
+    local foundCurrency = self.db.char.foundCurrency
+    local index = getCurrencyIndex(foundCurrency)[currencyID]
+
+    local newLootDataObj = {
+        quantity = quantity,
+        foundOn = time(),
+        zoneID = zoneID,
+    }
+
+    if (index == nil) then
+        table.insert(foundCurrency, {
+            currencyId = currencyID,
+            currencyName = currencyName,
+            currencyIcon = currencyIcon,
+            quality = currencyQuality,
+            lootData = { newLootDataObj },
+        })
+
+        currencyIndex[currencyID] = #foundCurrency
+
+        return quantity
+    end
+
+    local record = foundCurrency[index]
+    local lootData = record.lootData
+    local totalQuantity = 0
+
+    -- a currency can be renamed or re-iconed by a patch, so the record follows the client
+    record.currencyName = currencyName or record.currencyName
+    record.currencyIcon = currencyIcon or record.currencyIcon
+    record.quality = currencyQuality or record.quality
+
+    table.insert(lootData, newLootDataObj)
+
+    for i = 1, #lootData do
+        totalQuantity = totalQuantity + lootData[i].quantity
+    end
+
+    return totalQuantity
+end
+
 function MLH:resetData()
     self.db.char.foundItems = {}
     self.db.char.foundGold = {}
+    self.db.char.foundCurrency = {}
     itemIndex = nil
+    currencyIndex = nil
     MLH:updateStatisticsTextData()
 
     if (self.db.char.config.debug.printOtherDebugInfo) then

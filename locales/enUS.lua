@@ -20,6 +20,7 @@ L["D_AddedAndTotal"] = function (itemLink, totalAmount)
 end
 
 L["D_NotMyItem"] = "not my item"
+L["D_NotMyCurrency"] = "not my currency"
 L["D_QuestItem"] = "quest item"
 L["D_ZeroSellPrice"] = "sell price is 0"
 L["D_NoMoneyMatched"] = "money pattern matched nothing"
@@ -54,6 +55,16 @@ L["C_ShowItemTooltip"] = "Show item tooltip"
 L["C_ShowItemTooltip_Desc"] = "Show or hide the item tooltip on mouse hover"
 L["C_ShowAdditionalTooltipData"] = "Show additional tooltip data"
 L["C_ShowAdditionalTooltipData_Desc"] = "Show or hide the additional tooltip data like item total quantity gathered, etc."
+L["C_ShowSessionBar"] = "Show session bar"
+L["C_ShowSessionBar_Desc"] = "Show the live session line at the top of the report: elapsed time, items per hour and gold per hour. Click it to start a new session"
+L["C_ShowCurrency"] = "Show currencies in the report"
+L["C_ShowCurrency_Desc"] = "List the currencies you picked up under the items, and include them in the CSV export"
+L["C_TrackCurrency"] = "Track currencies"
+L["C_TrackCurrency_Desc"] = "Record currencies (Valorstones, Crests, and so on) as they are picked up. Turning this off stops new records; the ones already stored are kept"
+L["C_GameTooltipLine"] = "Add a line to item tooltips"
+L["C_GameTooltipLine_Desc"] = "Add 'looted 47x, last on 3 Aug' to any item tooltip in the game for items you have looted before"
+L["C_PriceSource"] = "Price source"
+L["C_PriceSource_Desc"] = "Where the value column takes its prices from. Auction house prices need Auctionator installed; the vendor price is used whenever the chosen source has no price for an item"
 L["C_IconSize"] = "Icon size"
 L["C_PrintLootedSummary"] = "Print looted summary"
 L["C_PrintLootedSummary_Desc"] = "Print looted summary in the chat window (for debug purposes). This is visible only to you"
@@ -72,6 +83,11 @@ L["F_SortingFiltering_Desc"] = "Everything can be filtered by a name, a date, a 
   "* Dates can be filtered by a specific date or by a date range. For example, 'Today' or 'This month'. \n"..
   "* The zone dropdown lists every zone you have ever looted in. Picking one narrows the quantities and the gold to that zone.\n\n"..
   "Click a column header to sort by it, click it again to reverse the order. The choice is remembered per character."
+L["F_Session"] = "What is the session line at the top of the report?"
+L["F_Session_Desc"] = "It is the live half of the addon: how long you have been playing since you logged in, how many items that is per hour, and how much gold per hour "..
+  "(the value of what you looted plus the coins you picked up).\n\n"..
+  "Click the line to start a new session from that moment, which is what you want when you move to a new farming spot. "..
+  "The same numbers are on the minimap button tooltip and behind '/mlh session'."
 L["F_CanILinkToChat"] = "Can I link the item from the report?"
 L["F_CanILinkToChat_Desc"] = "Yes, you can. Just Shift+click on the item icon and it will be linked to the chat. The chat should be opened."
 L["F_Restrinctions"] = "Any known restrictions?"
@@ -84,6 +100,7 @@ L["M_ClearDataPrompt"] = "Are you sure you want to clear the history of everythi
 L["M_TotalDifferentItemsGathered"] = "Total different items gathered: "
 L["M_TotalQuantityGathered"] = "Total quantity gathered: "
 L["M_TotalZonesLooted"] = "Total zones looted: "
+L["M_TotalCurrenciesGathered"] = "Total different currencies gathered: "
 
 -- report
 L["R_ReportDateRange"] = "Report date range"
@@ -100,6 +117,35 @@ L["R_Search"] = "Search"
 L["R_Zone"] = "Zone"
 L["R_UnknownZone"] = "Unknown zone"
 L["R_LootedIn"] = "Looted in:"
+L["R_Currencies"] = "Currencies"
+L["R_CurrenciesCount"] = "Currencies: "
+
+-- session
+L["S_SessionBar"] = function (duration, quantity, itemsPerHour, total, goldPerHour)
+  return '|cFFFFD100Session|r '..duration..'  |cFFAAAAAA·|r  '..quantity..' items ('..itemsPerHour..'/h)'
+    ..'  |cFFAAAAAA·|r  '..total..' ('..goldPerHour..'/h)'
+end
+
+L["S_SessionLine"] = function (duration, quantity, itemsPerHour, total, goldPerHour, currencyQuantity)
+  return 'Session '..duration..': '..quantity..' items ('..itemsPerHour..'/h), '..total
+    ..' ('..goldPerHour..'/h), '..currencyQuantity..' currency'
+end
+
+L["S_SessionTooltip"] = "Click to start a new session from now"
+
+-- price sources
+L["S_PriceVendor"] = "Vendor price"
+L["S_PriceAuctionator"] = "Auctionator"
+L["S_PriceUnavailable"] = "(not installed)"
+
+-- tooltip
+L["T_LootedSummary"] = function (quantity, lastDate)
+  return 'My Loot History: looted '..quantity..'x, last on '..lastDate
+end
+
+L["T_MostlyIn"] = function (zoneName)
+  return 'Mostly in '..zoneName
+end
 
 -- report columns
 L["R_ColQuality"] = "Q"
@@ -108,6 +154,7 @@ L["R_ColQuantity"] = "Qty"
 L["R_ColValue"] = "Value"
 L["R_ColZone"] = "Zone"
 L["R_ColLooted"] = "Looted"
+L["R_ColValueMarket"] = "(AH)"
 
 L["R_SortBy"] = function (columnName)
   return 'Click to sort by "'..columnName..'". Click again to reverse the order'

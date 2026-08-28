@@ -15,12 +15,18 @@ local baseWindowWidth = 640
 local window = nil
 local itemsContainer = nil
 local searchTimer = nil
+local sessionLabel = nil
+local sessionTicker = nil
+
+-- how often the session bar re-reads the clock while the window is open
+local sessionRefreshInterval = 5
 
 -- forward declarations, so the helpers below stay local to this file
-local addGoldEarnedRow, addHeaderRow, addIconRow, addItemDetailsRow, addItems, addLastLootedRow,
-      addNothingIsHereLabel, addQuantityRow, addValueRow, addZoneRow, buildCsv, calculateGoldFound,
-      collectItems, formatMoneyShort, getQualityList, getRangeList, getZoneList,
-      insertLinkToChat, refreshItems, reportWindowWidth, showExportWindow, sortItems, updateSummary
+local addCurrencyRow, addCurrencyRows, addGoldEarnedRow, addHeaderRow, addIconRow, addItemDetailsRow,
+      addItems, addLastLootedRow, addNothingIsHereLabel, addQuantityRow, addValueRow, addZoneRow,
+      buildCsv, calculateGoldFound, collectCurrencies, collectItems, formatMoneyShort, getQualityList,
+      getRangeList, getZoneList, insertLinkToChat, isInSelectedRange, isInSelectedZone, refreshItems,
+      reportWindowWidth, showExportWindow, sortItems, updateSessionBar, updateSummary
 
 local rowWidth = {
     itemDetails = 220,
@@ -69,10 +75,16 @@ function MLH:gui()
     window:SetCallback("OnClose", function(widget)
         isWindowShown = false
         itemsContainer = nil
+        sessionLabel = nil
 
         if (searchTimer) then
             searchTimer:Cancel()
             searchTimer = nil
+        end
+
+        if (sessionTicker) then
+            sessionTicker:Cancel()
+            sessionTicker = nil
         end
 
         AGUI:Release(widget)
@@ -93,6 +105,33 @@ function MLH:gui()
     groupOptions:SetFullWidth(true)
     groupOptions:SetLayout("Flow")
     window:AddChild(groupOptions)
+
+    -- the live half of the window: it keeps counting while the report sits open
+    if (self.db.char.config.showSessionBar) then
+        local groupSession = AGUI:Create("SimpleGroup")
+        groupSession:SetFullWidth(true)
+        groupSession:SetLayout("Flow")
+        window:AddChild(groupSession)
+
+        sessionLabel = AGUI:Create("InteractiveLabel")
+        sessionLabel:SetFullWidth(true)
+        sessionLabel:SetHighlight("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+        sessionLabel:SetCallback("OnEnter", function()
+            GameTooltip:SetOwner(sessionLabel.frame, "ANCHOR_TOP")
+            GameTooltip:SetText(L["S_SessionTooltip"])
+            GameTooltip:Show()
+        end)
+        sessionLabel:SetCallback("OnLeave", function() GameTooltip:Hide() end)
+        sessionLabel:SetCallback("OnClick", function()
+            MLH:resetSession()
+            refreshItems()
+        end)
+        groupSession:AddChild(sessionLabel)
+
+        updateSessionBar()
+
+        sessionTicker = C_Timer.NewTicker(sessionRefreshInterval, updateSessionBar)
+    end
 
     local groupItems = AGUI:Create("SimpleGroup")
     groupItems:SetFullWidth(true)
@@ -229,60 +268,136 @@ function reportWindowWidth()
 end
 
 function refreshItems()
+    updateSessionBar()
+
     if (itemsContainer == nil) then return end
 
+    -- an auction-house price can move while the window is open, so each redraw asks again
+    MLH:clearPriceCache()
     addItems(itemsContainer)
 end
 
--- refactor this along with addItems()
+function updateSessionBar()
+    if (sessionLabel == nil) then return end
+
+    local stats = MLH:getSessionStats()
+
+    sessionLabel:SetText(L["S_SessionBar"](
+        MLH:formatDuration(stats.duration),
+        stats.quantity,
+        string.format("%.0f", stats.itemsPerHour),
+        GetMoneyString(stats.totalValue),
+        GetMoneyString(stats.goldPerHour)
+    ))
+end
+
+-- The one place the date dropdown is turned into a yes/no about a single record. Items,
+-- gold and currency all ask it, so the three can never drift apart.
+function isInSelectedRange(foundOn)
+    if (rangeValue == 1) then --this session
+        local sessionStart = MLH.db.char.thisSessionStart
+
+        return sessionStart ~= nil and foundOn >= sessionStart
+    elseif (rangeValue == 2) then --today
+        return DU:dateIsToday(foundOn)
+    elseif (rangeValue == 3) then --yesterday
+        return DU:dateIsYesterday(foundOn, true)
+    elseif (rangeValue == 4) then --this reset
+        local wday = DU:getToday().wday
+
+        if (DU:isWed(wday)) then
+            return DU:dateIsToday(foundOn)
+        end
+
+        return DU:dateInRangeTillToday(foundOn, DU:getLastWed(wday))
+    elseif (rangeValue == 5) then --this month
+        return DU:dateIsInCurrentMonth(foundOn)
+    elseif (rangeValue == 6) then --all the time
+        return true
+    end
+
+    return false
+end
+
+function isInSelectedZone(zoneID)
+    return zoneValue == 0 or zoneID == zoneValue
+end
+
 function calculateGoldFound()
     local gold = MLH.db.char.foundGold
     local totalGold = 0
-    local incGold = function(item) totalGold = totalGold + item.quantity end
 
     for i = 1, #gold do
         local item = gold[i]
 
-        if (zoneValue == 0 or item.zoneID == zoneValue) then
-            if (rangeValue == 1) then --this session
-                if (MLH.db.char.thisSessionStart) then
-                    if (item.foundOn >= MLH.db.char.thisSessionStart) then
-                        incGold(item)
-                    end
-                end
-            elseif (rangeValue == 2) then --today
-                if (DU:dateIsToday(item.foundOn)) then
-                    incGold(item)
-                end
-            elseif (rangeValue == 3) then --yesterday
-                if (DU:dateIsYesterday(item.foundOn, true)) then
-                    incGold(item)
-                end
-            elseif (rangeValue == 4) then --this reset
-                local wday = DU:getToday().wday
-
-                if (DU:isWed(wday)) then
-                    if (DU:dateIsToday(item.foundOn)) then
-                        incGold(item)
-                    end
-                else
-                    local lastWedDate = DU:getLastWed(wday)
-
-                    if (DU:dateInRangeTillToday(item.foundOn, lastWedDate)) then
-                        incGold(item)
-                    end
-                end
-            elseif (rangeValue == 5) then --this month
-                if (DU:dateIsInCurrentMonth(item.foundOn)) then
-                    incGold(item)
-                end
-            elseif (rangeValue == 6) then --all the time
-                incGold(item)
-            end
+        if (isInSelectedZone(item.zoneID) and isInSelectedRange(item.foundOn)) then
+            totalGold = totalGold + item.quantity
         end
     end
 
     return totalGold
+end
+
+-- Every currency the character picked up inside the active date range and zone, busiest
+-- first. The quality and search filters are about items and do not apply here.
+function collectCurrencies()
+    local foundCurrency = MLH.db.char.foundCurrency or {}
+    local currencies = {}
+
+    for i = 1, #foundCurrency do
+        local record = foundCurrency[i]
+        local lootData = record.lootData
+        local quantity = 0
+        local firstFound, lastFound = nil, nil
+        local zoneCounts = {}
+        local zones = {}
+
+        for j = 1, #lootData do
+            local entry = lootData[j]
+
+            if (isInSelectedZone(entry.zoneID) and isInSelectedRange(entry.foundOn)) then
+                local entryQuantity = tonumber(entry.quantity) or 1
+                local zoneName = MLH:getZoneName(entry.zoneID) or L["R_UnknownZone"]
+
+                quantity = quantity + entryQuantity
+                zoneCounts[zoneName] = (zoneCounts[zoneName] or 0) + entryQuantity
+
+                if (firstFound == nil or entry.foundOn < firstFound) then firstFound = entry.foundOn end
+                if (lastFound == nil or entry.foundOn > lastFound) then lastFound = entry.foundOn end
+            end
+        end
+
+        for zoneName, zoneQuantity in pairs(zoneCounts) do
+            table.insert(zones, { name = zoneName, quantity = zoneQuantity })
+        end
+
+        table.sort(zones, function(l, r)
+            if (l.quantity == r.quantity) then return l.name < r.name end
+            return l.quantity > r.quantity
+        end)
+
+        if (quantity > 0) then
+            -- the client wins over the record: a currency can be renamed by a patch
+            local info = C_CurrencyInfo.GetCurrencyInfo(record.currencyId)
+
+            table.insert(currencies, {
+                currencyId = record.currencyId,
+                name = (info and info.name) or record.currencyName or ("#"..record.currencyId),
+                icon = (info and info.iconFileID) or record.currencyIcon,
+                quantity = quantity,
+                zones = zones,
+                firstFound = firstFound,
+                lastFound = lastFound,
+            })
+        end
+    end
+
+    table.sort(currencies, function(l, r)
+        if (l.quantity == r.quantity) then return l.name < r.name end
+        return l.quantity > r.quantity
+    end)
+
+    return currencies
 end
 
 -- Applies every active filter and resolves the display data, so the report window and the
@@ -310,47 +425,11 @@ function collectItems()
             dateRange = "",
         }
 
-        local addItem = function(ita) table.insert(newItem.lootData, ita) end
-
         for j = 1, #item.lootData do
             local lootData = item.lootData[j]
 
-            if (zoneValue == 0 or lootData.zoneID == zoneValue) then
-                if (rangeValue == 1) then --this session
-                    if (MLH.db.char.thisSessionStart) then
-                        if (lootData.foundOn >= MLH.db.char.thisSessionStart) then
-                            addItem(lootData)
-                        end
-                    end
-                elseif (rangeValue == 2) then --today
-                    if (DU:dateIsToday(lootData.foundOn)) then
-                        addItem(lootData)
-                    end
-                elseif (rangeValue == 3) then --yesterday
-                    if (DU:dateIsYesterday(lootData.foundOn, true)) then
-                        addItem(lootData)
-                    end
-                elseif (rangeValue == 4) then --this reset
-                    local wday = DU:getToday().wday
-
-                    if (DU:isWed(wday)) then
-                        if (DU:dateIsToday(lootData.foundOn)) then
-                            addItem(lootData)
-                        end
-                    else
-                        local lastWedDate = DU:getLastWed(wday)
-
-                        if (DU:dateInRangeTillToday(lootData.foundOn, lastWedDate)) then
-                            addItem(lootData)
-                        end
-                    end
-                elseif (rangeValue == 5) then --this month
-                    if (DU:dateIsInCurrentMonth(lootData.foundOn)) then
-                        addItem(lootData)
-                    end
-                elseif (rangeValue == 6) then --all the time
-                    addItem(lootData)
-                end
+            if (isInSelectedZone(lootData.zoneID) and isInSelectedRange(lootData.foundOn)) then
+                table.insert(newItem.lootData, lootData)
             end
         end
 
@@ -415,7 +494,10 @@ function collectItems()
                     newItem.sellPrice = newItem.lootData[#newItem.lootData].sellPrice or 0
                 end
 
-                newItem.totalValue = newItem.sellPrice * newItem.totalQuantity
+                -- with an auction-house price source switched on this is the market price,
+                -- and the vendor price whenever that source has nothing for the item
+                newItem.unitPrice = MLH:getItemPrice(newItem.itemId, newItem.sellPrice)
+                newItem.totalValue = newItem.unitPrice * newItem.totalQuantity
 
                 --refactor this later
                 newItem.firstFound = newItem.lootData[1].foundOn
@@ -478,10 +560,11 @@ function addItems(container)
     container:ReleaseChildren()
 
     local items = collectItems()
+    local currencies = MLH.db.char.config.showCurrency and collectCurrencies() or {}
     local totalQuantity = 0
     local totalSellPrice = 0
 
-    if (#items == 0) then
+    if (#items == 0 and #currencies == 0) then
         addNothingIsHereLabel(container)
     else
         local group = AGUI:Create("SimpleGroup")
@@ -529,6 +612,8 @@ function addItems(container)
             sf:AddChild(itemFrame)
         end
 
+        addCurrencyRows(sf, currencies)
+
         local goldRow = addGoldEarnedRow()
         sf:AddChild(goldRow)
 
@@ -540,7 +625,7 @@ function addItems(container)
         sf:SetScroll(0)
     end
 
-    updateSummary(#items, totalQuantity, totalSellPrice)
+    updateSummary(#items, totalQuantity, totalSellPrice, #currencies)
 end
 
 function addHeaderRow(parent)
@@ -585,7 +670,12 @@ function addHeaderRow(parent)
     addColumn("quality", L["R_ColQuality"], (MLH.db.char.config.reportIconSize or 24) + 4)
     addColumn("name", L["R_ColItem"], rowWidth.itemDetails)
     addColumn("quantity", L["R_ColQuantity"], rowWidth.quantity)
-    addColumn("value", L["R_ColValue"], rowWidth.value)
+    -- the column says where its numbers come from once they stop being vendor prices
+    local priceSourceKey = MLH:getPriceSource()
+    local valueText = priceSourceKey == "vendor" and L["R_ColValue"]
+        or (L["R_ColValue"].." "..L["R_ColValueMarket"])
+
+    addColumn("value", valueText, rowWidth.value)
 
     if (MLH.db.char.config.showZone) then
         addColumn("zone", L["R_ColZone"], rowWidth.zone)
@@ -602,17 +692,76 @@ function addHeaderRow(parent)
     parent:AddChild(line)
 end
 
-function updateSummary(totalItems, totalQuantity, totalSellPrice)
+function updateSummary(totalItems, totalQuantity, totalSellPrice, totalCurrencies)
     if (window == nil) then return end
 
-    if (totalItems == 0) then
+    if (totalItems == 0 and (totalCurrencies or 0) == 0) then
         window:SetStatusText(L["R_LootSomething"])
         return
 
     end
 
-    window:SetStatusText(L["R_Items"].."|cFF00CC00"..totalItems.."|r, "..L["R_Quantity"].."|cFF00CC00"
-        ..totalQuantity.."|r, "..L["R_SellPrice"]..GetMoneyString(totalSellPrice))
+    local text = L["R_Items"].."|cFF00CC00"..totalItems.."|r, "..L["R_Quantity"].."|cFF00CC00"
+        ..totalQuantity.."|r, "..L["R_SellPrice"]..GetMoneyString(totalSellPrice)
+
+    if ((totalCurrencies or 0) > 0) then
+        text = text..", "..L["R_CurrenciesCount"].."|cFF00CC00"..totalCurrencies.."|r"
+    end
+
+    window:SetStatusText(text)
+end
+
+-- Currencies have no vendor value and no quality to sort by, so they sit under the items as
+-- their own short block rather than pretending to be rows in the table above.
+function addCurrencyRows(parent, currencies)
+    if (#currencies == 0) then return end
+
+    local heading = AGUI:Create("Heading")
+    heading:SetText(L["R_Currencies"])
+    heading:SetFullWidth(true)
+    parent:AddChild(heading)
+
+    for i = 1, #currencies do
+        parent:AddChild(addCurrencyRow(currencies[i]))
+    end
+end
+
+function addCurrencyRow(currency)
+    local frame = AGUI:Create("SimpleGroup")
+    frame:SetLayout("Flow")
+    frame:SetFullWidth(true)
+    frame:SetHeight(40)
+
+    local icon = AGUI:Create("Icon")
+    local iconSize = MLH.db.char.config.reportIconSize
+
+    icon:SetImageSize(iconSize, iconSize)
+    icon:SetImage(currency.icon)
+    icon:SetHeight(iconSize + 2)
+    icon:SetWidth(iconSize + 4)
+
+    if (MLH.db.char.config.showTooltip) then
+        icon:SetCallback("OnEnter", function()
+            GameTooltip:SetOwner(icon.frame, "ANCHOR_RIGHT")
+            GameTooltip:SetCurrencyByID(currency.currencyId)
+            GameTooltip:Show()
+        end)
+        icon:SetCallback("OnLeave", function() GameTooltip:Hide() end)
+    end
+
+    frame:AddChild(icon)
+
+    local nameLabel = AGUI:Create("Label")
+    nameLabel:SetText(currency.name)
+    nameLabel:SetWidth(rowWidth.itemDetails)
+    frame:AddChild(nameLabel)
+
+    local quantityLabel = AGUI:Create("Label")
+    quantityLabel:SetText(tostring(currency.quantity))
+    quantityLabel:SetWidth(rowWidth.quantity)
+    frame:AddChild(quantityLabel)
+
+    return frame
 end
 
 function addGoldEarnedRow()
@@ -652,7 +801,12 @@ function addIconRow(frame, item)
     if (MLH.db.char.config.showTooltip) then
         itemIcon:SetCallback("OnEnter", function(_)
             GameTooltip:SetOwner(itemIcon.frame, "ANCHOR_RIGHT")
+
+            -- the rows below say the same thing in more detail, so the global tooltip line
+            -- stays out of the report's own tooltip
+            MLH:setTooltipSuppressed(true)
             GameTooltip:SetHyperlink(itemLink)
+            MLH:setTooltipSuppressed(false)
 
             if (MLH.db.char.config.showAdditionalTooltipData) then
                 GameTooltip:AddLine(" ")
@@ -790,32 +944,56 @@ local function csvField(value)
     return value
 end
 
+local function csvZones(zones)
+    local parts = {}
+
+    for i = 1, #zones do
+        parts[i] = zones[i].name.." ("..zones[i].quantity..")"
+    end
+
+    return table.concat(parts, "; ")
+end
+
 function buildCsv()
     local items = collectItems()
-    local lines = { "item,itemID,quality,quantity,vendorValue,zone,firstLooted,lastLooted" }
+    local currencies = MLH.db.char.config.showCurrency and collectCurrencies() or {}
+    local lines = { "type,name,id,quality,quantity,value,zone,firstLooted,lastLooted" }
 
     for i = 1, #items do
         local item = items[i]
         local qualityName = _G["ITEM_QUALITY"..(item.quality or 0).."_DESC"] or tostring(item.quality or 0)
-        local zones = {}
-
-        for j = 1, #item.zones do
-            zones[j] = item.zones[j].name.." ("..item.zones[j].quantity..")"
-        end
 
         lines[#lines+1] = table.concat({
+            "item",
             csvField(item.itemName),
             csvField(item.itemId),
             csvField(qualityName),
             csvField(item.totalQuantity),
             csvField(item.totalValue),
-            csvField(table.concat(zones, "; ")),
+            csvField(csvZones(item.zones)),
             csvField(date("%Y-%m-%d %H:%M:%S", item.firstFound)),
             csvField(date("%Y-%m-%d %H:%M:%S", item.lastFound)),
         }, ",")
     end
 
-    return table.concat(lines, "\n"), #items
+    -- currencies have no quality and no value, so those two cells stay empty
+    for i = 1, #currencies do
+        local currency = currencies[i]
+
+        lines[#lines+1] = table.concat({
+            "currency",
+            csvField(currency.name),
+            csvField(currency.currencyId),
+            "",
+            csvField(currency.quantity),
+            "",
+            csvField(csvZones(currency.zones)),
+            csvField(date("%Y-%m-%d %H:%M:%S", currency.firstFound)),
+            csvField(date("%Y-%m-%d %H:%M:%S", currency.lastFound)),
+        }, ",")
+    end
+
+    return table.concat(lines, "\n"), #items + #currencies
 end
 
 function showExportWindow()
