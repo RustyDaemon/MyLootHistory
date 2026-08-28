@@ -1,0 +1,20 @@
+-- busted configuration. Run the suite from the repo root with:  busted
+--
+-- lpath puts the repo root on the Lua module path so the specs can
+-- require("tests.support.wow") regardless of where busted was started.
+return {
+    _all = {
+        lpath = "./?.lua;./?/init.lua",
+    },
+    default = {
+        ROOT = { "tests" },
+        pattern = "_spec",
+        output = "utfTerminal",
+        verbose = true,
+    },
+    ci = {
+        ROOT = { "tests" },
+        pattern = "_spec",
+        output = "plainTerminal",
+    },
+}

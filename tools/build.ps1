@@ -15,8 +15,12 @@
     Removes dist\ before building.
 
 .EXAMPLE
-    .\build.ps1
-    .\build.ps1 -Version 1.5.0
+    .\tools\build.ps1
+    .\tools\build.ps1 -Version 1.5.0
+
+.NOTES
+    If PowerShell's execution policy blocks the script, run it per-process:
+        powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
 #>
 [CmdletBinding()]
 param(
@@ -27,18 +31,37 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $AddonName = 'MyLootHistory'
-$Root      = $PSScriptRoot
+# the script lives in tools\, so the repo root is one level up
+$Root      = Split-Path $PSScriptRoot -Parent
 $TocPath   = Join-Path $Root "$AddonName.toc"
 $DistDir   = Join-Path $Root 'dist'
 $StageDir  = Join-Path $DistDir $AddonName
 
-# Anything matching these is never shipped to CurseForge.
-$ExcludeDirs  = @('.git', '.vscode', '.github', 'dist', 'node_modules')
-$ExcludeFiles = @('build.ps1', 'build.cmd', 'build.sh', 'AUDIT.html', '.gitignore', '.DS_Store', '.luacheckrc')
+# What never ships to CurseForge. Note that the staging step copies from the
+# filesystem, not from git, so being gitignored does NOT keep a file out of the
+# zip - everything has to be excluded here.
+#
+# Anything whose name starts with a dot is dropped at any depth, which covers
+# .git, .github, .vscode, .claude, .luacheckrc, .busted, .gitignore, .DS_Store
+# and any tool config added later without anyone having to remember this file.
+$ExcludeDirs  = @('dist', 'node_modules', 'tests', 'tools')
+$ExcludeFiles = @('DEVELOPMENT.md')
 
 function Fail($msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; exit 1 }
 function Step($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
 function Warn($msg) { Write-Host "  ! $msg" -ForegroundColor Yellow }
+
+# True when a repo-relative path must not be packaged. `$rel` uses the platform
+# separator, as produced by trimming $Root off a full path.
+function Test-Excluded([string]$rel) {
+    foreach ($part in ($rel -split '[\\/]')) {
+        if ($part.StartsWith('.')) { return $true }
+    }
+    foreach ($d in $ExcludeDirs)  { if ($rel -like "$d\*" -or $rel -like "$d/*") { return $true } }
+    foreach ($f in $ExcludeFiles) { if ((Split-Path $rel -Leaf) -eq $f)          { return $true } }
+
+    return $false
+}
 
 if (-not (Test-Path $TocPath)) { Fail "$AddonName.toc not found in $Root" }
 
@@ -85,13 +108,17 @@ Write-Host "  ok" -ForegroundColor Green
 # --- lua syntax check (optional, only if luac/luacheck is installed) ---------
 $luacheck = Get-Command luacheck -ErrorAction SilentlyContinue
 $luac     = Get-Command luac -ErrorAction SilentlyContinue
-$luaFiles = Get-ChildItem $Root -Recurse -Filter *.lua |
-    Where-Object { $rel = $_.FullName.Substring($Root.Length + 1)
-                   -not ($ExcludeDirs | Where-Object { $rel -like "$_\*" }) }
+$luaFiles = Get-ChildItem $Root -Recurse -Filter *.lua -Force |
+    Where-Object { -not (Test-Excluded $_.FullName.Substring($Root.Length + 1)) }
 if ($luacheck) {
     Step 'Running luacheck'
-    & luacheck $Root --no-color
-    if (-not $?) { Warn 'luacheck reported problems (not fatal)' }
+    # from $Root, so luacheck finds .luacheckrc: it looks in the current
+    # directory, not next to the files it was handed
+    Push-Location $Root
+    try {
+        & luacheck . --no-color
+        if (-not $?) { Warn 'luacheck reported problems (not fatal)' }
+    } finally { Pop-Location }
 } elseif ($luac) {
     Step "Syntax-checking $($luaFiles.Count) Lua files with luac"
     $bad = @()
@@ -103,6 +130,21 @@ if ($luacheck) {
     Write-Host "  ok" -ForegroundColor Green
 } else {
     Warn 'Neither luacheck nor luac found on PATH - skipping the Lua syntax check'
+}
+
+# --- unit tests (optional, only if busted is installed) ----------------------
+# Unlike luacheck this is fatal: a failing test means the logic is wrong, and
+# that should not be packaged for upload.
+$busted = Get-Command busted -ErrorAction SilentlyContinue
+if ($busted) {
+    Step 'Running tests'
+    Push-Location $Root
+    try {
+        & busted --output=plainTerminal
+        if ($LASTEXITCODE -ne 0) { Fail 'tests failed' }
+    } finally { Pop-Location }
+} else {
+    Warn 'busted not found on PATH - skipping the tests (luarocks install busted)'
 }
 
 # --- changelog ---------------------------------------------------------------
@@ -135,10 +177,11 @@ New-Item -ItemType Directory -Path $StageDir -Force | Out-Null
 
 Step "Staging into dist\$AddonName"
 $copied = 0
-Get-ChildItem $Root -Recurse -File | ForEach-Object {
+# -Force so hidden files are enumerated rather than silently skipped: they have
+# to be seen to be excluded on purpose, not missed by accident
+Get-ChildItem $Root -Recurse -File -Force | ForEach-Object {
     $rel = $_.FullName.Substring($Root.Length + 1)
-    foreach ($d in $ExcludeDirs)  { if ($rel -like "$d\*") { return } }
-    foreach ($f in $ExcludeFiles) { if ($_.Name -eq $f)    { return } }
+    if (Test-Excluded $rel) { return }
 
     $dest = Join-Path $StageDir $rel
     $destDir = Split-Path $dest -Parent

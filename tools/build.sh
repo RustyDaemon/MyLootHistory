@@ -7,24 +7,31 @@
 # dist/MyLootHistory-<version>.zip. Also prints the metadata CurseForge
 # asks for on the upload form (game version, changelog).
 #
-# Usage:
-#   ./build.sh
-#   ./build.sh --version 1.5.0
-#   ./build.sh --clean
+# Run from anywhere; paths are resolved relative to the repo, not the shell:
+#   ./tools/build.sh
+#   ./tools/build.sh --version 1.5.0
+#   ./tools/build.sh --clean
 #
-# Bash port of build.ps1 - the two produce the same package.
+# Bash port of tools/build.ps1 - the two produce the same package.
 
 set -euo pipefail
 
 ADDON_NAME='MyLootHistory'
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# the script lives in tools/, so the repo root is one level up
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOC_PATH="$ROOT/$ADDON_NAME.toc"
 DIST_DIR="$ROOT/dist"
 STAGE_DIR="$DIST_DIR/$ADDON_NAME"
 
-# Anything matching these is never shipped to CurseForge.
-EXCLUDE_DIRS=('.git' '.vscode' '.github' 'dist' 'node_modules')
-EXCLUDE_FILES=('build.ps1' 'build.cmd' 'build.sh' 'AUDIT.html' '.gitignore' '.DS_Store' '.luacheckrc')
+# What never ships to CurseForge. Note that the staging step copies from the
+# filesystem, not from git, so being gitignored does NOT keep a file out of the
+# zip - everything has to be excluded here.
+#
+# Anything whose name starts with a dot is dropped at any depth, which covers
+# .git, .github, .vscode, .claude, .luacheckrc, .busted, .gitignore, .DS_Store
+# and any tool config added later without anyone having to remember this file.
+EXCLUDE_DIRS=('dist' 'node_modules' 'tests' 'tools')
+EXCLUDE_FILES=('DEVELOPMENT.md')
 
 if [ -t 1 ]; then
     RED=$'\033[31m'; GREEN=$'\033[32m'; CYAN=$'\033[36m'; YELLOW=$'\033[33m'; RESET=$'\033[0m'
@@ -103,7 +110,9 @@ fi
 ok
 
 # --- lua syntax check (optional, only if luac/luacheck is installed) ---------
-find_args=()
+# `-name '.*' -prune` drops dot-directories along with everything under them, and
+# dot-files too, since neither reaches the -print at the end of the expression
+find_args=(-name '.*' -prune -o)
 for d in "${EXCLUDE_DIRS[@]}"; do
     find_args+=(-name "$d" -prune -o)
 done
@@ -114,7 +123,9 @@ while IFS= read -r f; do lua_files+=("$f"); done < <(
 
 if command -v luacheck >/dev/null 2>&1; then
     step 'Running luacheck'
-    luacheck "$ROOT" --no-color || warn 'luacheck reported problems (not fatal)'
+    # from $ROOT, so luacheck finds .luacheckrc: it looks in the current
+    # directory, not next to the files it was handed
+    (cd "$ROOT" && luacheck . --no-color) || warn 'luacheck reported problems (not fatal)'
 elif command -v luac >/dev/null 2>&1; then
     step "Syntax-checking ${#lua_files[@]} Lua files with luac"
     bad=()
@@ -127,6 +138,16 @@ elif command -v luac >/dev/null 2>&1; then
     ok
 else
     warn 'Neither luacheck nor luac found on PATH - skipping the Lua syntax check'
+fi
+
+# --- unit tests (optional, only if busted is installed) ----------------------
+# Unlike luacheck this is fatal: a failing test means the logic is wrong, and
+# that should not be packaged for upload.
+if command -v busted >/dev/null 2>&1; then
+    step 'Running tests'
+    (cd "$ROOT" && busted --output=plainTerminal) || fail 'tests failed'
+else
+    warn 'busted not found on PATH - skipping the tests (luarocks install busted)'
 fi
 
 # --- changelog ---------------------------------------------------------------
