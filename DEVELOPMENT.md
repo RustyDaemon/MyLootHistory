@@ -49,18 +49,6 @@ the test should be rewritten as an ordinary `it`.
 `it` has to be handed in - `require("tests.support.defect")(it)` - because busted puts `it` in each
 spec file's own environment rather than in `_G`, so a required module cannot reach it.
 
-Three defects are recorded, all in `utils/DateUtils.lua`, all the same root cause: **day-of-year and
-month are compared without the year.**
-
-| Function               | Symptom                                                                         |
-| ---------------------- | ------------------------------------------------------------------------------- |
-| `dateIsToday`          | a timestamp from exactly one year ago counts as today                           |
-| `dateIsInCurrentMonth` | June 2025 is "this month" in June 2026                                          |
-| `dateInRangeTillToday` | a Wednesday-to-Wednesday range spanning New Year drops everything from December |
-
-The first two need over a year of history to bite, which `retentionDays = 0` (the default) allows. The
-third hits every player each January.
-
 ## Packaging
 
 `tools/` holds the CurseForge packaging scripts. Both run luacheck and the tests first - luacheck as a

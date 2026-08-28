@@ -29,26 +29,37 @@ function lib:getDate(addDays, resetToMidnight)
     return getDate(addDays, resetToMidnight)
 end
 
-function lib:dateIsToday(source, resetToMidnight)
-    local today = getDate(0, resetToMidnight)
+-- Day-of-year repeats every year, so it only identifies a day together with the
+-- year. Comparing yday on its own made a find from exactly one year ago read as
+-- today - which no one notices until they have a year of history.
+local function isSameDay(source, target)
+    local sourceDate = date("*t", source)
 
-    return date("*t", source).yday == today.yday
+    return sourceDate.yday == target.yday and sourceDate.year == target.year
+end
+
+function lib:dateIsToday(source, resetToMidnight)
+    return isSameDay(source, getDate(0, resetToMidnight))
 end
 
 function lib:dateIsYesterday(source, resetToMidnight)
-  local yesterday = getDate(-1, resetToMidnight)
-
-  return date("*t", source).yday == yesterday.yday
+    return isSameDay(source, getDate(-1, resetToMidnight))
 end
 
 function lib:dateIsInCurrentMonth(source, resetToMidnight)
     local today = getDate(0, resetToMidnight)
+    local sourceDate = date("*t", source)
 
-    return date("*t", source).month == today.month
+    -- the year again: without it, June 2025 is "this month" in June 2026
+    return sourceDate.month == today.month and sourceDate.year == today.year
 end
 
+-- Everything from `fromDate` up to the end of today. The upper bound is the
+-- timestamp of tomorrow's midnight rather than a day-of-year comparison: across
+-- New Year, last December's yday is larger than January's, so a range that spans
+-- the turn used to exclude everything before it.
 function lib:dateInRangeTillToday(source, fromDate)
-  return (source >= time(fromDate) and date("*t", source).yday <= getDate(0, false).yday)
+    return source >= time(fromDate) and source < time(getDate(1, true))
 end
 
 function lib:getToday()
