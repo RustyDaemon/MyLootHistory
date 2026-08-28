@@ -134,8 +134,8 @@ wow.provide("AceAddon-3.0", {
 
 wow.addon = addon
 
--- Called by MLH:resetData; the options panel does not exist here.
-function addon:updateStatisticsTextData() end
+-- Called by MLH:resetData; MyLootHistoryPrices.lua is not loaded by these specs.
+function addon:clearPriceCache() end
 
 -- ── client API ───────────────────────────────────────────────────────────────
 

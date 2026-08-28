@@ -292,8 +292,6 @@ local generalOptions = {
                                 if (entries > 0) then
                                     print(L["M_HistoryPruned"](entries, records, value))
                                 end
-
-                                MLH:updateStatisticsTextData()
                             end,
                             OnCancel = function ()
                                 MLH.db.char.config.retentionDays = previous
@@ -375,41 +373,41 @@ function MLH:initConfig()
     ACFG:RegisterOptionsTable("MyLootHistory_GeneralOptions", generalOptions)
 
     ACFGDLG:AddToBlizOptions("MyLootHistory_MainOptions", "My Loot History")
-
-    self:updateStatisticsTextData()
 end
 
-function MLH:updateStatisticsTextData()
+-- The statistics page walks the whole history, so it is read when that page is drawn and
+-- never while looting: this used to be recomputed on every single loot message, which on a
+-- long history meant a full scan - plus a linear search through the zone list per entry -
+-- for every pickup.
+function MLH:getStatisticsText()
     local itemsFound = self.db.char.foundItems
     local itemTypesAmount = #itemsFound
     local totalAmount = 0
-    local zones = {}
+    local seenZones, zonesAmount = {}, 0
 
     for i = 1, itemTypesAmount do
-        for j = 1, #itemsFound[i].lootData do
-            totalAmount = totalAmount + itemsFound[i].lootData[j].quantity
+        local lootData = itemsFound[i].lootData
 
-            local zoneID = itemsFound[i].lootData[j].zoneID or itemsFound[i].lootData[j].zone --shoud be zoneID
-            local zoneIndex = -1
+        for j = 1, #lootData do
+            local entry = lootData[j]
 
-            for k = 1, #zones do
-                if (zones[k] == zoneID) then
-                    zoneIndex = k
-                    break
-                end
-            end
+            -- an entry written by a very old version can carry no quantity
+            totalAmount = totalAmount + (tonumber(entry.quantity) or 1)
 
-            if (zoneIndex == -1) then
-                table.insert(zones, zoneID)
+            -- ... and no zone, which is a group of its own rather than a nil table key
+            local zoneID = entry.zoneID or entry.zone or false
+
+            if (not seenZones[zoneID]) then
+                seenZones[zoneID] = true
+                zonesAmount = zonesAmount + 1
             end
         end
     end
 
     local currencyTypesAmount = #(self.db.char.foundCurrency or {})
 
-    generalOptions["args"]["groupStatistics"]["args"]["statisticsText"]["name"] =
-        L["M_TotalDifferentItemsGathered"]..itemTypesAmount
-        ..'\n'..L["M_TotalQuantityGathered"]..totalAmount..'\n'..L["M_TotalZonesLooted"]..#zones
+    return L["M_TotalDifferentItemsGathered"]..itemTypesAmount
+        ..'\n'..L["M_TotalQuantityGathered"]..totalAmount..'\n'..L["M_TotalZonesLooted"]..zonesAmount
         ..'\n'..L["M_TotalCurrenciesGathered"]..currencyTypesAmount
     ..'\n\n'..self:getSessionLine()
 end

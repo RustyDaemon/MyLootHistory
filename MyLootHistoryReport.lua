@@ -87,6 +87,9 @@ function MLH:gui()
             sessionTicker = nil
         end
 
+        -- the frame goes back to AceGUI's pool here, so it stops being ours to name
+        _G["MLHReportFrame"] = nil
+
         AGUI:Release(widget)
         window = nil
     end)
@@ -96,8 +99,12 @@ function MLH:gui()
     window:EnableResize(self.db.char.config.resizableReportWindow or false)
     window:SetHeight(460)
 
-    if (not _G["MLHReportFrame"]) then
-        _G["MLHReportFrame"] = window.frame
+    -- AceGUI recycles frames, so the frame behind the report is not the same one next time
+    -- the window is opened. The global has to follow it: left pointing at a released frame,
+    -- Escape stopped closing the report - and could hide whichever widget got that frame next.
+    _G["MLHReportFrame"] = window.frame
+
+    if (not tContains(UISpecialFrames, "MLHReportFrame")) then
         tinsert(UISpecialFrames, "MLHReportFrame")
     end
 
@@ -301,6 +308,12 @@ end
 -- The one place the date dropdown is turned into a yes/no about a single record. Items,
 -- gold and currency all ask it, so the three can never drift apart.
 function isInSelectedRange(foundOn)
+    -- An entry written by a very old version can carry no timestamp, and there is no way to
+    -- place it in or out of a bounded range: comparing it against the session start errored,
+    -- and date("*t", nil) reads the clock, which made it look like it was looted today. It
+    -- belongs to "all the time" alone, which is the only range that asks nothing of the date.
+    if (foundOn == nil) then return rangeValue == 6 end
+
     if (rangeValue == 1) then --this session
         local sessionStart = MLH.db.char.thisSessionStart
 
@@ -472,19 +485,26 @@ function collectItems()
                     MLH:getItemPrice(newItem.itemId, newItem.sellPrice, newItem.itemLink)
                 newItem.totalValue = newItem.unitPrice * newItem.totalQuantity
 
-                local firstFindDate = date('*t', newItem.firstFound)
-                local lastFindDate = date('*t', newItem.lastFound)
-
-                if (firstFindDate.yday ~= lastFindDate.yday) then
-                    local dateFormat = "%d %b"
-                    local addYearToFirstFind = firstFindDate.year ~= lastFindDate.year
-                    local firstFindFormat = dateFormat..(addYearToFirstFind and ' %Y' or '')
-                    local lastFindFormat = dateFormat..' %Y'
-
-                    newItem.dateRange = date(firstFindFormat, newItem.firstFound)..' - '
-                        ..date(lastFindFormat, newItem.lastFound)
+                -- With no dated entry at all there is nothing honest to show: date() reads the
+                -- clock when it is handed a nil, which claimed the item was looted today. The
+                -- column stays empty instead - the item is still real, its date is not known.
+                if (newItem.firstFound == nil or newItem.lastFound == nil) then
+                    newItem.dateRange = ""
                 else
-                    newItem.dateRange = date("%d %b %Y, %a", newItem.firstFound)
+                    local firstFindDate = date('*t', newItem.firstFound)
+                    local lastFindDate = date('*t', newItem.lastFound)
+
+                    if (firstFindDate.yday ~= lastFindDate.yday) then
+                        local dateFormat = "%d %b"
+                        local addYearToFirstFind = firstFindDate.year ~= lastFindDate.year
+                        local firstFindFormat = dateFormat..(addYearToFirstFind and ' %Y' or '')
+                        local lastFindFormat = dateFormat..' %Y'
+
+                        newItem.dateRange = date(firstFindFormat, newItem.firstFound)..' - '
+                            ..date(lastFindFormat, newItem.lastFound)
+                    else
+                        newItem.dateRange = date("%d %b %Y, %a", newItem.firstFound)
+                    end
                 end
 
                 table.insert(items, newItem)
@@ -504,7 +524,9 @@ function sortItems(items)
         if (sortKey == "quantity") then return item.totalQuantity end
         if (sortKey == "quality") then return item.quality end
         if (sortKey == "value") then return item.totalValue end
-        if (sortKey == "lastLooted") then return item.lastFound end
+        -- an item whose entries are all undated sorts as the oldest there is, rather than
+        -- putting a nil in front of table.sort's comparator
+        if (sortKey == "lastLooted") then return item.lastFound or 0 end
         if (sortKey == "zone") then return item.zoneName end
 
         return item.itemName
@@ -920,6 +942,12 @@ local function csvField(value)
     return value
 end
 
+-- date() reads the clock when it is handed a nil, so an entry that carries no timestamp
+-- would export as "looted right now". An empty cell is the truthful answer.
+local function csvDate(timestamp)
+    return timestamp and date("%Y-%m-%d %H:%M:%S", timestamp) or ""
+end
+
 local function csvZones(zones)
     local parts = {}
 
@@ -947,8 +975,8 @@ function buildCsv()
             csvField(item.totalQuantity),
             csvField(item.totalValue),
             csvField(csvZones(item.zones)),
-            csvField(date("%Y-%m-%d %H:%M:%S", item.firstFound)),
-            csvField(date("%Y-%m-%d %H:%M:%S", item.lastFound)),
+            csvField(csvDate(item.firstFound)),
+            csvField(csvDate(item.lastFound)),
         }, ",")
     end
 
@@ -964,8 +992,8 @@ function buildCsv()
             csvField(currency.quantity),
             "",
             csvField(csvZones(currency.zones)),
-            csvField(date("%Y-%m-%d %H:%M:%S", currency.firstFound)),
-            csvField(date("%Y-%m-%d %H:%M:%S", currency.lastFound)),
+            csvField(csvDate(currency.firstFound)),
+            csvField(csvDate(currency.lastFound)),
         }, ",")
     end
 

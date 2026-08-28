@@ -172,8 +172,6 @@ function MLH:recordLoot(itemID, itemLink, quantity, zoneID)
     local totalAmount = self:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemName, zoneID, sellPrice)
 
     self:debugSummary(L["D_AddedAndTotal"](itemLink, totalAmount))
-
-    self:updateStatisticsTextData()
 end
 
 function MLH:CHAT_MSG_MONEY(_, message, ...)
@@ -209,8 +207,6 @@ function MLH:CHAT_MSG_CURRENCY(_, message, ...)
     local link = C_CurrencyInfo.GetCurrencyLink(currencyID, quantity)
 
     self:debugSummary(L["D_AddedAndTotal"](link or (info and info.name) or currencyID, totalAmount))
-
-    self:updateStatisticsTextData()
 end
 
 function MLH:isQuestItem(classID, subClassID)

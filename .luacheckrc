@@ -87,6 +87,7 @@ read_globals = {
     "time",
 
     -- Lua 5.1 globals the WoW client keeps but newer stds dropped
+    "tContains",
     "tinsert",
     "tremove",
     "wipe",

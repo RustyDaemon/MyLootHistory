@@ -282,7 +282,9 @@ function MLH:resetData()
     self.db.char.foundCurrency = {}
     itemIndex = nil
     currencyIndex = nil
-    MLH:updateStatisticsTextData()
+
+    -- the prices were cached against items that no longer exist here
+    self:clearPriceCache()
 
     self:debugPrint(L["M_DataWasCleared"])
 end
