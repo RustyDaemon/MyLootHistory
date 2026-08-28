@@ -1,11 +1,11 @@
 --[[
 My Loot History addon
-Copyright (C) 2024 Rustam (https://github.com/RustamIrzaev)
+Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
 --]]
 
-local MLH = MLH
+local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 
 local MLH_LDB = LibStub("LibDataBroker-1.1")
 local MLH_MMIcon = LibStub("LibDBIcon-1.0")

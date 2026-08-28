@@ -1,6 +1,6 @@
 --[[
 My Loot History addon
-Copyright (C) 2024 Rustam (https://github.com/RustamIrzaev)
+Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
 --]]
@@ -46,8 +46,6 @@ L["C_ShowLastLootedRow"] = "Show last looted date row"
 L["C_ShowLastLootedRow_Desc"] = "Show or hide the last looted date row"
 L["C_IgnoreZeroPriceItems"] = "Ignore items with 0 sell price"
 L["C_IgnoreZeroPriceItems_Desc"] = "Ignore items with zero (0) sell price in the report"
-L["C_IgnoreQuestItems"] = "Ignore Quest items"
-L["C_IgnoreQuestItems_Desc"] = "Ignore quest items in the report"
 L["C_ShowItemID"] = "Show Item ID"
 L["C_ShowItemID_Desc"] = "Show or hide the Item ID value"
 L["C_ShowItemTooltip"] = "Show item tooltip"

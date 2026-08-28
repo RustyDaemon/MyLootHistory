@@ -1,3 +1,12 @@
+## 1.1.1
+- Loot is now recognised from every "you picked this up" message the client sends, not just the plain one: stacks (`x20`), items pushed straight into your bags, and items you craft or gather are all tracked. Previously only the single-item message was matched.
+- Quantities are read from the client's own message format instead of an English-only pattern, so a stack no longer records as 1 on a non-English client.
+- Looking up an item on loot no longer scans the whole history; it uses an index. Noticeable on characters with a lot of loot.
+- Opening the report and changing a filter no longer copies the entire database first.
+- Removed two settings that could never do anything: "Ignore Quest items" (quest items are always skipped) and the unreachable "show last looted time".
+- The addon no longer defines `MLH`, `getDate` and 12 other names as globals. `getDate` was defined twice, with the report file's copy silently overwriting the one `DateUtils-1.0` uses; it is now `DateUtils-1.0:getDate`.
+- The quality filter list is built from named enum values rather than an offset from the end of the enum.
+
 ## 1.1.0
 - Updated to 12.1.0 (Interface 120100).
 - Fixed the report quantity: a row now shows the total number of items looted instead of the number of loot events. The sell price summary was understated for every stackable item and is now correct too.

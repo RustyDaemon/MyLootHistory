@@ -1,11 +1,11 @@
 --[[
 My Loot History addon
-Copyright (C) 2024 Rustam (https://github.com/RustamIrzaev)
+Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
 --]]
 
-local MLH = MLH
+local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local AGUI = LibStub("AceGUI-3.0")
 local DU = LibStub("DateUtils-1.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
@@ -13,6 +13,11 @@ local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 local isWindowShown = false
 local baseWindowWidth = 640
 local window = nil
+
+-- forward declarations, so the helpers below stay local to this file
+local addGoldEarnedRow, addIconRow, addItemDetailsRow, addItems, addLastLootedRow,
+      addNothingIsHereLabel, addQuantityRow, calculateGoldFound, getQualityList,
+      getRangeList, insertLinkToChat, updateSummary
 
 -- add to appropriate functions
 local rowWidth = {
@@ -118,44 +123,8 @@ function MLH:gui()
 
     window:Show()
     window:DoLayout()
-    
+
     isWindowShown = true
-end
-
--- move later
-function deepcopy(orig)
-    local orig_type = type(orig)
-    local copy
-
-    if orig_type == 'table' then
-        copy = {}
-
-        for orig_key, orig_value in next, orig, nil do
-            copy[deepcopy(orig_key)] = deepcopy(orig_value)
-        end
-
-        setmetatable(copy, deepcopy(getmetatable(orig)))
-    else
-        copy = orig
-    end
-    return copy
-end
-
--- refactor and get rid of
-function getDate(addDays, reset)
-    local curDate = date('*t')
-    curDate.day = curDate.day + addDays
-    curDate.isdst = nil
-
-    if (reset) then
-        curDate.hour = 0
-        curDate.min = 0
-        curDate.sec = 0
-    end
-
-    local newDate = date("*t", time(curDate))
-
-    return newDate
 end
 
 -- refactor this along with addItems()
@@ -211,18 +180,28 @@ end
 function addItems(window)
     window:ReleaseChildren()
 
-    local itemsFound = deepcopy(MLH.db.char.foundItems)
+    -- nothing below mutates the stored records, so they are read in place
+    local itemsFound = MLH.db.char.foundItems
     local items = {}
 
     for i = 1, #itemsFound do
         local canBeAdded = false
         local item = itemsFound[i]
-        local newItem = deepcopy(item)
-        local addItem = function(ita) table.insert(newItem.lootData, ita) end
 
-        newItem.lootData = {}
-        newItem.totalQuantity = 0
-        newItem.dateRange = ""
+        -- a fresh shell holding references to the loot entries that pass the date filter
+        local newItem = {
+            itemId = item.itemId,
+            itemLink = item.itemLink,
+            itemName = item.itemName,
+            itemTexture = item.itemTexture,
+            quality = item.quality,
+            sellPrice = item.sellPrice,
+            lootData = {},
+            totalQuantity = 0,
+            dateRange = "",
+        }
+
+        local addItem = function(ita) table.insert(newItem.lootData, ita) end
 
         for j = 1, #item.lootData do
             local lootData = item.lootData[j]
@@ -282,8 +261,9 @@ function addItems(window)
         end
 
         if (canBeAdded) then
-            table.sort(newItem.lootData, function(l, r) return l.foundOn < r.foundOn end) -- desc
-            
+            -- oldest first, so lootData[1] is the first find and lootData[#] the last
+            table.sort(newItem.lootData, function(l, r) return l.foundOn < r.foundOn end)
+
             --refactor this later
             local firstFind = newItem.lootData[1].foundOn
             local lastFind = newItem.lootData[#newItem.lootData].foundOn
@@ -298,13 +278,7 @@ function addItems(window)
 
                 newItem.dateRange = date(firstFindFormat, firstFind)..' - '..date(lastFindFormat, lastFind)
             else
-                local dateFormat = "%d %b %Y, %a"
-
-                if (MLH.db.char.config.showLastLootedTime) then
-                    dateFormat = dateFormat.." %X"
-                end
-
-                newItem.dateRange = date(dateFormat, firstFind)
+                newItem.dateRange = date("%d %b %Y, %a", firstFind)
             end
 
             table.insert(items, newItem)
@@ -386,7 +360,7 @@ function updateSummary(totalItems, totalQuantity, totalSellPrice)
     if (totalItems == 0) then
         window:SetStatusText(L["R_LootSomething"])
         return
-        
+
     end
 
     -- local gold = floor(math.abs(totalSellPrice) / 10000)
@@ -511,7 +485,7 @@ function insertLinkToChat(itemLink)
     if (not itemLink) then return end
 
     ChatEdit_TryInsertChatLink(itemLink)
-    
+
     -- local activeWindow = ChatEdit_GetActiveWindow()
 
     -- if (not activeWindow) then
@@ -528,10 +502,15 @@ end
 function getQualityList()
     local result = {}
 
-    -- ignores artifact, wow token and legacy items
-    for i = 0, Enum.ItemQualityMeta.NumValues - 4 do
+    -- Poor through Legendary. Artifact, Heirloom and WoW Token sit above it in the enum
+    -- and are not ordinary loot, so the range is named rather than trimmed off the end.
+    for i = Enum.ItemQuality.Poor, Enum.ItemQuality.Legendary do
         local _, _, _, hex = C_Item.GetItemQualityColor(i)
-        result[i] = '|c'..hex.._G["ITEM_QUALITY" .. i .. "_DESC"]..'|r'
+        local desc = _G["ITEM_QUALITY" .. i .. "_DESC"]
+
+        if (desc) then
+            result[i] = '|c'..hex..desc..'|r'
+        end
      end
 
      return result

@@ -1,11 +1,11 @@
 --[[
 My Loot History addon
-Copyright (C) 2024 Rustam (https://github.com/RustamIrzaev)
+Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
 --]]
 
-local MLH = MLH
+local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local ADB = LibStub("AceDB-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
@@ -21,12 +21,10 @@ local defaults = {
 
         config = {
             showLastLooted = false,
-            -- showLastLootedTime = false,
             showItemID = false,
             showTooltip = true,
             showAdditionalTooltipData = false,
             reportIconSize = 24,
-            ignoreQuestItems = true,
             ignoreItemsWithZeroPrice = true,
             resizableReportWindow = false,
             debug = {
@@ -45,8 +43,30 @@ local defaults = {
     },
 }
 
+-- itemId -> index into db.char.foundItems, built once per session and kept in step with
+-- inserts. Never saved: it is derived data, and the saved table is what it is derived from.
+local itemIndex = nil
+
+local function getItemIndex(foundItems)
+    if (itemIndex) then return itemIndex end
+
+    itemIndex = {}
+
+    for i = 1, #foundItems do
+        local itemID = foundItems[i].itemId
+
+        -- first entry wins, matching the linear scan this replaces
+        if (itemIndex[itemID] == nil) then
+            itemIndex[itemID] = i
+        end
+    end
+
+    return itemIndex
+end
+
 function MLH:initDatabase()
     self.db = ADB:New("MyLootHistoryDB", defaults)
+    itemIndex = nil
 end
 
 function MLH:addGold(quantity, zoneID)
@@ -59,15 +79,8 @@ end
 
 function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemName, zoneID, sellPrice)
     local foundItems = self.db.char.foundItems
-    local itemIndex = -1
+    local index = getItemIndex(foundItems)[itemID]
     local totalQuantity = 0
-
-    for i = 1, #foundItems do
-        if (foundItems[i].itemId == itemID) then
-            itemIndex = i
-            break
-        end
-    end
 
     local newLootDataObj = {
         quantity = quantity,
@@ -76,28 +89,27 @@ function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemN
         sellPrice = sellPrice or 0,
     }
 
-    if (itemIndex == -1) then
+    if (index == nil) then
         local newItem = {
             itemId = itemID,
             itemLink = itemLink,
             itemName = itemName,
             itemTexture = itemTexture,
             quality = itemQuality,
-            lootData = {},
+            lootData = { newLootDataObj },
         }
 
-        table.insert(newItem.lootData, newLootDataObj)
         table.insert(foundItems, newItem)
-    else
-        table.insert(foundItems[itemIndex].lootData, newLootDataObj)
+        itemIndex[itemID] = #foundItems
+
+        return quantity
     end
 
-    if (itemIndex ~= -1) then
-        for i = 1, #foundItems[itemIndex].lootData do
-            totalQuantity = totalQuantity + foundItems[itemIndex].lootData[i].quantity
-        end
-    else
-        totalQuantity = quantity
+    local lootData = foundItems[index].lootData
+    table.insert(lootData, newLootDataObj)
+
+    for i = 1, #lootData do
+        totalQuantity = totalQuantity + lootData[i].quantity
     end
 
     return totalQuantity
@@ -106,6 +118,7 @@ end
 function MLH:resetData()
     self.db.char.foundItems = {}
     self.db.char.foundGold = {}
+    itemIndex = nil
     MLH:updateStatisticsTextData()
 
     if (self.db.char.config.debug.printOtherDebugInfo) then

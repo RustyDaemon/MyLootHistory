@@ -1,11 +1,11 @@
 --[[
 My Loot History addon
-Copyright (C) 2024 Rustam (https://github.com/RustamIrzaev)
+Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
 --]]
 
-local MLH = MLH
+local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 
 local ACFG = LibStub("AceConfig-3.0")
 local ACFGDLG = LibStub("AceConfigDialog-3.0")
@@ -84,20 +84,6 @@ local generalOptions = {
                         MLH.db.char.config.showLastLooted = value
                     end
                 },
-                -- disable this if previous is disabled
-                -- showLastLootedTimeCheckBox = {
-                --     order = 2,
-                --     width = "double",
-                --     type = "toggle",
-                --     name = "Show last looted time",
-                --     desc = "Show or hide the last looted time.|nNote! This will work only for single dates, not for date ranges",
-                --     get = function (_)
-                --         return MLH.db.char.config.showLastLootedTime
-                --     end,
-                --     set = function (_, value)
-                --         MLH.db.char.config.showLastLootedTime = value
-                --     end
-                -- },
                 ignoreItemsWithZeroSellPriceCheckBox = {
                     order = 2,
                     width = "double",
@@ -110,21 +96,6 @@ local generalOptions = {
                     end,
                     set = function (_, value)
                         MLH.db.char.config.ignoreItemsWithZeroPrice = value
-                    end
-                },
-
-                ignoreQuestItemsCheckBox = {
-                    order = 5,
-                    width = "double",
-                    type = "toggle",
-                    disabled = true,
-                    name = L["C_IgnoreQuestItems"],
-                    desc = L["C_IgnoreQuestItems_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.ignoreQuestItems
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.ignoreQuestItems = value
                     end
                 },
 
@@ -238,7 +209,7 @@ local generalOptions = {
                             showAlert = true,
                             enterClicksFirstButton = false,
                           }
-                          
+
                           StaticPopup_Show("PROMPT_CLEAR_DATA")
                     end
                 }

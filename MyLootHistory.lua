@@ -1,14 +1,62 @@
 --[[
 My Loot History addon
-Copyright (C) 2024 Rustam (https://github.com/RustamIrzaev)
+Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
 --]]
 
 local addonName, addon = ...
 
-MLH = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
+local MLH = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
+
+addon.MLH = MLH
+
+-- The message forms the client uses when *you* pick something up. The _MULTIPLE variants
+-- have to be tested first: their single-item counterpart matches a multi-item message too.
+local lootMessageForms = {
+    { global = "LOOT_ITEM_SELF_MULTIPLE",         hasQuantity = true  },
+    { global = "LOOT_ITEM_PUSHED_SELF_MULTIPLE",  hasQuantity = true  },
+    { global = "LOOT_ITEM_CREATED_SELF_MULTIPLE", hasQuantity = true  },
+    { global = "LOOT_ITEM_SELF",                  hasQuantity = false },
+    { global = "LOOT_ITEM_PUSHED_SELF",           hasQuantity = false },
+    { global = "LOOT_ITEM_CREATED_SELF",          hasQuantity = false },
+}
+
+local lootPatterns = nil
+
+-- Turns a client format string ("You receive loot: %sx%d.") into a Lua pattern.
+-- The item name is deliberately not captured - the link is pulled straight out of the
+-- message instead - so the quantity stays the only capture whatever order a locale
+-- puts the arguments in.
+local function toLootPattern(fmt, hasQuantity)
+    local pattern = fmt:gsub("%%%d%$", "%%")                        -- %1$s -> %s
+    pattern = pattern:gsub("([%^%$%(%)%.%[%]%*%+%-%?])", "%%%1")    -- escape pattern magic
+    pattern = pattern:gsub("%%s", ".+")
+    pattern = pattern:gsub("%%d", hasQuantity and "(%%d+)" or "%%d+")
+
+    return "^"..pattern
+end
+
+local function getLootPatterns()
+    if (lootPatterns) then return lootPatterns end
+
+    lootPatterns = {}
+
+    for i = 1, #lootMessageForms do
+        local form = lootMessageForms[i]
+        local fmt = _G[form.global]
+
+        if (fmt) then
+            lootPatterns[#lootPatterns+1] = {
+                pattern = toLootPattern(fmt, form.hasQuantity),
+                hasQuantity = form.hasQuantity,
+            }
+        end
+    end
+
+    return lootPatterns
+end
 
 function MLH:OnInitialize()
     self:initDatabase()
@@ -29,15 +77,6 @@ function MLH:Disable()
 end
 
 function MLH:CHAT_MSG_LOOT(_, message, ...)
-    local message = message
-
-    if (not self:isMyLoot(message)) then
-        if (self.db.char.config.debug.printOtherDebugInfo) then
-            print(L["D_NotMyItem"])
-        end
-        return
-    end
-
     local itemLink, quantity, itemID = self:getLootDetails(message)
 
     if (not itemID) then
@@ -106,16 +145,6 @@ function MLH:CHAT_MSG_MONEY(_, message, ...)
     self:addGold(money, self:getZoneID())
 end
 
-function MLH:isMyLoot(message)
-    local lootString = LOOT_ITEM_SELF:gsub("%%s", ""):gsub("%.$", "")
-
-    if (string.sub(message, 1, #lootString) == lootString) then
-        return true
-    end
-
-    return false
-end
-
 function MLH:isQuestItem(classID, subClassID)
     -- probably, there might be something that is missing, will see
     -- for example itemID=76298 has cID=0 and scID=8 and it IS QUEST ITEM
@@ -123,16 +152,27 @@ function MLH:isQuestItem(classID, subClassID)
     return (classID == Enum.ItemClass.Questitem) or (classID == Enum.ItemClass.Consumable and subClassID == 8)
 end
 
--- parsing only: everything here works without the item being cached
+-- Returns nil unless the message is one of the six "you looted this" forms.
+-- Parsing only: everything here works without the item being cached.
 function MLH:getLootDetails(message)
-    local itemLink = string.match(message, "|c.-|h|r")
+    local patterns = getLootPatterns()
 
-    if (not itemLink) then return nil, 1, nil end
+    for i = 1, #patterns do
+        local form = patterns[i]
+        local match = message:match(form.pattern)
 
-    local quantity = tonumber(string.match(message, "x(%d+)%.*$")) or 1
-    local itemID = C_Item.GetItemInfoFromHyperlink(itemLink)
+        if (match) then
+            local itemLink = message:match("|c.-|h|r")
 
-    return itemLink, quantity, itemID
+            if (not itemLink) then return nil end
+
+            local quantity = form.hasQuantity and (tonumber(match) or 1) or 1
+
+            return itemLink, quantity, C_Item.GetItemInfoFromHyperlink(itemLink)
+        end
+    end
+
+    return nil
 end
 
 function MLH:getZoneID()

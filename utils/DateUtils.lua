@@ -1,6 +1,6 @@
 --[[
 My Loot History addon
-Copyright (C) 2024 Rustam (https://github.com/RustamIrzaev)
+Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
 --]]
@@ -8,6 +8,26 @@ See License file for details.
 local lib = LibStub:NewLibrary("DateUtils-1.0", 1)
 
 if (not lib) then return end
+
+local function getDate(addDays, resetToMidnight)
+    local curDate = date('*t')
+    curDate.day = curDate.day + addDays
+    curDate.isdst = nil
+
+    if (resetToMidnight) then
+        curDate.hour = 0
+        curDate.min = 0
+        curDate.sec = 0
+    end
+
+    local newDate = date("*t", time(curDate))
+
+    return newDate
+end
+
+function lib:getDate(addDays, resetToMidnight)
+    return getDate(addDays, resetToMidnight)
+end
 
 function lib:dateIsToday(source, resetToMidnight)
     local today = getDate(0, resetToMidnight)
@@ -45,20 +65,4 @@ end
 
 function lib:isWed(wday)
   return wday == 4
-end
-
-function getDate(addDays, resetToMidnight)
-    local curDate = date('*t')
-    curDate.day = curDate.day + addDays
-    curDate.isdst = nil
-
-    if (resetToMidnight) then
-        curDate.hour = 0
-        curDate.min = 0
-        curDate.sec = 0
-    end
-
-    local newDate = date("*t", time(curDate))
-
-    return newDate
 end
