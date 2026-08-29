@@ -28,6 +28,8 @@ end
 wow.load("utils/DateUtils.lua")
 wow.load("MyLootHistory.lua")
 wow.load("MyLootHistoryDB.lua")
+wow.load("MyLootHistoryScope.lua")
+wow.load("MyLootHistorySource.lua")
 wow.load("MyLootHistoryPrices.lua")
 wow.load("MyLootHistorySession.lua")
 wow.load("MyLootHistoryData.lua")

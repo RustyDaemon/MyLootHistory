@@ -113,14 +113,34 @@ end
 
 wow.deepCopy = deepCopy
 
--- AceDB, reduced to the part the addon uses: a `char` table seeded from defaults.
+-- AceDB, reduced to the part the addon uses: a `char` table seeded from defaults,
+-- the `keys.char` the current character is filed under, and the `sv.char` table
+-- holding every character - which is what the account-wide scope reads.
 -- The real library layers defaults behind a metatable; a copy is equivalent for
 -- everything the tests do and far easier to reason about.
+wow.charKey = "Tester - Testrealm"
+
 wow.provide("AceDB-3.0", {
     New = function(_, _, defaults)
-        return { char = deepCopy(defaults and defaults.char or {}) }
+        local char = deepCopy(defaults and defaults.char or {})
+
+        return {
+            char = char,
+            keys = { char = wow.charKey },
+            sv = { char = { [wow.charKey] = char } },
+        }
     end,
 })
+
+-- Files a second character's history under `sv.char`, the way another character's saved
+-- variables would be sitting there after they logged out. Only the tables handed in exist:
+-- AceDB strips anything still equal to its default before saving, so this is what the
+-- account-wide walk really meets.
+function wow.addCharacter(db, key, data)
+    db.sv.char[key] = data
+
+    return data
+end
 
 -- The addon object. Modules after the first do
 -- LibStub("AceAddon-3.0"):GetAddon("MyLootHistory"), so both calls hand back the

@@ -47,6 +47,10 @@ L["C_ShowLastLootedRow"] = "Show last looted date row"
 L["C_ShowLastLootedRow_Desc"] = "Show or hide the last looted date row"
 L["C_ShowZoneColumn"] = "Show zone column"
 L["C_ShowZoneColumn_Desc"] = "Show the zone an item was mostly looted in. The full breakdown is always in the item tooltip"
+L["C_TrackLootSource"] = "Record where loot came from"
+L["C_TrackLootSource_Desc"] = "Remember what each drop came off - the creature, the container, or that it was crafted or gathered. Only loot picked up from now on can carry it; switching this off stops the recording and leaves what is already stored alone"
+L["C_ShowSourceColumn"] = "Show source column"
+L["C_ShowSourceColumn_Desc"] = "Show what an item mostly came from. The full breakdown is always in the item tooltip"
 L["C_IgnoreZeroPriceItems"] = "Ignore items with 0 sell price"
 L["C_IgnoreZeroPriceItems_Desc"] = "Ignore items with zero (0) sell price in the report"
 L["C_ShowItemID"] = "Show Item ID"
@@ -146,7 +150,19 @@ L["S_SessionLine"] = function (duration, quantity, itemsPerHour, total, goldPerH
     ..' ('..goldPerHour..'/h), '..currencyQuantity..' currency'
 end
 
-L["S_SessionTooltip"] = "Click to start a new session from now"
+L["S_SessionTooltip"] = "Click to start a new session from now. The one you were in is filed under the session picker"
+
+-- session history
+L["S_LiveSession"] = "Current session"
+
+L["S_SessionEntry"] = function (startedOn, duration, value)
+  return startedOn..'  ·  '..duration..'  ·  '..value..'g'
+end
+
+L["S_SessionPicker"] = "Session"
+L["S_PastSession"] = function (startedOn)
+  return 'Session of '..startedOn
+end
 
 -- price sources
 L["S_PriceVendor"] = "Vendor price"
@@ -170,6 +186,28 @@ L["R_ColValue"] = "Value"
 L["R_ColZone"] = "Zone"
 L["R_ColLooted"] = "Looted"
 L["R_ColValueMarket"] = "AH"
+L["R_ColCharacter"] = "Character"
+L["R_ColSource"] = "From"
+
+-- account-wide history
+L["R_ScopeCharacter"] = "This character"
+L["R_ScopeAccount"] = "All characters"
+L["R_Scope"] = "Show loot from"
+
+L["R_SeveralCharacters"] = function (count)
+  return count..' characters'
+end
+
+L["R_LootedBy"] = "Looted by:"
+L["R_DroppedBy"] = "From:"
+
+-- loot sources, for the drops the client named nothing better than their kind
+L["R_SourceCreature"] = "A creature"
+L["R_SourceObject"] = "An object"
+L["R_SourceContainer"] = "A container"
+L["R_SourcePlayer"] = "Traded"
+L["R_SourceCrafted"] = "Crafted or gathered"
+L["R_SourcePushed"] = "Quest or container"
 
 L["R_SortBy"] = function (columnName)
   return 'Click to sort by "'..columnName..'". Click again to reverse the order'

@@ -43,7 +43,27 @@ The first three cards are live and keep counting while the window is open: how l
 
 Click the session card to start a new session from that moment, which is what you want when you move to a new farming spot. The same numbers are on the minimap tooltip and behind `/mlh session`.
 
-By default the value of your loot is the vendor price. If you have [Auctionator](https://www.curseforge.com/wow/addons/auctionator) installed, you can switch the report over to auction house prices in the settings - it is optional, and the vendor price is used for anything Auctionator has no price for.
+By default the value of your loot is the vendor price. If you have [Auctionator](https://www.curseforge.com/wow/addons/auctionator) installed, switching the price source in the settings adds an **AH column** beside it - the vendor price keeps its own column, so you can see both at once, and an item the auction house has no price for shows a dash rather than pretending to be worth nothing.
+
+## What did last night's farm make?
+
+Sessions are kept, not just the one you are in. Start a new one and the old one is filed; log in tomorrow and yesterday's is still there. Pick one out of the session picker beside the date range and the whole report - rows, totals and the cards at the top - describes that session: when it ran, how long for, and what it was worth.
+
+A session stores only the window it covered, so its numbers are always worked out from the loot itself and can never drift out of step with your history.
+
+## All my characters at once
+
+Switch **Show loot from** to *All characters* and the report covers the whole account. An item three of your characters have looted is one row, not three: the quantities add up, a Character column says who found most of it, and the tooltip lists all of them.
+
+Nothing is moved or converted - each character's history stays exactly where it has always been, and this is only a way of reading all of them together. Switch back and the view narrows again.
+
+## Where did this drop from?
+
+Loot is recorded with what it came from: the creature it dropped off, the container it was in, or that you crafted or gathered it. Switch on the **From** column to see the main source per row, and the item tooltip lists every one of them with a count - which is how you find out that the thing paying for your farm comes off one particular mob.
+
+It is recorded from the moment you install this version; loot picked up before then has no source to show. Recording it can be switched off in the settings, and anything the client will not name honestly is shown as what kind of thing it was rather than guessed at.
+
+Names are learned from what you target or hover, and kept for the whole account - so the first time you target a mob, every drop it has ever given you is named, including the ones recorded before you knew what it was called.
 
 ## Was this worth picking up before?
 
@@ -53,8 +73,9 @@ Hover any item in the game - in your bags, at a vendor, in the auction house, or
 
 Yes! And history changes according to you filters. It will show you how much gold you looted and how many items you gathered depending on filters you selected. For example, if you looted 3xHochenblume yesterday and 1xHochenblume today, you will see the exact history.
 
+- by character: this one, or every character on the account
 - by date or date range:
-  - Current Session
+  - Current session, or any session you have finished
   - Today
   - Yesterday
   - Wednesday-to-Wednesday
@@ -72,7 +93,7 @@ Yes! And history changes according to you filters. It will show you how much gol
 - by default, it filters as a 'item quality and upper'. But you can filter on 'Exact' item quality - there is a checkbox for that
 - gold summary also updates according to date range you change
 
-And you can sort it: click a column header to sort by quality, name, quantity, value, zone or the last looted date, and click it again to reverse the order. The search text, the sort column and its direction are remembered per character.
+And you can sort it: click a column header to sort by quality, name, quantity, value, auction value, character, source, zone or the last looted date, and click it again to reverse the order. The search text, the sort column and its direction are remembered per character.
 
 ## What can be configured
 
@@ -82,7 +103,8 @@ And you can sort it: click a column header to sort by quality, name, quantity, v
 - Show the zone column in the report
 - Show the session cards and the activity graph at the top of the report
 - Show currencies in the report
-- Price source for the value column: vendor price, or auction house prices through Auctionator
+- Price source: vendor price alone, or an extra auction house column through Auctionator
+- Record where loot came from, and show the source column in the report
 - Ignore items with 0 (zero) sell price
 - Ignore quest items (note, this is a default state and it can't be changed)
 - Show item ID in the report

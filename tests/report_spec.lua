@@ -36,6 +36,8 @@ wow.provide("AceConfigDialog-3.0", { Open = function() end })
 wow.load("utils/DateUtils.lua")
 wow.load("MyLootHistory.lua")
 wow.load("MyLootHistoryDB.lua")
+wow.load("MyLootHistoryScope.lua")
+wow.load("MyLootHistorySource.lua")
 wow.load("MyLootHistoryPrices.lua")
 wow.load("MyLootHistorySession.lua")
 wow.load("MyLootHistoryData.lua")
@@ -248,7 +250,8 @@ describe("the header", function()
     before_each(open)
 
     it("sorts by every column, both ways", function()
-        for _, key in ipairs({ "quality", "name", "quantity", "value", "zone", "lastLooted" }) do
+        for _, key in ipairs({ "quality", "name", "quantity", "value", "market", "character",
+                               "source", "zone", "lastLooted" }) do
             assert.has_no.errors(function()
                 window.header[key]:Fire("OnEnter")
                 window.header[key]:Click()
@@ -348,6 +351,19 @@ describe("the filter bar", function()
         assert.is_false(MLH:getFilters().exactQuality)
     end)
 
+    it("only offers the session picker while the range is a session", function()
+        MLH:setFilter("range", 6)
+        MLH:refreshReport()
+        assert.is_false(window.sessionDropdown:IsShown())
+
+        MLH:setFilter("range", 1)
+        MLH:refreshReport()
+        assert.is_true(window.sessionDropdown:IsShown())
+
+        MLH:setFilter("range", 6)
+        MLH:refreshReport()
+    end)
+
     it("takes what is typed in the search box", function()
         window.search.editBox:SetText("Item 4")
         window.search.editBox:Fire("OnTextChanged", true)
@@ -429,7 +445,8 @@ describe("the window itself", function()
     end)
 
     it("follows the settings that change what it draws", function()
-        local keys = { "showZone", "showLastLooted", "showItemID", "showCurrency", "showSessionBar" }
+        local keys = { "showZone", "showLastLooted", "showItemID", "showCurrency",
+                       "showSessionBar", "showSource" }
 
         for _, key in ipairs(keys) do
             assert.has_no.errors(function()
@@ -439,6 +456,20 @@ describe("the window itself", function()
                 MLH:refreshReport()
             end)
         end
+    end)
+
+    it("shows the character column once the view covers the account", function()
+        assert.is_false(window.header.character:IsShown())
+
+        MLH:setFilter("scope", "account")
+        MLH:refreshReport()
+
+        assert.is_true(window.header.character:IsShown())
+
+        MLH:setFilter("scope", "char")
+        MLH:refreshReport()
+
+        assert.is_false(window.header.character:IsShown())
     end)
 
     it("redraws at a different icon size", function()

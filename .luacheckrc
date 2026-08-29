@@ -76,6 +76,14 @@ read_globals = {
     "NO",
     "YES",
 
+    -- loot source attribution: the loot window, and the units that name what is in it.
+    -- Deliberately no COMBAT_LOG_EVENT_UNFILTERED - registering it is forbidden to addons
+    -- and blocks this one at login.
+    "GetLootSourceInfo",
+    "GetNumLootItems",
+    "UnitExists",
+    "UnitGUID",
+
     -- formatting and misc helpers
     "GetMoneyString",
     "GetLocale",
@@ -135,6 +143,12 @@ files["tests/**/*.lua"] = {
 
         -- and by tests/support/frames.lua, for the specs that drive the report window
         "CreateFrame", "UIParent", "UISpecialFrames",
+    },
+
+    -- source_spec builds a fake loot window and a fake target of its own
+    globals = {
+        "GetLootSourceInfo", "GetNumLootItems",
+        "UnitExists", "UnitGUID", "UnitName", "strsplit",
     },
 }
 

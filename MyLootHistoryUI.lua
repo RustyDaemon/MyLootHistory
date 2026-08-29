@@ -40,6 +40,8 @@ local COLUMN_WIDTH = {
     quantity = 54,
     value = 104,
     market = 104,
+    character = 104,
+    source = 132,
     zone = 132,
     lastLooted = 124,
 }
@@ -113,8 +115,17 @@ function columnLayout()
         layout.lastLootedRight, layout.lastLootedWidth = claim(COLUMN_WIDTH.lastLooted)
     end
 
+    -- who looted it only needs saying when the view covers more than one character
+    if (MLH:getScope() == "account") then
+        layout.characterRight, layout.characterWidth = claim(COLUMN_WIDTH.character)
+    end
+
     if (config.showZone) then
         layout.zoneRight, layout.zoneWidth = claim(COLUMN_WIDTH.zone)
+    end
+
+    if (config.showSource) then
+        layout.sourceRight, layout.sourceWidth = claim(COLUMN_WIDTH.source)
     end
 
     -- an auction-house price source earns its own column: the vendor price is what the item
@@ -336,9 +347,13 @@ local function createRow(parent)
     row.quantity = UI:number(row, 14, "text")
     row.value = UI:text(row, 12, "text")
     row.market = UI:text(row, 12, "money")
+    row.character = UI:text(row, 11, "textDim")
+    row.source = UI:text(row, 11, "textDim")
     row.zone = UI:text(row, 11, "textDim")
     row.lastLooted = UI:text(row, 11, "textDim")
 
+    row.character:SetWordWrap(false)
+    row.source:SetWordWrap(false)
     row.zone:SetWordWrap(false)
     row.lastLooted:SetWordWrap(false)
 
@@ -393,6 +408,29 @@ local function createRow(parent)
                 if (#zones > 0) then
                     GameTooltip:AddLine("|cFFDDDDDD"..L["R_LootedIn"].."|r |cFF00BB00"
                         ..table.concat(zones, ", ").."|r", 1, 1, 1, true)
+                end
+
+                if (item.sources and #item.sources > 0) then
+                    local sources = {}
+
+                    for i = 1, math.min(#item.sources, 5) do
+                        sources[i] = item.sources[i].name.." ("..item.sources[i].quantity..")"
+                    end
+
+                    GameTooltip:AddLine("|cFFDDDDDD"..L["R_DroppedBy"].."|r |cFF00BB00"
+                        ..table.concat(sources, ", ").."|r", 1, 1, 1, true)
+                end
+
+                -- who found it, but only when that is more than one answer
+                if (item.characters and #item.characters > 1) then
+                    local names = {}
+
+                    for i = 1, #item.characters do
+                        names[i] = item.characters[i].name.." ("..item.characters[i].quantity..")"
+                    end
+
+                    GameTooltip:AddLine("|cFFDDDDDD"..L["R_LootedBy"].."|r |cFF00BB00"
+                        ..table.concat(names, ", ").."|r", 1, 1, 1, true)
                 end
             end
 
@@ -449,6 +487,8 @@ local function fillRow(row, entry, index, layout)
         row.quantity:Hide()
         row.value:Hide()
         row.market:Hide()
+        row.character:Hide()
+        row.source:Hide()
         row.zone:Hide()
         row.lastLooted:Hide()
         row.heat:SetWidth(1)
@@ -487,6 +527,8 @@ local function fillRow(row, entry, index, layout)
         -- the same as the item being worthless
         row.market:SetText(item.marketValue and MLH:formatMoneyShort(item.marketValue) or "-")
         row.market:SetAlpha(item.marketValue and 1 or 0.35)
+        row.character:SetText(item.charName or "")
+        row.source:SetText(item.sourceName or "")
         row.zone:SetText(item.zoneName)
         row.lastLooted:SetText(item.dateRange)
 
@@ -516,6 +558,8 @@ local function fillRow(row, entry, index, layout)
         row.value:SetText("")
         row.value:SetAlpha(1)
         row.market:SetText("")
+        row.character:SetText("")
+        row.source:SetText("")
         row.zone:SetText(currency.zoneName)
         row.lastLooted:SetText("")
 
@@ -534,6 +578,8 @@ local function fillRow(row, entry, index, layout)
         row.value:SetText(MLH:formatMoneyShort(entry.gold))
         row.value:SetAlpha(1)
         row.market:SetText("")
+        row.character:SetText("")
+        row.source:SetText("")
         row.zone:SetText("")
         row.lastLooted:SetText("")
 
@@ -562,6 +608,8 @@ local function fillRow(row, entry, index, layout)
     applyCell(row.quantity, layout.quantityRight, layout.quantityWidth, "RIGHT")
     applyCell(row.value, layout.valueRight, layout.valueWidth, "RIGHT")
     applyCell(row.market, layout.marketRight, layout.marketWidth, "RIGHT")
+    applyCell(row.character, layout.characterRight, layout.characterWidth, "LEFT")
+    applyCell(row.source, layout.sourceRight, layout.sourceWidth, "LEFT")
     applyCell(row.zone, layout.zoneRight, layout.zoneWidth, "LEFT")
     applyCell(row.lastLooted, layout.lastLootedRight, layout.lastLootedWidth, "LEFT")
 end
@@ -688,7 +736,8 @@ local function createHeaderColumn(parent, key, text, justify)
         else
             MLH:setFilter("sortKey", self.key)
             -- names and places read best A-Z, everything else reads best largest-first
-            MLH:setFilter("sortDescending", self.key ~= "name" and self.key ~= "zone")
+            MLH:setFilter("sortDescending",
+                self.key ~= "name" and self.key ~= "zone" and self.key ~= "character")
         end
 
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
@@ -724,6 +773,8 @@ local function refreshHeader()
     place(header.quantity, layout.quantityRight, layout.quantityWidth, "RIGHT")
     place(header.value, layout.valueRight, layout.valueWidth, "RIGHT")
     place(header.market, layout.marketRight, layout.marketWidth, "RIGHT")
+    place(header.character, layout.characterRight, layout.characterWidth, "LEFT")
+    place(header.source, layout.sourceRight, layout.sourceWidth, "LEFT")
     place(header.zone, layout.zoneRight, layout.zoneWidth, "LEFT")
     place(header.lastLooted, layout.lastLootedRight, layout.lastLootedWidth, "LEFT")
 
@@ -735,7 +786,8 @@ local function refreshHeader()
     header.lastLooted:SetShown(config.showLastLooted and true or false)
 
     for _, button in pairs({ header.quality, header.name, header.quantity, header.value,
-                             header.market, header.zone, header.lastLooted }) do
+                             header.market, header.character, header.source, header.zone,
+                             header.lastLooted }) do
         local isActive = active.sortKey == button.key
         local arrow = isActive and (active.sortDescending and SORT_DOWN or SORT_UP) or ""
 
@@ -750,10 +802,16 @@ end
 function updateSession()
     if (not window or not window.cards) then return end
 
-    local stats = MLH:getSessionStats()
+    -- While the report is filtered to a finished session the cards describe that session:
+    -- showing the live one beside a list of last night's loot would be two different
+    -- questions answered in one row.
+    local viewing = MLH:getFilters().range == 1 and MLH:getSelectedSession() or nil
+    local stats = MLH:getSessionStats(viewing)
     local cards = window.cards
 
-    cards.time:Set(MLH:formatDuration(stats.duration), L["G_SinceLogin"], "text")
+    cards.time:Set(MLH:formatDuration(stats.duration),
+        stats.isLive and L["G_SinceLogin"] or L["S_PastSession"](date("%d %b %H:%M", stats.sessionStart)),
+        "text")
     cards.items:Set(string.format("%.0f", stats.itemsPerHour), L["G_ItemsTotal"](stats.quantity), "text")
     cards.gold:Set(MLH:formatGoldCompact(stats.goldPerHour)..GOLD_ICON,
         L["G_ValueSoFar"](MLH:formatGoldCompact(stats.totalValue)), "money")
@@ -817,8 +875,14 @@ function refreshReport(keepScroll)
 
     window.zoneDropdown:SetText(MLH:getZoneFilterName())
     window.qualityDropdown:SetText(MLH:getQualityName(MLH:getFilters().quality))
+    window.sessionDropdown:SetText(MLH:getSelectedSessionName())
+    window.scopeDropdown:SetText(MLH:getScopeName())
     window.rangeControl:Refresh()
     window.exactToggle:Refresh()
+
+    -- the session picker comes and goes with the date range, and the character column with
+    -- the scope, so the bar and the columns are laid out again from here
+    window:UpdateLayout()
 end
 
 -- The window rebuilds itself when a setting it draws from changes, so the options panel
@@ -1012,6 +1076,22 @@ function buildWindow()
             MLH:setFilter("zone", value)
             refreshReport()
         end)
+    -- the session picker only means anything while the range is a session, so it is only
+    -- there then - the layout below closes the gap when it is not
+    local sessionDropdown = UI:dropdown(filterBar, 190, 26, L["S_SessionPicker"],
+        function() return MLH:getSessionList() end,
+        function() return MLH:getFilters().session or 0 end,
+        function(value)
+            MLH:setFilter("session", value)
+            refreshReport()
+        end)
+    local scopeDropdown = UI:dropdown(filterBar, 140, 26, L["R_Scope"],
+        function() return MLH:getScopeList() end,
+        function() return MLH:getFilters().scope or "char" end,
+        function(value)
+            MLH:setFilter("scope", value)
+            refreshReport()
+        end)
     local exactToggle = UI:toggle(filterBar, L["R_ExactItemQuality"],
         function() return MLH:getFilters().exactQuality end,
         function(value)
@@ -1019,36 +1099,57 @@ function buildWindow()
             refreshReport()
         end)
 
-    -- The five filters are sized by their own text - the date range alone is six buttons -
-    -- and at the narrow end of the window they do not fit on one line. Rather than let the
-    -- tail of the row hang outside the frame, the quality/zone/exact group drops to a
-    -- second line and the bar grows to hold it.
+    -- The filters are sized by their own text - the date range alone is six buttons - and at
+    -- the narrow end of the window they do not fit on one line. Rather than let the tail of
+    -- the row hang outside the frame they flow onto as many lines as they need, and the bar
+    -- grows to hold them.
     local function layoutFilters()
-        local available = filterBar:GetWidth()
-        local left = search:GetWidth() + FILTER_GAP + rangeControl:GetWidth()
-        local right = qualityDropdown:GetWidth() + FILTER_GAP + zoneDropdown:GetWidth()
-            + FILTER_GAP + 2 + exactToggle:GetWidth()
-        local oneRow = left + FILTER_GAP + right <= available
+        local available = math.max(filterBar:GetWidth(), 1)
+        local flow = {
+            search, rangeControl, sessionDropdown, qualityDropdown, zoneDropdown,
+            scopeDropdown, exactToggle,
+        }
 
-        search:ClearAllPoints()
-        rangeControl:ClearAllPoints()
-        qualityDropdown:ClearAllPoints()
-        zoneDropdown:ClearAllPoints()
-        exactToggle:ClearAllPoints()
+        sessionDropdown:SetShown(MLH:getFilters().range == 1)
+        -- one character on the account is not a choice worth offering
+        scopeDropdown:SetShown(MLH:getCharacterCount() > 1)
 
-        search:SetPoint("BOTTOMLEFT", filterBar, "BOTTOMLEFT", 0, oneRow and 0 or FILTER_ROW)
-        rangeControl:SetPoint("BOTTOMLEFT", search, "BOTTOMRIGHT", FILTER_GAP, 0)
+        -- first pass works out which row each control lands on, since where a row sits
+        -- vertically depends on how many rows there turn out to be
+        local placements = {}
+        local rows, x = 1, 0
 
-        if (oneRow) then
-            qualityDropdown:SetPoint("BOTTOMLEFT", rangeControl, "BOTTOMRIGHT", FILTER_GAP, 0)
-        else
-            qualityDropdown:SetPoint("BOTTOMLEFT", filterBar, "BOTTOMLEFT", 0, 0)
+        for i = 1, #flow do
+            local control = flow[i]
+
+            if (control:IsShown()) then
+                local width = control:GetWidth()
+
+                if (x > 0 and x + width > available) then
+                    rows = rows + 1
+                    x = 0
+                end
+
+                placements[#placements+1] = { control = control, row = rows, x = x }
+
+                x = x + width + FILTER_GAP
+            end
         end
 
-        zoneDropdown:SetPoint("BOTTOMLEFT", qualityDropdown, "BOTTOMRIGHT", FILTER_GAP, 0)
-        exactToggle:SetPoint("BOTTOMLEFT", zoneDropdown, "BOTTOMRIGHT", FILTER_GAP + 2, 3)
+        for i = 1, #placements do
+            local placement = placements[i]
+            local control = placement.control
+            -- the last row sits on the bottom of the bar and the earlier ones stack above it
+            local y = (rows - placement.row) * FILTER_ROW
+            -- the toggle is a bare checkbox with no caption above it, so it is nudged up to
+            -- sit on the same optical line as the boxed controls beside it
+            local nudge = control == exactToggle and 3 or 0
 
-        filterBar:SetHeight(oneRow and FILTER_HEIGHT or (FILTER_HEIGHT + FILTER_ROW))
+            control:ClearAllPoints()
+            control:SetPoint("BOTTOMLEFT", filterBar, "BOTTOMLEFT", placement.x, y + nudge)
+        end
+
+        filterBar:SetHeight(FILTER_HEIGHT + (rows - 1) * FILTER_ROW)
     end
 
     layoutFilters()
@@ -1071,6 +1172,8 @@ function buildWindow()
     header.quantity = createHeaderColumn(header, "quantity", L["R_ColQuantity"], "RIGHT")
     header.value = createHeaderColumn(header, "value", L["R_ColValue"], "RIGHT")
     header.market = createHeaderColumn(header, "market", L["R_ColValueMarket"], "RIGHT")
+    header.character = createHeaderColumn(header, "character", L["R_ColCharacter"], "LEFT")
+    header.source = createHeaderColumn(header, "source", L["R_ColSource"], "LEFT")
     header.zone = createHeaderColumn(header, "zone", L["R_ColZone"], "LEFT")
     header.lastLooted = createHeaderColumn(header, "lastLooted", L["R_ColLooted"], "LEFT")
 
@@ -1172,6 +1275,8 @@ function buildWindow()
     frame.rangeControl = rangeControl
     frame.qualityDropdown = qualityDropdown
     frame.zoneDropdown = zoneDropdown
+    frame.sessionDropdown = sessionDropdown
+    frame.scopeDropdown = scopeDropdown
     frame.exactToggle = exactToggle
     frame.header = header
     frame.list = list
@@ -1240,6 +1345,8 @@ function buildWindow()
 
         self.qualityDropdown:Close()
         self.zoneDropdown:Close()
+        self.sessionDropdown:Close()
+        self.scopeDropdown:Close()
     end)
 
     -- a short fade rather than a hard pop, which is what makes the window feel attached to

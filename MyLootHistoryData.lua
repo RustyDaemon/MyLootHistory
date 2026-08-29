@@ -50,6 +50,8 @@ function MLH:getFilters()
     if (descending == nil) then descending = true end
 
     filters = {
+        scope = params.selectedScope or "char",
+        session = params.selectedSession or 0,
         range = params.selectedRangeValue or 2,
         quality = params.selectedQualityValue or 0,
         exactQuality = params.selectedExactItemQuality or false,
@@ -70,6 +72,8 @@ function MLH:setFilter(key, value)
 
     local params = self.db.char.params
     local paramKeys = {
+        scope = "selectedScope",
+        session = "selectedSession",
         range = "selectedRangeValue",
         quality = "selectedQualityValue",
         exactQuality = "selectedExactItemQuality",
@@ -110,10 +114,12 @@ function MLH:isInSelectedRange(foundOn)
     -- belongs to "all the time" alone, which is the only range that asks nothing of the date.
     if (foundOn == nil) then return range == 6 end
 
-    if (range == 1) then --this session
-        local sessionStart = self.db.char.thisSessionStart
+    if (range == 1) then --the selected session, live or finished
+        local session = self:getSelectedSession()
 
-        return sessionStart ~= nil and foundOn >= sessionStart
+        if (session.startedOn == nil or foundOn < session.startedOn) then return false end
+
+        return session.endedOn == nil or foundOn <= session.endedOn
     elseif (range == 2) then --today
         return DU:dateIsToday(foundOn)
     elseif (range == 3) then --yesterday
@@ -142,14 +148,19 @@ function MLH:isInSelectedZone(zoneID)
 end
 
 function MLH:calculateGoldFound()
-    local gold = self.db.char.foundGold
+    local histories = self:getHistories()
     local total = 0
 
-    for i = 1, #gold do
-        local entry = gold[i]
+    for h = 1, #histories do
+        local history = histories[h]
+        local gold = history.gold
 
-        if (self:isInSelectedZone(entry.zoneID) and self:isInSelectedRange(entry.foundOn)) then
-            total = total + entry.quantity
+        for i = 1, #gold do
+            local entry = gold[i]
+
+            if (self:isInSelectedZone(entry.zoneID) and self:isInSelectedRange(entry.foundOn)) then
+                total = total + entry.quantity
+            end
         end
     end
 
@@ -160,34 +171,55 @@ end
 -- first. The quality filter is about items and does not apply here, but the search box is a
 -- name filter and a currency has a name, so that one does.
 function MLH:collectCurrencies()
-    local foundCurrency = self.db.char.foundCurrency or {}
     local search = self:getFilters().search
     local currencies = {}
+    local histories = self:getHistories()
+    local matchedById = {}
+    local recordById = {}
+    local order = {}
 
     search = search ~= "" and search:lower() or nil
 
-    for i = 1, #foundCurrency do
-        local record = foundCurrency[i]
-        local lootData = record.lootData
-        local matched = {}
+    -- the same merge the items get: one row per currency, however many characters earned it
+    for h = 1, #histories do
+        local foundCurrency = histories[h].currency
 
-        for j = 1, #lootData do
-            local entry = lootData[j]
+        for i = 1, #foundCurrency do
+            local record = foundCurrency[i]
+            local id = record.currencyId
+            local lootData = record.lootData
 
-            if (self:isInSelectedZone(entry.zoneID) and self:isInSelectedRange(entry.foundOn)) then
-                matched[#matched+1] = entry
+            if (not matchedById[id]) then
+                matchedById[id] = {}
+                recordById[id] = record
+                order[#order+1] = id
+            end
+
+            local matched = matchedById[id]
+
+            for j = 1, #lootData do
+                local entry = lootData[j]
+
+                if (self:isInSelectedZone(entry.zoneID) and self:isInSelectedRange(entry.foundOn)) then
+                    matched[#matched+1] = entry
+                end
             end
         end
+    end
 
-        local quantity, zones, firstFound, lastFound = self:aggregateLoot(matched, L["R_UnknownZone"])
+    for i = 1, #order do
+        local id = order[i]
+        local record = recordById[id]
+        local quantity, zones, firstFound, lastFound =
+            self:aggregateLoot(matchedById[id], L["R_UnknownZone"])
 
         -- the client wins over the record: a currency can be renamed by a patch
-        local info = C_CurrencyInfo.GetCurrencyInfo(record.currencyId)
-        local name = (info and info.name) or record.currencyName or ("#"..record.currencyId)
+        local info = C_CurrencyInfo.GetCurrencyInfo(id)
+        local name = (info and info.name) or record.currencyName or ("#"..id)
 
         if (quantity > 0 and (not search or name:lower():find(search, 1, true))) then
             currencies[#currencies+1] = {
-                currencyId = record.currencyId,
+                currencyId = id,
                 name = name,
                 icon = (info and info.iconFileID) or record.currencyIcon,
                 quality = (info and info.quality) or record.quality or 1,
@@ -231,39 +263,90 @@ end
 -- Applies every active filter and resolves the display data, so the report window and the
 -- CSV export always describe exactly the same set of items.
 function MLH:collectItems()
-    -- nothing below mutates the stored records, so they are read in place
-    local itemsFound = self.db.char.foundItems
     local active = self:getFilters()
     local items = {}
     local search = active.search ~= "" and active.search:lower() or nil
     local priceKey = self:getPriceSource()
 
-    for i = 1, #itemsFound do
-        local item = itemsFound[i]
+    -- One character or every character on the account, depending on the scope. An item
+    -- looted by three of them is one row: the history is about the item, and which
+    -- characters found it is something the row says, not something that splits it.
+    local histories = self:getHistories()
+    local byItemId = {}
 
-        -- a fresh shell holding references to the loot entries that pass the filters
-        local newItem = {
-            itemId = item.itemId,
-            itemLink = item.itemLink,
-            itemName = item.itemName,
-            itemTexture = item.itemTexture,
-            quality = item.quality,
-            lootData = {},
-            zones = {},
-            totalQuantity = 0,
-            totalValue = 0,
-            dateRange = "",
-        }
+    for h = 1, #histories do
+        local history = histories[h]
+        local itemsFound = history.items
 
-        for j = 1, #item.lootData do
-            local lootData = item.lootData[j]
+        for i = 1, #itemsFound do
+            local item = itemsFound[i]
+            -- nothing below mutates the stored records, so they are read in place
+            local matched = {}
+            local matchedQuantity = 0
 
-            if (self:isInSelectedZone(lootData.zoneID) and self:isInSelectedRange(lootData.foundOn)) then
-                newItem.lootData[#newItem.lootData+1] = lootData
+            for j = 1, #item.lootData do
+                local lootData = item.lootData[j]
+
+                if (self:isInSelectedZone(lootData.zoneID)
+                    and self:isInSelectedRange(lootData.foundOn)) then
+                    matched[#matched+1] = lootData
+                    matchedQuantity = matchedQuantity + (tonumber(lootData.quantity) or 1)
+                end
+            end
+
+            if (#matched > 0) then
+                local newItem = byItemId[item.itemId]
+
+                if (not newItem) then
+                    -- a fresh shell holding references to the loot entries that pass the filters
+                    newItem = {
+                        itemId = item.itemId,
+                        itemLink = item.itemLink,
+                        itemName = item.itemName,
+                        itemTexture = item.itemTexture,
+                        quality = item.quality,
+                        lootData = {},
+                        zones = {},
+                        characters = {},
+                        totalQuantity = 0,
+                        totalValue = 0,
+                        dateRange = "",
+                    }
+
+                    byItemId[item.itemId] = newItem
+                    items[#items+1] = newItem
+                else
+                    -- a record written by a character who saw the item when the client had
+                    -- more to say about it fills in what an emptier record is missing
+                    newItem.itemLink = newItem.itemLink or item.itemLink
+                    newItem.itemName = newItem.itemName or item.itemName
+                    newItem.itemTexture = newItem.itemTexture or item.itemTexture
+                    newItem.quality = newItem.quality or item.quality
+                end
+
+                for k = 1, #matched do
+                    newItem.lootData[#newItem.lootData+1] = matched[k]
+                end
+
+                newItem.characters[#newItem.characters+1] = {
+                    key = history.key,
+                    name = history.name,
+                    isCurrent = history.isCurrent,
+                    quantity = matchedQuantity,
+                }
             end
         end
+    end
 
-        if (#newItem.lootData > 0) then
+    -- Resolving the display data and applying the filters that read it - quality, and the
+    -- search box, which matches the name the client hands back rather than the stored one -
+    -- happens once per merged item rather than once per record.
+    local kept = {}
+
+    for i = 1, #items do
+        local newItem = items[i]
+
+        do
             local quality = newItem.quality or 0 -- records written before 1.1.0 can hold a nil quality
             local canBeAdded
 
@@ -300,6 +383,11 @@ function MLH:collectItems()
 
                 newItem.zoneName = newItem.zones[1] and newItem.zones[1].name or L["R_UnknownZone"]
 
+                -- what it dropped from, for the entries that were recorded with a source;
+                -- everything looted before source tracking existed simply has none
+                newItem.sources = self:aggregateSources(newItem.lootData)
+                newItem.sourceName = newItem.sources[1] and newItem.sources[1].name or ""
+
                 -- an item the client has not cached this session has no price to read, so the
                 -- one stamped on the most recent loot entry stands in for it
                 if (newItem.sellPrice == nil) then
@@ -320,14 +408,25 @@ function MLH:collectItems()
                     and newItem.totalValue or nil
                 newItem.dateRange = formatDateRange(newItem.firstFound, newItem.lastFound)
 
-                items[#items+1] = newItem
+                -- who found it, most prolific first, so characters[1] is the one the row
+                -- names where there is only room for one
+                table.sort(newItem.characters, function(l, r)
+                    if (l.quantity == r.quantity) then return l.name < r.name end
+                    return l.quantity > r.quantity
+                end)
+
+                newItem.charName = #newItem.characters > 1
+                    and L["R_SeveralCharacters"](#newItem.characters)
+                    or (newItem.characters[1] and newItem.characters[1].name or "")
+
+                kept[#kept+1] = newItem
             end
         end
     end
 
-    self:sortItems(items)
+    self:sortItems(kept)
 
-    return items
+    return kept
 end
 
 function MLH:sortItems(items)
@@ -345,6 +444,8 @@ function MLH:sortItems(items)
         -- putting a nil in front of table.sort's comparator
         if (key == "lastLooted") then return item.lastFound or 0 end
         if (key == "zone") then return item.zoneName end
+        if (key == "character") then return item.charName or "" end
+        if (key == "source") then return item.sourceName or "" end
 
         return item.itemName
     end
@@ -449,39 +550,44 @@ function MLH:getActivityBuckets(hours)
         return buckets[math.min(math.max(index, 1), hours)]
     end
 
-    local foundItems = self.db.char.foundItems
+    local histories = self:getHistories()
 
-    for i = 1, #foundItems do
-        local lootData = foundItems[i].lootData
+    for h = 1, #histories do
+        local history = histories[h]
+        local foundItems = history.items
 
-        -- entries are appended in time order, so the walk runs backwards and stops as soon
-        -- as it falls out of the window
-        for j = #lootData, 1, -1 do
-            local entry = lootData[j]
+        for i = 1, #foundItems do
+            local lootData = foundItems[i].lootData
+
+            -- entries are appended in time order, so the walk runs backwards and stops as soon
+            -- as it falls out of the window
+            for j = #lootData, 1, -1 do
+                local entry = lootData[j]
+
+                if (entry.foundOn == nil or entry.foundOn < bucketStart) then break end
+
+                local bucket = bucketFor(entry.foundOn)
+
+                if (bucket) then
+                    local quantity = tonumber(entry.quantity) or 1
+
+                    bucket.quantity = bucket.quantity + quantity
+                    bucket.value = bucket.value + (entry.sellPrice or 0) * quantity
+                end
+            end
+        end
+
+        local foundGold = history.gold
+
+        for i = #foundGold, 1, -1 do
+            local entry = foundGold[i]
 
             if (entry.foundOn == nil or entry.foundOn < bucketStart) then break end
 
             local bucket = bucketFor(entry.foundOn)
 
-            if (bucket) then
-                local quantity = tonumber(entry.quantity) or 1
-
-                bucket.quantity = bucket.quantity + quantity
-                bucket.value = bucket.value + (entry.sellPrice or 0) * quantity
-            end
+            if (bucket) then bucket.value = bucket.value + (entry.quantity or 0) end
         end
-    end
-
-    local foundGold = self.db.char.foundGold
-
-    for i = #foundGold, 1, -1 do
-        local entry = foundGold[i]
-
-        if (entry.foundOn == nil or entry.foundOn < bucketStart) then break end
-
-        local bucket = bucketFor(entry.foundOn)
-
-        if (bucket) then bucket.value = bucket.value + (entry.quantity or 0) end
     end
 
     local peak = 0
@@ -570,8 +676,12 @@ function MLH:getZoneList()
         end
     end
 
-    collect(self.db.char.foundItems)
-    collect(self.db.char.foundCurrency or {})
+    local histories = self:getHistories()
+
+    for h = 1, #histories do
+        collect(histories[h].items)
+        collect(histories[h].currency)
+    end
 
     table.sort(named, function(l, r) return l.text < r.text end)
 
@@ -649,11 +759,13 @@ local function csvDate(timestamp)
     return timestamp and date("%Y-%m-%d %H:%M:%S", timestamp) or ""
 end
 
-local function csvZones(zones)
+-- "Hallowfall (12); Azj-Kahet (3)" - the shape the zone, source and character breakdowns
+-- all share, so all three export the same way.
+local function csvTally(entries)
     local parts = {}
 
-    for i = 1, #zones do
-        parts[i] = zones[i].name.." ("..zones[i].quantity..")"
+    for i = 1, #entries do
+        parts[i] = entries[i].name.." ("..entries[i].quantity..")"
     end
 
     return table.concat(parts, "; ")
@@ -664,7 +776,9 @@ function MLH:buildCsv(report)
 
     local items = report.items
     local currencies = report.currencies
-    local lines = { "type,name,id,quality,quantity,value,marketValue,zone,firstLooted,lastLooted" }
+    local lines = {
+        "type,name,id,quality,quantity,value,marketValue,source,character,zone,firstLooted,lastLooted",
+    }
 
     for i = 1, #items do
         local item = items[i]
@@ -679,7 +793,9 @@ function MLH:buildCsv(report)
             csvField(item.vendorValue or item.totalValue),
             -- empty, not zero, when the auction house had no price for the item
             item.marketValue and csvField(item.marketValue) or "",
-            csvField(csvZones(item.zones)),
+            csvField(csvTally(item.sources or {})),
+            csvField(csvTally(item.characters or {})),
+            csvField(csvTally(item.zones)),
             csvField(csvDate(item.firstFound)),
             csvField(csvDate(item.lastFound)),
         }, ",")
@@ -697,7 +813,9 @@ function MLH:buildCsv(report)
             csvField(currency.quantity),
             "",
             "",
-            csvField(csvZones(currency.zones)),
+            "",
+            "",
+            csvField(csvTally(currency.zones)),
             csvField(csvDate(currency.firstFound)),
             csvField(csvDate(currency.lastFound)),
         }, ",")

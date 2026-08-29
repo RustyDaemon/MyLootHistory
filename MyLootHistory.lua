@@ -14,13 +14,18 @@ addon.MLH = MLH
 
 -- The message forms the client uses when *you* pick something up. The _MULTIPLE variants
 -- have to be tested first: their single-item counterpart matches a multi-item message too.
+--
+-- `kind` is what the form itself says about where the item came from, for the drops that
+-- never open a loot window: something crafted or gathered, and something pushed straight
+-- into the bags by a quest turn-in or a container opening in place. A plain "you receive
+-- loot" says nothing, and its source comes from the loot window instead.
 local lootMessageForms = {
     { global = "LOOT_ITEM_SELF_MULTIPLE",         hasQuantity = true  },
-    { global = "LOOT_ITEM_PUSHED_SELF_MULTIPLE",  hasQuantity = true  },
-    { global = "LOOT_ITEM_CREATED_SELF_MULTIPLE", hasQuantity = true  },
+    { global = "LOOT_ITEM_PUSHED_SELF_MULTIPLE",  hasQuantity = true,  kind = "pushed"  },
+    { global = "LOOT_ITEM_CREATED_SELF_MULTIPLE", hasQuantity = true,  kind = "crafted" },
     { global = "LOOT_ITEM_SELF",                  hasQuantity = false },
-    { global = "LOOT_ITEM_PUSHED_SELF",           hasQuantity = false },
-    { global = "LOOT_ITEM_CREATED_SELF",          hasQuantity = false },
+    { global = "LOOT_ITEM_PUSHED_SELF",           hasQuantity = false, kind = "pushed"  },
+    { global = "LOOT_ITEM_CREATED_SELF",          hasQuantity = false, kind = "crafted" },
 }
 
 -- The same idea for currency. CURRENCY_GAINED carries no amount, so it means one.
@@ -57,6 +62,7 @@ local function buildPatterns(forms)
             patterns[#patterns+1] = {
                 pattern = toLootPattern(fmt, form.hasQuantity),
                 hasQuantity = form.hasQuantity,
+                kind = form.kind,
             }
         end
     end
@@ -80,15 +86,15 @@ local function getCurrencyPatterns()
     return currencyPatterns
 end
 
--- Walks a set of patterns and returns the quantity the matching one carries, or nil when
--- the message is not one of them.
+-- Walks a set of patterns and returns the quantity the matching one carries - and what the
+-- form says about where the item came from - or nil when the message is not one of them.
 local function matchQuantity(message, patterns)
     for i = 1, #patterns do
         local form = patterns[i]
         local match = message:match(form.pattern)
 
         if (match) then
-            return form.hasQuantity and (tonumber(match) or 1) or 1
+            return form.hasQuantity and (tonumber(match) or 1) or 1, form.kind
         end
     end
 
@@ -109,7 +115,11 @@ function MLH:OnInitialize()
     self:initMinimap()
     self:RegisterChatCommand("mlh", "SlashCommandListener")
 
+    -- the session from the last time this character played ends where its last loot entry
+    -- does: the client cannot say when the player logged out, and guessing would inflate it
+    self:closeSession()
     self.db.char.thisSessionStart = time()
+
     print(L["_IntroMessage"](addonName))
 end
 
@@ -117,6 +127,9 @@ function MLH:OnEnable()
     self:RegisterEvent("CHAT_MSG_LOOT")
     self:RegisterEvent("CHAT_MSG_MONEY")
     self:RegisterEvent("CHAT_MSG_CURRENCY")
+
+    -- the loot-source events live on their own frame, in MyLootHistorySource.lua
+    self:applySourceTracking()
     self:initTooltip()
 end
 
@@ -135,7 +148,7 @@ function MLH:debugSummary(message)
 end
 
 function MLH:CHAT_MSG_LOOT(_, message, ...)
-    local itemLink, quantity, itemID = self:getLootDetails(message)
+    local itemLink, quantity, itemID, messageKind = self:getLootDetails(message)
 
     if (not itemID) then
         self:debugPrint(L["D_NotMyItem"])
@@ -144,15 +157,17 @@ function MLH:CHAT_MSG_LOOT(_, message, ...)
 
     -- the zone has to be captured now: the item data may only arrive a few frames later
     local zoneID = self:getZoneID()
+    -- and so does the source: the loot window can be shut by the time the item loads
+    local source = self:getCurrentSource(messageKind)
 
     -- ContinueOnItemLoad fires immediately when the item is already cached, and after
     -- the client has loaded it otherwise - so a cold cache no longer stores nil data
     Item:CreateFromItemID(itemID):ContinueOnItemLoad(function()
-        self:recordLoot(itemID, itemLink, quantity, zoneID)
+        self:recordLoot(itemID, itemLink, quantity, zoneID, source)
     end)
 end
 
-function MLH:recordLoot(itemID, itemLink, quantity, zoneID)
+function MLH:recordLoot(itemID, itemLink, quantity, zoneID, source)
     local itemName, cachedLink, itemQuality, _, _, _, _, _, _, itemTexture, sellPrice, classID, subClassID =
         C_Item.GetItemInfo(itemID)
 
@@ -169,7 +184,8 @@ function MLH:recordLoot(itemID, itemLink, quantity, zoneID)
     end
 
     itemLink = itemLink or cachedLink
-    local totalAmount = self:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemName, zoneID, sellPrice)
+    local totalAmount = self:addItem(itemID, quantity, itemLink, itemTexture, itemQuality,
+        itemName, zoneID, sellPrice, source)
 
     self:debugSummary(L["D_AddedAndTotal"](itemLink, totalAmount))
 end
@@ -219,7 +235,7 @@ end
 -- Returns nil unless the message is one of the six "you looted this" forms.
 -- Parsing only: everything here works without the item being cached.
 function MLH:getLootDetails(message)
-    local quantity = matchQuantity(message, getLootPatterns())
+    local quantity, kind = matchQuantity(message, getLootPatterns())
 
     if (not quantity) then return nil end
 
@@ -229,7 +245,7 @@ function MLH:getLootDetails(message)
 
     -- GetItemInfoInstant returns the ID without needing the item cached, and yields nil for
     -- non-item links (battle pets, keystones), which is exactly what the caller wants
-    return itemLink, quantity, C_Item.GetItemInfoInstant(itemLink)
+    return itemLink, quantity, C_Item.GetItemInfoInstant(itemLink), kind
 end
 
 -- Returns nil unless the message is one of the "you receive currency" forms. The currency

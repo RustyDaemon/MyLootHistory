@@ -11,6 +11,12 @@ local DateUtils = LibStub("DateUtils-1.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
 local defaults = {
+    -- A mob's name is the same for everyone, so the names learned from the combat log are
+    -- kept once for the account rather than once per character.
+    global = {
+        sourceNames = {},
+    },
+
     char = {
         foundItems = {},
         foundGold = {},
@@ -28,6 +34,10 @@ local defaults = {
         config = {
             showLastLooted = false,
             showZone = false,
+            -- what a drop came from is recorded by default and shown on request: the record
+            -- cannot be filled in after the fact, but the column can be switched on any time
+            trackLootSource = true,
+            showSource = false,
             showItemID = false,
             showTooltip = true,
             showAdditionalTooltipData = false,
@@ -46,7 +56,14 @@ local defaults = {
             },
         },
 
+        -- Finished sessions, oldest first, each one just the window it covered: everything a
+        -- session is worth saying is worked out from the loot entries inside it, so storing
+        -- totals here would only be a second copy that could disagree with the first.
+        sessions = {},
+
         params = {
+            selectedScope = "char", -- "char" or "account"
+            selectedSession = 0,    -- 0 is the live session; otherwise a startedOn stamp
             selectedRangeValue = 2,
             selectedQualityValue = 0,
             selectedExactItemQuality = false,
@@ -135,7 +152,7 @@ function MLH:addGold(quantity, zoneID)
     })
 end
 
-function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemName, zoneID, sellPrice)
+function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemName, zoneID, sellPrice, source)
     local foundItems = self.db.char.foundItems
     local index = getItemIndex(foundItems)[itemID]
 
@@ -144,6 +161,9 @@ function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemN
         foundOn = time(),
         zoneID = zoneID,
         sellPrice = sellPrice or 0,
+        -- nil unless source tracking is on and the client had something to say, which is
+        -- what every reader has to cope with anyway: no entry written before 2.0 has one
+        source = source,
     }
 
     if (index == nil) then
@@ -268,6 +288,25 @@ function MLH:pruneHistory(days)
 
     local removedEntries, removedRecords = pruneRecords(char.foundItems, cutoff)
     local currencyEntries, currencyRecords = pruneRecords(char.foundCurrency, cutoff)
+
+    -- A session outliving the loot it covered would offer a window with nothing in it. The
+    -- session is dropped on its end, so one that ran across the cutoff is kept.
+    if (char.sessions) then
+        local kept = 0
+
+        for i = 1, #char.sessions do
+            local session = char.sessions[i]
+
+            if ((session.endedOn or session.startedOn or 0) >= cutoff) then
+                kept = kept + 1
+                char.sessions[kept] = session
+            end
+        end
+
+        for i = #char.sessions, kept + 1, -1 do
+            char.sessions[i] = nil
+        end
+    end
 
     removedEntries = removedEntries + currencyEntries + pruneEntries(char.foundGold, cutoff)
     removedRecords = removedRecords + currencyRecords

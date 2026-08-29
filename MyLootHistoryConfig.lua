@@ -110,6 +110,37 @@ local generalOptions = {
                         MLH:refreshReport()
                     end
                 },
+                trackLootSourceCheckBox = {
+                    order = 21,
+                    width = "double",
+                    type = "toggle",
+                    name = L["C_TrackLootSource"],
+                    desc = L["C_TrackLootSource_Desc"],
+                    get = function (_)
+                        return MLH.db.char.config.trackLootSource
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.trackLootSource = value
+                        MLH:applySourceTracking()
+                        MLH:refreshReport()
+                    end
+                },
+                showSourceColumnCheckBox = {
+                    order = 22,
+                    width = "double",
+                    type = "toggle",
+                    name = L["C_ShowSourceColumn"],
+                    desc = L["C_ShowSourceColumn_Desc"],
+                    -- the column can only show what was recorded, so it follows the switch above
+                    disabled = function () return not MLH.db.char.config.trackLootSource end,
+                    get = function (_)
+                        return MLH.db.char.config.showSource
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.showSource = value
+                        MLH:refreshReport()
+                    end
+                },
                 ignoreItemsWithZeroSellPriceCheckBox = {
                     order = 3,
                     width = "double",
