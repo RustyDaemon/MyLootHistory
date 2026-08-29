@@ -25,19 +25,50 @@ name and start overwriting each other. luacheck catches that immediately; the ga
 luacheck looks for `.luacheckrc` in the current directory, not next to the files it is given, so run it
 from the repo root or it will lint `libs/` too.
 
+## How the report is put together
+
+Three files, and the split is what keeps each of them readable:
+
+- `MyLootHistoryData.lua` - the filter state and everything derived from the history: the item and
+  currency lists, the gold total, the activity buckets, the dropdown contents and the CSV. It knows
+  nothing about frames, which is why `filters_spec` can test all of it directly.
+- `MyLootHistoryUIKit.lua` - the look, and every control the window is built out of. Panels, buttons,
+  a search box, a dropdown, a toggle, a segmented control and a scrollbar, all drawn from plain
+  textures rather than the Blizzard templates. It knows nothing about loot.
+- `MyLootHistoryUI.lua` - the window, which is the only file that knows about both.
+
+Two things there are easy to break. The list is **virtualised**: there is one frame per row that fits
+on screen, refilled as you scroll, so `fillRow` has to re-dress a pooled frame completely rather than
+patch it - anything it forgets to set is left over from whatever that frame was showing before. And
+the header cells and the row cells both lay themselves out from `columnLayout()`, so a column added
+in one place and not the other slides the two apart.
+
 ## Tests
 
-`busted` runs everything in `tests/` matching `_spec`. Coverage is deliberately narrow: widget
-construction, event registration and the tooltip hook all need a real client, so the suite sticks to
-logic that does not.
+`busted` runs everything in `tests/` matching `_spec`.
 
 - `tests/dateutils_spec.lua` - the date ranges behind every filter in the report
 - `tests/prune_spec.lua` - retention, the only code in the addon that deletes a player's history, plus
   the `itemId -> index` map that has to be invalidated when pruning shifts record positions
+- `tests/aggregate_spec.lua` - `MLH:aggregateLoot`, which the rows, the export and the tooltip all
+  agree through
+- `tests/filters_spec.lua` - the filter state and everything `MLH:buildReport` selects with it
+- `tests/report_spec.lua` - the report window itself, built and then clicked on
 
 `tests/support/wow.lua` is a small stub of the client API with a **freezable clock**, so a date
 assertion means the same thing whatever day the suite runs on. It also fakes LibStub, AceDB,
 AceLocale and AceAddon - just enough for a module to load and register itself.
+
+`tests/support/frames.lua` is the same idea for the widget API: frames that remember their size,
+their scripts and their children, and a `Fire` that runs a script's handlers the way the client
+would. It is what makes the report testable at all - `report_spec` opens the window, scrolls it,
+clicks every column header, opens both dropdowns and resizes it, and a mistyped method is a red test
+instead of an error the first time someone logs in.
+
+Two things about the mock are worth knowing before extending it. It only synthesises **PascalCase**
+methods, so reading an unset lowercase field still answers nil - otherwise `if row.entry then` would
+be true for every frame there is. And `SetScript` **replaces** what `HookScript` registered, exactly
+as it does in the client: a widget that hooks a script and then sets it silently loses the hook.
 
 ### `defect()`
 

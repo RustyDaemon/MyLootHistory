@@ -1,3 +1,16 @@
+## 1.5.0
+- The report is a new window, drawn by the addon rather than assembled out of default widgets: a dark panel with the session across the top as four stat cards, the loot beneath it, and a footer that says what the view adds up to.
+- Added an activity graph: one bar an hour for the last day, so you can see when you were earning and not only how much.
+- Every row now carries a bar showing what share of the value it is, so the three things paying for the session are visible at a glance.
+- The date range is a row of buttons instead of a dropdown, so switching between Today and This reset is one click.
+- The item name, its zone and its dates share a row now, and the columns you have switched off move under the name instead of disappearing.
+- Rows are recycled as you scroll, so a character with thousands of items opens as fast as a new one.
+- The window remembers where you left it and how big it was.
+- Searching hides the coins and the currencies that do not match, so a search matching nothing now says so.
+- Settings that change what the report draws take effect immediately, with the report open.
+- Fixed an error when hovering an item stored by an old version with no item link.
+- Fixed the row highlight never appearing.
+
 ## 1.4.0
 - Added a "keep history for" setting. Loot older than the chosen window is dropped on login, so the saved data stops growing forever. It is off by default: everything is kept until you say otherwise.
 - Settings: retention and Clear data now live under a Data group of their own, instead of under Debug.

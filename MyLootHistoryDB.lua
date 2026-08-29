@@ -21,6 +21,10 @@ local defaults = {
             hide = false,
         },
 
+        -- where the report window was left, and how big. Written when it is moved, resized
+        -- or closed, so it comes back where the player put it.
+        ui = {},
+
         config = {
             showLastLooted = false,
             showZone = false,

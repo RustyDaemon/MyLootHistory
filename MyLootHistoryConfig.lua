@@ -68,6 +68,7 @@ local generalOptions = {
             end,
             set = function (_, value)
                 MLH.db.char.config.resizableReportWindow = value
+                MLH:refreshReport()
             end
         },
         detailedHeader = {
@@ -92,6 +93,7 @@ local generalOptions = {
                     end,
                     set = function (_, value)
                         MLH.db.char.config.showLastLooted = value
+                        MLH:refreshReport()
                     end
                 },
                 showZoneColumnCheckBox = {
@@ -105,6 +107,7 @@ local generalOptions = {
                     end,
                     set = function (_, value)
                         MLH.db.char.config.showZone = value
+                        MLH:refreshReport()
                     end
                 },
                 ignoreItemsWithZeroSellPriceCheckBox = {
@@ -133,6 +136,7 @@ local generalOptions = {
                     end,
                     set = function (_, value)
                         MLH.db.char.config.showSessionBar = value
+                        MLH:refreshReport()
                     end
                 },
 
@@ -147,6 +151,7 @@ local generalOptions = {
                     end,
                     set = function (_, value)
                         MLH.db.char.config.showCurrency = value
+                        MLH:refreshReport()
                     end
                 },
 
@@ -166,6 +171,7 @@ local generalOptions = {
                     set = function (_, value)
                         MLH.db.char.config.priceSource = value
                         MLH:clearPriceCache()
+                        MLH:refreshReport()
                     end
                 },
 
@@ -180,6 +186,7 @@ local generalOptions = {
                     end,
                     set = function (_, value)
                         MLH.db.char.config.showItemID = value
+                        MLH:refreshReport()
                     end
                 },
 
@@ -253,6 +260,7 @@ local generalOptions = {
                     end,
                     set = function (_, value)
                         MLH.db.char.config.reportIconSize = value
+                        MLH:refreshReport()
                     end
                 }
             }

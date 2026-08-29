@@ -51,7 +51,19 @@ read_globals = {
     -- frames and UI plumbing
     "AddonCompartmentFrame",
     "ChatEdit_TryInsertChatLink",
+    "CreateColor",
     "CreateFrame",
+    "GetCursorPosition",
+    "PlaySound",
+    "SOUNDKIT",
+
+    -- fonts the UI kit reads its font file out of, so every locale keeps its own alphabet
+    "GameFontNormal",
+    "NumberFontNormal",
+
+    -- player identity, shown in the report title bar
+    "GetRealmName",
+    "UnitName",
     "HideUIPanel",
     "InterfaceOptionsFrame_OpenToCategory",
     "Settings",
@@ -99,10 +111,10 @@ read_globals = {
     "Auctionator",
 }
 
--- The report is one file of cooperating helpers that are forward-declared at the
--- top, so `function name()` there assigns to a local rather than creating a
--- global. Nothing extra is needed for that - it is noted here only because it is
--- the pattern a future split has to preserve in each new file.
+-- The report window is one file of cooperating helpers that are forward-declared
+-- at the top, so `function name()` there assigns to a local rather than creating
+-- a global. Nothing extra is needed for that - it is noted here only because it
+-- is the pattern a future split has to preserve in each new file.
 
 -- Locale strings are single long sentences shown to the player; wrapping them in
 -- Lua would only make them harder to read and translate.
@@ -120,12 +132,22 @@ files["tests/**/*.lua"] = {
         "LibStub", "C_CurrencyInfo", "C_Item", "C_Map", "C_Timer", "Enum",
         "GameTooltip", "GetMoneyString", "Item", "MyLootHistoryDB",
         "date", "time",
+
+        -- and by tests/support/frames.lua, for the specs that drive the report window
+        "CreateFrame", "UIParent", "UISpecialFrames",
     },
 }
 
--- The stub is the file that *builds* the fake client, so unlike the specs it
--- writes to those globals rather than only reading them.
+-- The stubs are the files that *build* the fake client, so unlike the specs they
+-- write to those globals rather than only reading them. tests/support/frames.lua
+-- installs the widget API the report window is built against.
 files["tests/support/*.lua"] = {
     std = "max+busted",
-    globals = { "LibStub" },
+    globals = {
+        "LibStub",
+        "ChatEdit_TryInsertChatLink", "CreateColor", "CreateFrame", "C_Timer",
+        "GameFontNormal", "GameTooltip", "GetCursorPosition", "GetRealmName",
+        "IsLeftShiftKeyDown", "IsRightShiftKeyDown", "NumberFontNormal", "PlaySound",
+        "SOUNDKIT", "UIParent", "UISpecialFrames", "UnitName", "tContains", "tinsert",
+    },
 }

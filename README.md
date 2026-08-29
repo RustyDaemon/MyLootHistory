@@ -25,11 +25,23 @@ My Loot History is a World of Warcraft addon that tracks everything you looted. 
 - export everything you are looking at to CSV
 - oh! And you can filter this report
 
+## The report
+
+The window is drawn by the addon rather than assembled out of the default widgets, so it looks like one designed thing:
+
+- **four stat cards across the top** - how long the session has been running, items per hour, gold per hour and what the rows below add up to
+- **an activity graph** - one bar an hour for the last day, so you can see *when* you were earning and not only how much. Hover a bar for that hour's items and value
+- **a value bar behind every row** - how much of the total that one item is worth, which is the fastest way to see the three things actually paying for the session
+- **quality colours everywhere** - the icon border, the name and the marker down the left of each row
+- **a footer** that says what the view adds up to, and which zone most of it came from
+
+It remembers where you left it and how big it was, closes on Escape, and only ever builds as many rows as fit on screen - so a character with thousands of items opens as fast as a fresh one.
+
 ## How much gold per hour am I making?
 
-There is a live line across the top of the report: how long you have been at it, how many items per hour that is, and **how much gold per hour** - the value of the loot plus the coins you picked up. It keeps counting while the window is open.
+The first three cards are live and keep counting while the window is open: how long you have been at it, how many items per hour that is, and **how much gold per hour** - the value of the loot plus the coins you picked up.
 
-Click it to start a new session from that moment, which is what you want when you move to a new farming spot. The same numbers are on the minimap tooltip and behind `/mlh session`.
+Click the session card to start a new session from that moment, which is what you want when you move to a new farming spot. The same numbers are on the minimap tooltip and behind `/mlh session`.
 
 By default the value of your loot is the vendor price. If you have [Auctionator](https://www.curseforge.com/wow/addons/auctionator) installed, you can switch the report over to auction house prices in the settings - it is optional, and the vendor price is used for anything Auctionator has no price for.
 
@@ -48,7 +60,7 @@ Yes! And history changes according to you filters. It will show you how much gol
   - Wednesday-to-Wednesday
   - This month
   - All the time
-- by item name: type in the search box
+- by item name: type in the search box. It matches currencies too, and hides the coin line, which has no name to match
 - by zone: the dropdown lists every zone you have ever looted in
 - by item quality
   - Poor
@@ -68,7 +80,7 @@ And you can sort it: click a column header to sort by quality, name, quantity, v
 - Make the report window resizable
 - Show looted date in the report
 - Show the zone column in the report
-- Show the session line at the top of the report
+- Show the session cards and the activity graph at the top of the report
 - Show currencies in the report
 - Price source for the value column: vendor price, or auction house prices through Auctionator
 - Ignore items with 0 (zero) sell price

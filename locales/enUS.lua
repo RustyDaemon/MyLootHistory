@@ -64,7 +64,7 @@ L["C_TrackCurrency_Desc"] = "Record currencies (Valorstones, Crests, and so on) 
 L["C_GameTooltipLine"] = "Add a line to item tooltips"
 L["C_GameTooltipLine_Desc"] = "Add 'looted 47x, last on 3 Aug' to any item tooltip in the game for items you have looted before"
 L["C_PriceSource"] = "Price source"
-L["C_PriceSource_Desc"] = "Where the value column takes its prices from. Auction house prices need Auctionator installed; the vendor price is used whenever the chosen source has no price for an item"
+L["C_PriceSource_Desc"] = "Adds a second value column with auction house prices, next to the vendor price. Needs Auctionator installed; an item the chosen source has no price for shows a dash"
 L["C_IconSize"] = "Icon size"
 L["C_PrintLootedSummary"] = "Print looted summary"
 L["C_PrintLootedSummary_Desc"] = "Print looted summary in the chat window (for debug purposes). This is visible only to you"
@@ -124,6 +124,7 @@ L["R_LootSomething"] = "Loot something"
 L["R_Items"] = "Items: "
 L["R_Quantity"] = "Quantity: "
 L["R_SellPrice"] = "Sell price: "
+L["R_MarketPrice"] = "AH: "
 L["R_GoldEarned"] = "Gold earned: "
 L["R_TotalQuantityGathered"] = "Total quantity gathered:"
 L["R_NothingIsHereYet"] = "Nothing is here yet.\n  Loot something or change the filters :)"
@@ -168,11 +169,61 @@ L["R_ColQuantity"] = "Qty"
 L["R_ColValue"] = "Value"
 L["R_ColZone"] = "Zone"
 L["R_ColLooted"] = "Looted"
-L["R_ColValueMarket"] = "(AH)"
+L["R_ColValueMarket"] = "AH"
 
 L["R_SortBy"] = function (columnName)
   return 'Click to sort by "'..columnName..'". Click again to reverse the order'
 end
+
+-- report window chrome
+L["R_SearchPlaceholder"] = "Item name..."
+L["R_ResetFilters"] = "Reset filters"
+L["R_Close"] = "Close"
+L["R_Settings"] = "Settings"
+L["R_ResizeHint"] = "Drag to resize"
+L["R_ShiftClickToLink"] = "Shift+click to link it in chat"
+L["R_Money"] = "Money"
+L["R_GoldEarnedShort"] = "Gold looted"
+
+L["R_MostlyFrom"] = function (zoneName)
+  return 'Mostly from '..zoneName
+end
+
+L["R_ExportTooltip"] = "Copy everything the filters are showing as CSV"
+
+-- stat cards
+L["G_Session"] = "SESSION"
+L["G_ItemsPerHour"] = "ITEMS / HOUR"
+L["G_GoldPerHour"] = "GOLD / HOUR"
+L["G_InView"] = "IN VIEW"
+L["G_SinceLogin"] = "click to start a new one"
+L["G_ItemsPerHourTooltip"] = "How fast you are picking things up, measured over the whole session"
+L["G_GoldPerHourTooltip"] = "The value of everything you looted plus the coins, per hour of this session"
+L["G_InViewTooltip"] = "What the rows below add up to, coins included. It follows the filters"
+
+L["G_ItemsTotal"] = function (quantity)
+  return quantity..' items this session'
+end
+
+L["G_ValueSoFar"] = function (gold)
+  return gold..' gold so far'
+end
+
+-- activity graph
+L["G_Last24h"] = "LAST 24 HOURS"
+L["G_Peak"] = "peak "
+
+L["G_BarTooltip"] = function (quantity, gold)
+  return quantity..' items, worth about '..gold..' gold'
+end
+
+-- short date range labels, for the segmented control in the filter bar
+L["RS_Session"] = "Session"
+L["RS_Today"] = "Today"
+L["RS_Yesterday"] = "Yest."
+L["RS_Reset"] = "Reset"
+L["RS_Month"] = "Month"
+L["RS_All"] = "All"
 
 -- export
 L["R_Export"] = "Export CSV"
