@@ -1,11 +1,13 @@
 ## 2.0.0
-- The report can show every character on the account at once. Switch "Show loot from" to All characters and an item three alts have looted is one row, with a Character column saying who found most of it and the full breakdown in the tooltip. Nothing is moved or migrated: each character's history stays where it has always been, and the account view simply reads all of them.
+- The report can show every character on the account at once. Switch "Show loot from" to All characters and an item three alts have looted is one row, with a Character column saying who found most of it and the full breakdown in the tooltip. Nothing is moved between characters: each one's history stays where it has always been, and the account view simply reads all of them.
 - Sessions are kept. The one you are in is filed when you start a new one or log in again, and the session picker beside the date range lets you go back to it: last night's farm, with its own duration, its own items and its own gold. A session stores only the window it covered, so what it was worth is always worked out from the loot itself and can never drift.
 - Loot now remembers where it came from: the creature it dropped off, the container it was in, or that it was crafted or gathered. There is an optional "From" column for it, and the item tooltip lists every source. Recording it can be switched off, and only loot picked up from now on can carry it.
 - Auction house prices are a column of their own instead of replacing the vendor price, so both are visible at once, and the footer totals each of them.
 - Fixed the filter controls running outside the window: they now flow onto a second line when the window is too narrow to hold them on one.
 - Fixed the value and zone columns touching, and the sort arrow drawing as an empty box.
 - Fixed two errors in the new window: the search box and the export window on some clients, and the date range control on every one of them.
+- Fixed the report erroring on All characters when one of your characters last looted under a very old version. Those records are brought up to the current shape - quantity, date and zone all kept - the first time they are read.
+- Fixed an error when hovering a unit the client will not let addons read, such as a quest object in a delve. It is skipped instead of being named.
 
 ## 1.5.0
 - The report is a new window, drawn by the addon rather than assembled out of default widgets: a dark panel with the session across the top as four stat cards, the loot beneath it, and a footer that says what the view adds up to.

@@ -30,9 +30,25 @@ local KIND_PLAYER = "player"
 local KIND_CRAFTED = "crafted"
 local KIND_PUSHED = "pushed"
 
+-- Some of what the client hands back is a *secret value*: the GUID and the name of a unit it
+-- has decided an addon may not read - a delve's quest percon is one - come back as a value
+-- that cannot be split, concatenated or printed. Touching one taints the addon and throws
+-- "attempt to perform string conversion on a secret string value", so everything read from
+-- the client goes through here first, and a source that cannot be read is simply not learned.
+local issecret = _G.issecretvalue
+
+local function readable(value)
+    if (value == nil) then return nil end
+    if (issecret and issecret(value)) then return nil end
+
+    return value
+end
+
 -- "Creature-0-1234-2444-31-224466-000012ABCD" -> 224466, the npc ID, which is the same for
 -- every copy of a mob and so is what a tally has to be kept against.
 local function npcIdFrom(guid)
+    guid = readable(guid)
+
     if (not guid) then return nil end
 
     local kind, _, _, _, _, id = strsplit("-", guid)
@@ -46,6 +62,8 @@ local function npcIdFrom(guid)
 end
 
 local function kindFrom(guid)
+    guid = readable(guid)
+
     if (not guid) then return nil end
 
     local kind = strsplit("-", guid)
@@ -76,6 +94,10 @@ function MLH:getSourceNames()
 end
 
 function MLH:rememberSourceName(id, name)
+    -- a secret name would be written straight into the saved variables, where every later
+    -- read of it would taint whatever was drawing the report
+    name = readable(name)
+
     if (not id or not name or name == "") then return end
 
     self:getSourceNames()[id] = name
@@ -117,7 +139,7 @@ local function readLootWindow()
     local slots = GetNumLootItems() or 0
 
     for slot = 1, slots do
-        local guid = GetLootSourceInfo(slot)
+        local guid = readable(GetLootSourceInfo(slot))
         local kind = kindFrom(guid)
 
         if (kind) then
@@ -125,7 +147,7 @@ local function readLootWindow()
 
             -- what you are looting is usually still what you are targeting, which names it
             for _, unit in ipairs({ "target", "mouseover" }) do
-                if (UnitGUID and UnitGUID(unit) == guid) then
+                if (UnitGUID and readable(UnitGUID(unit)) == guid) then
                     MLH:rememberSourceName(id, UnitName(unit))
                 end
             end

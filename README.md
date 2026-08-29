@@ -55,7 +55,7 @@ A session stores only the window it covered, so its numbers are always worked ou
 
 Switch **Show loot from** to *All characters* and the report covers the whole account. An item three of your characters have looted is one row, not three: the quantities add up, a Character column says who found most of it, and the tooltip lists all of them.
 
-Nothing is moved or converted - each character's history stays exactly where it has always been, and this is only a way of reading all of them together. Switch back and the view narrows again.
+Nothing is moved between characters - each one's history stays exactly where it has always been, and this is only a way of reading all of them together. Switch back and the view narrows again. A character who last played under a very old version has their records brought up to the current shape the first time they are read, keeping the quantity, the date and the zone.
 
 ## Where did this drop from?
 
@@ -133,6 +133,33 @@ Besides, some additional features are available:
 ## Limitations
 
 - The addon can't track items that were upgraded during the looting at the moment (for example, you got 302 il item and it was instantly upgraded to 323 il)
+
+## Building a release
+
+`tools/build.ps1` (Windows) and `tools/build.sh` (bash) produce the same package: they validate the `.toc`, check that every file it lists exists on disk, run luacheck and the tests if those are installed, stage the addon into `dist/MyLootHistory` without the dev-only files, and zip it as `dist/MyLootHistory-<version>.zip`. They also print the metadata the CurseForge upload form asks for - game version and the newest changelog entry.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+```
+
+The `-ExecutionPolicy Bypass` is what to use if PowerShell refuses with *"tools\build.ps1 cannot be loaded because running scripts is disabled on this system"* - it applies to that one process only and changes nothing on the machine. Without that restriction, `.\tools\build.ps1` works directly.
+
+Options, either way of invoking it:
+
+- `-Version 1.5.0` - rewrites `## Version:` in the `.toc` before packaging
+- `-Clean` - removes `dist\` first
+
+```bash
+./tools/build.sh                 # same thing under bash
+./tools/build.sh --version 1.5.0
+./tools/build.sh --clean
+```
+
+Tests alone run with [busted](https://lunarmodules.github.io/busted/) from the repo root (`luarocks install busted`):
+
+```
+busted
+```
 
 ## License
 

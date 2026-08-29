@@ -77,6 +77,95 @@ local defaults = {
     },
 }
 
+-- Records written before lootData existed hold a single pickup, flat: a quantity, the zone
+-- table the client handed back and the date as the string date() prints with no format. No
+-- reader since can make sense of one - `#record.lootData` on such a record errored the moment
+-- the account-wide scope walked a character who had not logged in since - so a character's
+-- tables are brought up to the current shape the first time they are read, in place and once.
+local DB_VERSION = 2
+
+local legacyMonths = {
+    Jan = 1, Feb = 2, Mar = 3, Apr = 4,  May = 5,  Jun = 6,
+    Jul = 7, Aug = 8, Sep = 9, Oct = 10, Nov = 11, Dec = 12,
+}
+
+-- "Thu Dec 28 13:05:44 2023" -> an epoch stamp, and nil for anything not of that shape. A
+-- record left without a readable date is still kept: an entry carrying no timestamp is
+-- something every reader already copes with, and it belongs to "All the time".
+local function parseLegacyDate(value)
+    if (type(value) == "number") then return value end
+    if (type(value) ~= "string") then return nil end
+
+    local month, day, hour, min, sec, year =
+        value:match("^%a+%s+(%a+)%s+(%d+)%s+(%d+):(%d+):(%d+)%s+(%d+)$")
+
+    month = month and legacyMonths[month]
+
+    if (not month) then return nil end
+
+    return time({
+        year = tonumber(year), month = month, day = tonumber(day),
+        hour = tonumber(hour), min = tonumber(min), sec = tonumber(sec),
+    })
+end
+
+-- The zone was once stored as the table C_Map handed back rather than as its id.
+local function legacyZoneID(source)
+    local zone = source.zoneID or source.zone
+
+    if (type(zone) == "number") then return zone end
+    if (type(zone) == "table") then return zone.mapID or zone.uiMapID or zone.id or zone.zoneID end
+
+    return nil
+end
+
+-- One loot entry, in place: a gold pickup is one of these, and so is everything inside a
+-- record's lootData. A no-op on an entry already written in the current shape.
+local function upgradeEntry(entry)
+    entry.foundOn = parseLegacyDate(entry.foundOn)
+    entry.zoneID = legacyZoneID(entry)
+    entry.zone = nil
+    entry.quantity = tonumber(entry.quantity) or 1
+end
+
+local function upgradeEntries(entries)
+    for i = 1, #entries do upgradeEntry(entries[i]) end
+end
+
+local function upgradeRecords(records)
+    for i = 1, #records do
+        local record = records[i]
+
+        if (type(record.lootData) == "table") then
+            upgradeEntries(record.lootData)
+        else
+            -- the record *is* the one pickup it was written for
+            record.lootData = { {
+                quantity = tonumber(record.quantity) or 1,
+                foundOn = parseLegacyDate(record.foundOn),
+                zoneID = legacyZoneID(record),
+                sellPrice = tonumber(record.sellPrice) or 0,
+            } }
+
+            record.quantity, record.foundOn, record.zone, record.sellPrice = nil, nil, nil, nil
+        end
+    end
+end
+
+-- Brings one character's stored history up to the current shape, and answers whether it had
+-- to. Cheap to call on every read: after the first time it is one comparison.
+function MLH:upgradeCharacterData(data)
+    if (type(data) ~= "table" or data.dbVersion == DB_VERSION) then return false end
+
+    upgradeRecords(data.foundItems or {})
+    upgradeRecords(data.foundCurrency or {})
+    upgradeEntries(data.foundGold or {})
+
+    data.dbVersion = DB_VERSION
+
+    return true
+end
+
 -- itemId -> index into db.char.foundItems, built once per session and kept in step with
 -- inserts. Never saved: it is derived data, and the saved table is what it is derived from.
 local itemIndex = nil
@@ -129,6 +218,7 @@ end
 
 function MLH:initDatabase()
     self.db = ADB:New("MyLootHistoryDB", defaults)
+    self:upgradeCharacterData(self.db.char)
     itemIndex = nil
     currencyIndex = nil
 end

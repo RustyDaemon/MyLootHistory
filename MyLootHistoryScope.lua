@@ -13,8 +13,9 @@ See License file for details.
 -- *read* all of them at once, so the report can answer "what has this account looted" and
 -- not only "what has this character looted".
 --
--- No data is copied or migrated: the account-wide view walks the same tables the per-
--- character view walks, one after the other.
+-- No data is copied or moved between characters: the account-wide view walks the same tables
+-- the per-character view walks, one after the other. The only thing it does write is the
+-- shape upgrade a character stored by a very old version needs before it can be read at all.
 
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
@@ -24,6 +25,11 @@ local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 -- know that.
 local function historyFor(key, data, isCurrent)
     local name, realm = key:match("^(.-) %- (.+)$")
+
+    -- A character who has not logged in since an old version can still be holding records in
+    -- a shape no reader here understands. The logged-in one is brought up to date when the
+    -- database opens; the rest are brought up to date the first time they are read.
+    MLH:upgradeCharacterData(data)
 
     return {
         key = key,

@@ -53,6 +53,26 @@ local function targeting(guid, name)
     units.target = { guid = guid, name = name }
 end
 
+-- The client's secret values: something it has decided an addon may not read - the GUID and
+-- the name of a delve's quest percon are the ones that got here first. The real thing errors
+-- the moment it is split, concatenated or printed, and so does this, so a missing guard fails
+-- the spec instead of quietly storing a value nothing can ever show.
+local secrets = setmetatable({}, { __mode = "k" })
+
+local function secret()
+    local function refuse()
+        error("attempt to perform string conversion on a secret string value", 2)
+    end
+
+    local value = setmetatable({}, { __tostring = refuse, __concat = refuse })
+
+    secrets[value] = true
+
+    return value
+end
+
+_G.issecretvalue = function(value) return secrets[value] == true end
+
 wow.load("utils/DateUtils.lua")
 wow.load("MyLootHistory.lua")
 wow.load("MyLootHistoryDB.lua")
@@ -107,6 +127,25 @@ describe("learning a name", function()
         assert.is_nil(MLH:getSourceNames()[224466])
     end)
 
+    it("leaves a unit the client keeps secret alone", function()
+        targeting(secret(), secret())
+
+        assert.has_no.errors(function() MLH:noteUnitName("target") end)
+
+        local learned = 0
+
+        for _ in pairs(MLH:getSourceNames()) do learned = learned + 1 end
+
+        assert.are.equal(0, learned)
+    end)
+
+    it("does not store a secret name for a creature it can otherwise read", function()
+        targeting(RAVAGER, secret())
+
+        assert.has_no.errors(function() MLH:noteUnitName("target") end)
+        assert.is_nil(MLH:getSourceNames()[224466])
+    end)
+
     it("names loot recorded before the name was known", function()
         -- the drop is stored with an id and no name at all
         local entries = { { quantity = 1, source = { kind = "creature", id = 224466 } } }
@@ -146,6 +185,13 @@ describe("the open loot window", function()
         assert.are.equal("object", source.kind)
         -- the locale stub answers with the key itself, so the fallback is checked by name
         assert.are.equal("R_SourceObject", tostring(MLH:getSourceName(source)))
+    end)
+
+    it("records nothing for a loot slot the client keeps secret", function()
+        lootSlots = { secret() }
+
+        assert.has_no.errors(function() MLH:LOOT_OPENED() end)
+        assert.is_nil(MLH:getCurrentSource())
     end)
 
     it("forgets the source once the window closes", function()

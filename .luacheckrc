@@ -115,6 +115,10 @@ read_globals = {
     "strjoin",
     "unpack",
 
+    -- tells a value the client will not let an addon read from one it will; absent on a
+    -- client older than the secret values it answers about, so it is read through _G
+    "issecretvalue",
+
     -- optional dependency, absent unless the player has it installed
     "Auctionator",
 }
@@ -148,7 +152,7 @@ files["tests/**/*.lua"] = {
     -- source_spec builds a fake loot window and a fake target of its own
     globals = {
         "GetLootSourceInfo", "GetNumLootItems",
-        "UnitExists", "UnitGUID", "UnitName", "strsplit",
+        "UnitExists", "UnitGUID", "UnitName", "strsplit", "issecretvalue",
     },
 }
 
