@@ -1,8 +1,12 @@
-<img src="assets/icon.png" alt="My Loot History" width="128" align="right">
+<div align="center">
 
-# My Loot History
+<img src="assets/icon.png" alt="My Loot History" width="128">
+
+<h1>My Loot History</h1>
 
 [![CurseForge](https://img.shields.io/badge/download-CurseForge-orange)](https://www.curseforge.com/wow/addons/my-loot-history)
+
+</div>
 
 **Know exactly what your farming is worth.**
 
