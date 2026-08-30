@@ -1,3 +1,8 @@
+## 2.1.0
+
+- The report has a Currencies tab. Every currency the filters select gets a row of its own with what you earned in that window, what that is an hour, what you are carrying now, and a bar showing how close the weekly or seasonal cap is - so "how many crests before the cap" is one click rather than four addons. The tab follows the same date range, session, zone, search and scope as the item table, keeps its own sort, and exports its own CSV.
+- Added a session HUD: a small bar with the three live numbers - elapsed time, items per hour and gold per hour - that sits on the screen without the report being open. Drag it where you want it, lock it in place, left click it for the report and right click it to start a new session. Switch it on in the settings or with `/mlh hud`; it is off until you ask for it.
+
 ## 2.0.1
 
 - The addon's site is in the addon now: the FAQ page in the settings has the address in a box you can select and copy, and `/mlh web` prints it in chat.

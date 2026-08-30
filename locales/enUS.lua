@@ -43,6 +43,10 @@ L["C_ShowMinimapButton"] = "Show minimap button"
 L["C_ShowMinimapButton_Desc"] = "Show or hide the minimap button"
 L["C_ResizableWindow"] = "Resizable window"
 L["C_ResizableWindow_Desc"] = "Make the report window resizable"
+L["C_ShowHUD"] = "Show session HUD"
+L["C_ShowHUD_Desc"] = "A small bar on the screen with the three live session numbers: elapsed time, items per hour and gold per hour. Left click it to open the report, right click it to start a new session"
+L["C_LockHUD"] = "Lock the HUD"
+L["C_LockHUD_Desc"] = "Stop the HUD being dragged, so a click on it can never move it by accident"
 L["C_ShowLastLootedRow"] = "Show last looted date row"
 L["C_ShowLastLootedRow_Desc"] = "Show or hide the last looted date row"
 L["C_ShowZoneColumn"] = "Show zone column"
@@ -126,8 +130,15 @@ L["M_Help"] = function (website)
     ..'|cFFFFD100/mlh config|r - open the settings\n'
     ..'|cFFFFD100/mlh session|r - print the current session line\n'
     ..'|cFFFFD100/mlh session reset|r - start a new session from now\n'
+    ..'|cFFFFD100/mlh hud|r - show or hide the session HUD\n'
+    ..'|cFFFFD100/mlh hud lock|r - lock the HUD where it is\n'
     ..'|cFFFFD100/mlh web|r - the addon site: '..website
 end
+
+L["M_HudShown"] = "|cFF00DD00My Loot History|r: session HUD shown"
+L["M_HudHidden"] = "|cFF00DD00My Loot History|r: session HUD hidden"
+L["M_HudLocked"] = "|cFF00DD00My Loot History|r: session HUD locked"
+L["M_HudUnlocked"] = "|cFF00DD00My Loot History|r: session HUD unlocked, drag it to move it"
 
 L["M_ClearDataPrompt"] = "Are you sure you want to clear the history of everything you looted? This includes items and gold and cannot be undone"
 
@@ -205,6 +216,46 @@ L["R_ColValueMarket"] = "AH"
 L["R_ColCharacter"] = "Character"
 L["R_ColSource"] = "From"
 
+-- currency tab
+L["R_ViewItems"] = "Items"
+L["R_ViewCurrencies"] = "Currencies"
+L["R_ColEarned"] = "Earned"
+L["R_ColPerHour"] = "Per hour"
+L["R_ColHeld"] = "Held"
+L["R_ColCap"] = "Cap"
+L["R_ColHeldAccountHint"] = "What you are carrying on this character. Other characters' balances cannot be read while they are logged out"
+L["R_NoCap"] = "no cap"
+L["R_NoCurrenciesHere"] = "No currencies in this view yet"
+L["R_CurrencyEarned"] = "Earned: "
+
+L["R_PerHourValue"] = function (rate)
+  return rate..' /h'
+end
+
+L["R_CapWeekly"] = function (current, max)
+  return current..' / '..max..' this week'
+end
+
+L["R_CapTotal"] = function (current, max)
+  return current..' / '..max
+end
+
+L["R_CapsReached"] = function (reached, total)
+  return 'Caps reached: |cFFFFFFFF'..reached..'|r of '..total
+end
+
+L["R_CurrencyWindow"] = function (duration)
+  return 'Rates over '..duration
+end
+
+L["R_CurrencyEarnedInView"] = function (quantity, rangeName)
+  return '+'..quantity..' during "'..rangeName..'"'
+end
+
+L["R_CurrencyRate"] = function (rate)
+  return 'That is '..rate..' an hour'
+end
+
 -- account-wide history
 L["R_ScopeCharacter"] = "This character"
 L["R_ScopeAccount"] = "All characters"
@@ -261,6 +312,18 @@ end
 
 L["G_ValueSoFar"] = function (gold)
   return gold..' gold so far'
+end
+
+-- session HUD
+L["H_Title"] = "Session"
+L["H_ItemsPerHour"] = " i/h"
+L["H_GoldPerHour"] = " /h"
+L["H_Locked"] = "It is locked in place - unlock it in the settings to move it"
+L["H_Unlocked"] = "Drag it to move it"
+
+L["H_Tooltip"] = function (lockLine)
+  return 'How long this session has run, items an hour and gold an hour.\n'
+    ..'Left click opens the report, right click starts a new session.\n'..lockLine
 end
 
 -- activity graph

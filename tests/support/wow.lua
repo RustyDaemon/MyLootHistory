@@ -186,6 +186,10 @@ _G.C_Timer = {
 
 _G.GetMoneyString = function(copper) return tostring(copper or 0).."c" end
 
+-- The client's thousands separator. What it puts between the groups is a locale's business
+-- and no spec asserts on it, so the number itself is enough.
+_G.BreakUpLargeNumbers = function(value) return tostring(value or 0) end
+
 _G.Enum = {
     ItemClass = { Questitem = 12, Consumable = 0 },
     ItemQuality = { Poor = 0, Legendary = 5 },

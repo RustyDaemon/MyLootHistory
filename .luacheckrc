@@ -85,6 +85,7 @@ read_globals = {
     "UnitGUID",
 
     -- formatting and misc helpers
+    "BreakUpLargeNumbers",
     "GetMoneyString",
     "GetLocale",
     "IsLeftShiftKeyDown",
@@ -142,7 +143,7 @@ files["tests/**/*.lua"] = {
     read_globals = {
         -- installed by tests/support/wow.lua
         "LibStub", "C_CurrencyInfo", "C_Item", "C_Map", "C_Timer", "Enum",
-        "GameTooltip", "GetMoneyString", "Item", "MyLootHistoryDB",
+        "GameTooltip", "GetMoneyString", "BreakUpLargeNumbers", "Item", "MyLootHistoryDB",
         "date", "time",
 
         -- and by tests/support/frames.lua, for the specs that drive the report window
@@ -164,7 +165,7 @@ files["tests/support/*.lua"] = {
     globals = {
         "LibStub",
         "ChatEdit_TryInsertChatLink", "CreateColor", "CreateFrame", "C_Timer",
-        "GameFontNormal", "GameTooltip", "GetCursorPosition", "GetRealmName",
+        "BreakUpLargeNumbers", "GameFontNormal", "GameTooltip", "GetCursorPosition", "GetRealmName",
         "IsLeftShiftKeyDown", "IsRightShiftKeyDown", "NumberFontNormal", "PlaySound",
         "SOUNDKIT", "UIParent", "UISpecialFrames", "UnitName", "tContains", "tinsert",
     },

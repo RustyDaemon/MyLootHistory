@@ -42,6 +42,10 @@ local defaults = {
             showTooltip = true,
             showAdditionalTooltipData = false,
             showSessionBar = true,
+            -- the session HUD is off until asked for: an addon that puts a frame on the
+            -- screen the first time it loads is one the player has to go and turn off
+            showHUD = false,
+            hudLocked = false,
             showCurrency = true,
             trackCurrency = true,
             gameTooltipLine = true,
@@ -62,6 +66,7 @@ local defaults = {
         sessions = {},
 
         params = {
+            selectedView = "items", -- "items" or "currency", the two tabs of the report
             selectedScope = "char", -- "char" or "account"
             selectedSession = 0,    -- 0 is the live session; otherwise a startedOn stamp
             selectedRangeValue = 2,
@@ -71,6 +76,10 @@ local defaults = {
             searchText = "",
             sortKey = "quantity",
             sortDescending = true,
+            -- the currency tab sorts by its own columns, and keeps its own choice: the two
+            -- tabs share no column but the name, so one sort key could not describe both
+            currencySortKey = "earned",
+            currencySortDescending = true,
         },
 
         dbVersion = 1,

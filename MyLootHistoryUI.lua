@@ -46,6 +46,15 @@ local COLUMN_WIDTH = {
     lastLooted = 124,
 }
 
+-- The currency tab is a different table: what a crest is worth in gold is not a question,
+-- and what it is capped at is.
+local CURRENCY_COLUMN_WIDTH = {
+    earned = 68,
+    perHour = 78,
+    held = 82,
+    cap = 168,
+}
+
 -- Every column is packed against the one to its right, and a right-aligned number followed
 -- by a left-aligned word would otherwise run straight into it ("1g 0sCollegiate Calamity").
 local COLUMN_GAP = 14
@@ -96,6 +105,12 @@ local function qualityColor(quality)
     return r, g, b
 end
 
+-- Which of the report's two tables is being looked at. Both are drawn by the same rows and
+-- the same header, so nearly everything below asks this rather than being duplicated.
+local function isCurrencyView()
+    return MLH:getFilters().view == "currency"
+end
+
 -- Where every column sits, given the width the window currently has. The header labels and
 -- the row cells both lay themselves out from this, which is why they cannot drift apart
 -- when a column is switched off or the window is dragged wider.
@@ -109,6 +124,21 @@ function columnLayout()
         layout.cursor = layout.cursor - width - COLUMN_GAP
 
         return right, width
+    end
+
+    -- The currency table claims no column the item table does, which is what lets one pooled
+    -- row draw either: a cell the active layout never claimed has no anchor, and the code
+    -- that places them hides exactly those.
+    if (isCurrencyView()) then
+        layout.capRight, layout.capWidth = claim(CURRENCY_COLUMN_WIDTH.cap)
+        layout.heldRight, layout.heldWidth = claim(CURRENCY_COLUMN_WIDTH.held)
+        layout.perHourRight, layout.perHourWidth = claim(CURRENCY_COLUMN_WIDTH.perHour)
+        layout.earnedRight, layout.earnedWidth = claim(CURRENCY_COLUMN_WIDTH.earned)
+
+        layout.nameLeft = PAD + 6 + iconSize() + 10
+        layout.nameRight = layout.cursor
+
+        return layout
     end
 
     if (config.showLastLooted) then
@@ -155,6 +185,33 @@ local function applyCell(fontString, right, width, justify)
     fontString:SetPoint("RIGHT", fontString:GetParent(), "RIGHT", right, 0)
     fontString:SetWidth(width)
     fontString:SetJustifyH(justify or "RIGHT")
+end
+
+-- Which column the active table is sorted by, and which way. The two tables keep separate
+-- answers - they share no column but the name - so every reader asks here rather than
+-- reaching for a filter that only describes one of them.
+local function sortState()
+    local active = MLH:getFilters()
+
+    if (active.view == "currency") then return active.currencySort, active.currencySortDescending end
+
+    return active.sortKey, active.sortDescending
+end
+
+-- A click on a header: the same column again reverses it, a new column takes over.
+local function setSort(key)
+    local currency = isCurrencyView()
+    local currentKey, descending = sortState()
+
+    if (currentKey == key) then
+        MLH:setFilter(currency and "currencySortDescending" or "sortDescending", not descending)
+        return
+    end
+
+    MLH:setFilter(currency and "currencySort" or "sortKey", key)
+    -- names and places read best A-Z, everything else reads best largest-first
+    MLH:setFilter(currency and "currencySortDescending" or "sortDescending",
+        key ~= "name" and key ~= "zone" and key ~= "character")
 end
 
 -- ── stat cards ────────────────────────────────────────────────────────────────
@@ -357,6 +414,31 @@ local function createRow(parent)
     row.zone:SetWordWrap(false)
     row.lastLooted:SetWordWrap(false)
 
+    -- the currency table's own cells. They live on the same pooled row as the item cells and
+    -- are shown by the same rule: a cell the active column layout did not claim is hidden.
+    row.earned = UI:number(row, 14, "text")
+    row.perHour = UI:text(row, 12, "textDim")
+    row.held = UI:number(row, 12, "text")
+    row.capText = UI:text(row, 10, "textDim")
+
+    row.perHour:SetWordWrap(false)
+    row.capText:SetWordWrap(false)
+
+    -- how far through a weekly allowance or a lifetime maximum the currency is. A bar
+    -- rather than a fraction alone, because "nearly capped" is the thing being asked and a
+    -- shape answers it without being read.
+    local capBar = UI:panel(row, "raised", true)
+    capBar:SetHeight(7)
+    capBar:Hide()
+
+    local capFill = capBar:CreateTexture(nil, "ARTWORK")
+    capFill:SetPoint("TOPLEFT", 1, -1)
+    capFill:SetPoint("BOTTOMLEFT", 1, 1)
+    capFill:SetColorTexture(UI:rgb("accentDim"))
+
+    capBar.fill = capFill
+    row.capBar = capBar
+
     -- the heading rows inside the list - "Currencies" and the like - reuse the same frame
     row.heading = UI:text(row, 11, "textFaint")
     row.heading:SetPoint("LEFT", PAD + 4, 0)
@@ -437,10 +519,36 @@ local function createRow(parent)
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine(L["R_ShiftClickToLink"], UI:rgb("textFaint"))
             GameTooltip:Show()
-        elseif (entry.kind == "currency") then
+        elseif (entry.kind == "currency" or entry.kind == "budget") then
             GameTooltip:SetOwner(self, "ANCHOR_NONE")
             GameTooltip:SetPoint("TOPLEFT", window, "TOPRIGHT", 6, 0)
             GameTooltip:SetCurrencyByID(entry.currency.currencyId)
+
+            -- the client's own tooltip already says what the currency is and what the cap
+            -- is; what it cannot say is where this one came from and how fast
+            if (entry.kind == "budget") then
+                local currency = entry.currency
+                -- a colour call in the middle of an argument list is truncated to its red
+                -- channel alone, so the three are read out first
+                local dimR, dimG, dimB = UI:rgb("textDim")
+                local zones = {}
+
+                for i = 1, math.min(#currency.zones, 5) do
+                    zones[i] = currency.zones[i].name.." ("..currency.zones[i].quantity..")"
+                end
+
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(L["R_CurrencyEarnedInView"](currency.quantity,
+                    MLH:getRangeName(MLH:getFilters().range)), 1, 1, 1)
+                GameTooltip:AddLine(L["R_CurrencyRate"](string.format("%.1f", currency.perHour or 0)),
+                    dimR, dimG, dimB)
+
+                if (#zones > 0) then
+                    GameTooltip:AddLine(L["R_LootedIn"].." "..table.concat(zones, ", "),
+                        dimR, dimG, dimB, true)
+                end
+            end
+
             GameTooltip:Show()
         end
     end)
@@ -454,7 +562,7 @@ local function createRow(parent)
 
         if (IsLeftShiftKeyDown() or IsRightShiftKeyDown()) then
             local link = entry.kind == "item" and entry.item.itemLink
-                or (entry.kind == "currency"
+                or ((entry.kind == "currency" or entry.kind == "budget")
                     and C_CurrencyInfo.GetCurrencyLink(entry.currency.currencyId, entry.currency.quantity))
 
             if (link) then ChatEdit_TryInsertChatLink(link) end
@@ -464,11 +572,51 @@ local function createRow(parent)
     return row
 end
 
+-- The cap column is the one cell that is not a fontstring, so it places itself: the fraction
+-- on the upper line and the bar under it, or the "no cap" dash alone on the row's own line
+-- when there is nothing to draw.
+local function applyCapCell(row, layout)
+    local bar = row.capBar
+    local text = row.capText
+
+    if (not layout.capRight) then
+        text:Hide()
+        bar:Hide()
+        return
+    end
+
+    text:Show()
+    text:ClearAllPoints()
+    text:SetWidth(layout.capWidth)
+    text:SetJustifyH("RIGHT")
+
+    if (not row.hasCap) then
+        bar:Hide()
+        text:SetPoint("RIGHT", row, "RIGHT", layout.capRight, 0)
+
+        return
+    end
+
+    text:SetPoint("RIGHT", row, "RIGHT", layout.capRight, 7)
+
+    bar:Show()
+    bar:ClearAllPoints()
+    bar:SetPoint("RIGHT", row, "RIGHT", layout.capRight, -8)
+    bar:SetWidth(layout.capWidth)
+    -- a currency one pickup into its allowance still draws something: an empty bar and a
+    -- bar that has not been started look the same, and they are not the same
+    bar.fill:SetWidth(math.max((layout.capWidth - 2) * (row.capRatio or 0), 1))
+end
+
 -- Fills one pooled row from one display entry. Everything a row can be - an item, a
 -- currency, the gold line, a section heading - is set up here, because a pooled frame that
 -- was something else last frame has to be fully re-dressed rather than patched.
 local function fillRow(row, entry, index, layout)
     row.entry = entry
+    -- cleared here rather than in each branch: a pooled row that carried a capped currency
+    -- last frame would otherwise draw its bar under whatever it is now
+    row.hasCap = false
+    row.capRatio = 0
 
     local isHeading = entry.kind == "heading"
 
@@ -491,6 +639,11 @@ local function fillRow(row, entry, index, layout)
         row.source:Hide()
         row.zone:Hide()
         row.lastLooted:Hide()
+        row.earned:Hide()
+        row.perHour:Hide()
+        row.held:Hide()
+        row.capText:Hide()
+        row.capBar:Hide()
         row.heat:SetWidth(1)
         row.heat:Hide()
 
@@ -567,6 +720,48 @@ local function fillRow(row, entry, index, layout)
 
         row.heat:SetAlpha(0)
         row.heat:SetWidth(1)
+    elseif (entry.kind == "budget") then
+        local currency = entry.currency
+        local r, g, b = qualityColor(currency.quality)
+        local cap = currency.cap
+
+        row.icon:SetTexture(currency.icon)
+        row.iconBorder:SetColorTexture(r, g, b, 0.9)
+        row.accent:SetColorTexture(r, g, b, 0.55)
+        row.name:SetText(currency.name)
+        row.name:SetTextColor(r, g, b)
+
+        -- the sign is the point: this column is what the range added, not what is in hand
+        row.earned:SetText("+"..currency.quantity)
+        row.perHour:SetText(L["R_PerHourValue"](string.format("%.1f", currency.perHour or 0)))
+
+        -- only the character at the keyboard can be asked what it is carrying, so under the
+        -- account-wide scope this is one character's balance beside everyone's earnings, and
+        -- a dash is what a currency the client would not talk about gets
+        row.held:SetText(currency.held and BreakUpLargeNumbers(currency.held) or "-")
+        row.held:SetAlpha(currency.held and 1 or 0.35)
+
+        if (cap) then
+            local complete = cap.current >= cap.max
+
+            row.hasCap = true
+            row.capRatio = currency.capRatio or 0
+
+            row.capText:SetText(cap.kind == "weekly"
+                and L["R_CapWeekly"](cap.current, cap.max)
+                or L["R_CapTotal"](cap.current, cap.max))
+            row.capText:SetTextColor(UI:rgbIf(complete, "good", "textDim"))
+            row.capBar.fill:SetColorTexture(UI:rgbIf(complete, "good", "accent"))
+        else
+            row.capText:SetText(L["R_NoCap"])
+            row.capText:SetTextColor(UI:rgb("textFaint"))
+        end
+
+        -- the currency table has no zone column, so where it came from goes under the name
+        subtitleParts[#subtitleParts+1] = currency.zoneName
+
+        row.heat:SetAlpha(0)
+        row.heat:SetWidth(1)
     else --gold
         row.icon:SetTexture(133784)
         row.iconBorder:SetColorTexture(UI:rgb("money", 0.9))
@@ -612,6 +807,11 @@ local function fillRow(row, entry, index, layout)
     applyCell(row.source, layout.sourceRight, layout.sourceWidth, "LEFT")
     applyCell(row.zone, layout.zoneRight, layout.zoneWidth, "LEFT")
     applyCell(row.lastLooted, layout.lastLootedRight, layout.lastLootedWidth, "LEFT")
+    applyCell(row.earned, layout.earnedRight, layout.earnedWidth, "RIGHT")
+    applyCell(row.perHour, layout.perHourRight, layout.perHourWidth, "RIGHT")
+    applyCell(row.held, layout.heldRight, layout.heldWidth, "RIGHT")
+
+    applyCapCell(row, layout)
 end
 
 -- ── the list ──────────────────────────────────────────────────────────────────
@@ -620,6 +820,16 @@ end
 -- then the currencies under their own heading, then the gold the range earned.
 function rebuildList()
     displayList = {}
+
+    -- the currency table is one row per currency and nothing else: no headings, no money
+    -- line, and no items to put either of them between
+    if (isCurrencyView()) then
+        for i = 1, #report.rows do
+            displayList[#displayList+1] = { kind = "budget", currency = report.rows[i] }
+        end
+
+        return
+    end
 
     for i = 1, #report.items do
         displayList[#displayList+1] = { kind = "item", item = report.items[i] }
@@ -715,30 +925,24 @@ local function createHeaderColumn(parent, key, text, justify)
     button.underline = underline
 
     button:HookScript("OnEnter", function(self)
-        if (MLH:getFilters().sortKey ~= self.key) then self.label:SetTextColor(UI:rgb("text")) end
+        if (sortState() ~= self.key) then self.label:SetTextColor(UI:rgb("text")) end
 
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText(L["R_SortBy"](self.baseText), 1, 1, 1)
+
+        if (self.hint) then GameTooltip:AddLine(self.hint, UI:rgb("textDim")) end
+
         GameTooltip:Show()
     end)
 
     button:HookScript("OnLeave", function(self)
-        if (MLH:getFilters().sortKey ~= self.key) then self.label:SetTextColor(UI:rgb("textDim")) end
+        if (sortState() ~= self.key) then self.label:SetTextColor(UI:rgb("textDim")) end
 
         GameTooltip:Hide()
     end)
 
     button:SetScript("OnClick", function(self)
-        local active = MLH:getFilters()
-
-        if (active.sortKey == self.key) then
-            MLH:setFilter("sortDescending", not active.sortDescending)
-        else
-            MLH:setFilter("sortKey", self.key)
-            -- names and places read best A-Z, everything else reads best largest-first
-            MLH:setFilter("sortDescending",
-                self.key ~= "name" and self.key ~= "zone" and self.key ~= "character")
-        end
+        setSort(self.key)
 
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
         refreshReport()
@@ -748,7 +952,7 @@ local function createHeaderColumn(parent, key, text, justify)
 end
 
 local function refreshHeader()
-    local active = MLH:getFilters()
+    local sortKey, descending = sortState()
     local config = MLH.db.char.config
     local layout = columnLayout()
     local header = window.header
@@ -777,19 +981,31 @@ local function refreshHeader()
     place(header.source, layout.sourceRight, layout.sourceWidth, "LEFT")
     place(header.zone, layout.zoneRight, layout.zoneWidth, "LEFT")
     place(header.lastLooted, layout.lastLootedRight, layout.lastLootedWidth, "LEFT")
+    place(header.earned, layout.earnedRight, layout.earnedWidth, "RIGHT")
+    place(header.perHour, layout.perHourRight, layout.perHourWidth, "RIGHT")
+    place(header.held, layout.heldRight, layout.heldWidth, "RIGHT")
+    place(header.cap, layout.capRight, layout.capWidth, "RIGHT")
 
     header.quality:ClearAllPoints()
     header.quality:SetPoint("LEFT", header, "LEFT", PAD + 4, 0)
     header.quality:SetWidth(iconSize() + 4)
 
-    header.zone:SetShown(config.showZone and true or false)
-    header.lastLooted:SetShown(config.showLastLooted and true or false)
+    -- sorting a table of currencies by item quality is not a question anyone has
+    header.quality:SetShown(not isCurrencyView())
+    header.zone:SetShown(config.showZone and not isCurrencyView())
+    header.lastLooted:SetShown(config.showLastLooted and not isCurrencyView())
+
+    -- the currency table's own header says what the balance column is, since it is the one
+    -- number in the window that belongs to the character at the keyboard alone
+    header.held.hint = report and report.heldIsCurrentCharacter == false
+        and L["R_ColHeldAccountHint"] or nil
 
     for _, button in pairs({ header.quality, header.name, header.quantity, header.value,
                              header.market, header.character, header.source, header.zone,
-                             header.lastLooted }) do
-        local isActive = active.sortKey == button.key
-        local arrow = isActive and (active.sortDescending and SORT_DOWN or SORT_UP) or ""
+                             header.lastLooted, header.earned, header.perHour, header.held,
+                             header.cap }) do
+        local isActive = sortKey == button.key
+        local arrow = isActive and (descending and SORT_DOWN or SORT_UP) or ""
 
         button.label:SetText(button.baseText..arrow)
         button.label:SetTextColor(UI:rgbIf(isActive, "accent", "textDim"))
@@ -816,7 +1032,14 @@ function updateSession()
     cards.gold:Set(MLH:formatGoldCompact(stats.goldPerHour)..GOLD_ICON,
         L["G_ValueSoFar"](MLH:formatGoldCompact(stats.totalValue)), "money")
 
-    if (report) then
+    if (not report) then return end
+
+    -- the fourth card is "what is in view", and what is in view depends on which table is
+    -- open: gold under the items, currency earned under the currencies
+    if (isCurrencyView()) then
+        cards.filtered:Set(BreakUpLargeNumbers(report.totalEarned),
+            MLH:getRangeName(MLH:getFilters().range), "accent")
+    else
         cards.filtered:Set(MLH:formatGoldCompact(report.totalValue + report.gold)..GOLD_ICON,
             MLH:getRangeName(MLH:getFilters().range), "accent")
     end
@@ -824,6 +1047,24 @@ end
 
 function updateFooter()
     if (not window or not report) then return end
+
+    if (isCurrencyView()) then
+        local parts = {
+            L["R_CurrenciesCount"].."|cFFFFFFFF"..#report.rows.."|r",
+            L["R_CurrencyEarned"].."|cFFFFFFFF"..BreakUpLargeNumbers(report.totalEarned).."|r",
+        }
+
+        -- only worth a line when there is a cap to be at: a view of uncapped currencies
+        -- would otherwise carry a permanent "0 of 0"
+        if (report.cappedTotal > 0) then
+            parts[#parts+1] = L["R_CapsReached"](report.cappedCount, report.cappedTotal)
+        end
+
+        window.footerText:SetText(table.concat(parts, "   |cFF4A4A55|||r   "))
+        window.footerZone:SetText(L["R_CurrencyWindow"](MLH:formatDuration(report.duration)))
+
+        return
+    end
 
     local parts = {
         L["R_Items"]..("|cFFFFFFFF"..#report.items.."|r"),
@@ -856,7 +1097,7 @@ function refreshReport(keepScroll)
     -- an auction-house price can move while the window is open, so each redraw asks again
     MLH:clearPriceCache()
 
-    report = MLH:buildReport()
+    report = isCurrencyView() and MLH:buildCurrencyReport() or MLH:buildReport()
 
     rebuildList()
     refreshHeader()
@@ -865,6 +1106,7 @@ function refreshReport(keepScroll)
 
     local isEmpty = #displayList == 0
 
+    window.emptyText:SetText(isCurrencyView() and L["R_NoCurrenciesHere"] or L["R_NothingIsHereYet"])
     window.empty:SetShown(isEmpty)
     window.emptyReset:SetShown(isEmpty and MLH:hasActiveFilters())
     window.header:SetShown(not isEmpty)
@@ -879,6 +1121,7 @@ function refreshReport(keepScroll)
     window.scopeDropdown:SetText(MLH:getScopeName())
     window.rangeControl:Refresh()
     window.exactToggle:Refresh()
+    window.viewControl:Refresh()
 
     -- the session picker comes and goes with the date range, and the character column with
     -- the scope, so the bar and the columns are laid out again from here
@@ -980,6 +1223,22 @@ function buildWindow()
     local subtitle = UI:text(titleBar, 11, "textFaint")
     subtitle:SetPoint("LEFT", title, "RIGHT", 10, 0)
     subtitle:SetText(UnitName("player").." · "..(GetRealmName() or ""))
+
+    -- The two tables of the report, as tabs in the title bar rather than as a control in the
+    -- filter row: which table you are looking at is what the window *is*, and the row below
+    -- is a set of filters *of* it. It also keeps the filters flowing onto one line for longer.
+    local viewControl = UI:segmented(titleBar, 26, {
+        { value = "items", text = L["R_ViewItems"] },
+        { value = "currency", text = L["R_ViewCurrencies"] },
+    },
+        function() return MLH:getFilters().view end,
+        function(value)
+            MLH:setFilter("view", value)
+            -- the two tables are different lengths of list, so the new one starts at the top
+            -- rather than wherever the old one was scrolled to
+            refreshReport()
+        end)
+    viewControl:SetPoint("LEFT", subtitle, "RIGHT", 20, 0)
 
     local close = UI:iconButton(titleBar, 28, "Interface\\Buttons\\UI-StopButton",
         function() frame:Hide() end)
@@ -1114,6 +1373,11 @@ function buildWindow()
         -- one character on the account is not a choice worth offering
         scopeDropdown:SetShown(MLH:getCharacterCount() > 1)
 
+        -- a currency has no quality worth filtering by: every one of them is its own colour
+        -- and none of them is an upgrade
+        qualityDropdown:SetShown(not isCurrencyView())
+        exactToggle:SetShown(not isCurrencyView())
+
         -- first pass works out which row each control lands on, since where a row sits
         -- vertically depends on how many rows there turn out to be
         local placements = {}
@@ -1176,6 +1440,12 @@ function buildWindow()
     header.source = createHeaderColumn(header, "source", L["R_ColSource"], "LEFT")
     header.zone = createHeaderColumn(header, "zone", L["R_ColZone"], "LEFT")
     header.lastLooted = createHeaderColumn(header, "lastLooted", L["R_ColLooted"], "LEFT")
+
+    -- the currency table's columns. Only one set is ever placed, so they can share the row
+    header.earned = createHeaderColumn(header, "earned", L["R_ColEarned"], "RIGHT")
+    header.perHour = createHeaderColumn(header, "perHour", L["R_ColPerHour"], "RIGHT")
+    header.held = createHeaderColumn(header, "held", L["R_ColHeld"], "RIGHT")
+    header.cap = createHeaderColumn(header, "cap", L["R_ColCap"], "RIGHT")
 
     -- list ---------------------------------------------------------------------
     local list = CreateFrame("Frame", nil, frame)
@@ -1271,6 +1541,7 @@ function buildWindow()
     frame.cards = cards
     frame.graph = graph
     frame.filterBar = filterBar
+    frame.viewControl = viewControl
     frame.search = search
     frame.rangeControl = rangeControl
     frame.qualityDropdown = qualityDropdown
@@ -1282,6 +1553,7 @@ function buildWindow()
     frame.list = list
     frame.scrollbar = scrollbar
     frame.empty = empty
+    frame.emptyText = emptyText
     frame.emptyReset = emptyReset
     frame.footerText = footerText
     frame.footerZone = footerZone
@@ -1372,7 +1644,16 @@ end
 local exportWindow = nil
 
 function showExportWindow()
-    local csv, count = MLH:buildCsv(report)
+    -- the export is of what is on screen, and what is on screen is one of two tables. An
+    -- `and/or` between the two calls would truncate the pair they answer with to the csv
+    -- alone, leaving the hint below claiming nothing was exported
+    local csv, count
+
+    if (isCurrencyView()) then
+        csv, count = MLH:buildCurrencyCsv(report)
+    else
+        csv, count = MLH:buildCsv(report)
+    end
 
     if (not exportWindow) then
         local frame = CreateFrame("Frame", "MLHExportFrame", UIParent)

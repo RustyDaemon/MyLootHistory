@@ -51,6 +51,27 @@ Sessions are kept, not just the one you are in. Start a new one and the old one 
 
 A session stores only the window it covered, so its numbers are always worked out from the loot itself and can never drift out of step with your history.
 
+## How many crests am I short?
+
+The report has two tabs, and the **Currencies** one is a budget rather than a list. Every currency the filters select gets a row with four things the item table cannot say:
+
+- **Earned** - how much of it this date range, session, zone or search actually gave you
+- **Per hour** - that number over the length of the window, so a farm can be compared with another one
+- **Held** - what you are carrying right now, read from the client
+- **Cap** - a bar and a fraction for the weekly allowance, or for the season-long cap where a currency has one instead. A currency with no cap says so rather than drawing an empty bar, and a cap you have reached turns green
+
+It follows every filter the item table does - the date range, the session picker, the zone, the search box and the account-wide scope - keeps a sort of its own, and the export button gives you this table as CSV rather than the item one. The balance is the character you are logged in as, even under *All characters*: the client cannot be asked what an alt is carrying while they are logged out.
+
+## Is this spot still worth farming?
+
+Switch on the **session HUD** and the three live numbers - how long you have been at it, items an hour and gold an hour - sit on the screen without the report being open:
+
+```
+1h 42m │ 214 i/h │ 38.4k g/h
+```
+
+Drag it where you want it and lock it in place once it is there. Left click opens the report, right click starts a new session from that moment - which is what you want when you move to a new spot. It reads from the same place the stat cards do, so the two can never disagree, and it is off until you ask for it, in the settings or with `/mlh hud`.
+
 ## All my characters at once
 
 Switch **Show loot from** to *All characters* and the report covers the whole account. An item three of your characters have looted is one row, not three: the quantities add up, a Character column says who found most of it, and the tooltip lists all of them.
@@ -99,6 +120,7 @@ And you can sort it: click a column header to sort by quality, name, quantity, v
 
 - Show/hide minimap button
 - Make the report window resizable
+- Show the session HUD, and lock it where you put it
 - Show looted date in the report
 - Show the zone column in the report
 - Show the session cards and the activity graph at the top of the report
@@ -129,6 +151,8 @@ Besides, some additional features are available:
 - `/mlh config` opens the configuration window
 - `/mlh session` prints the session summary: elapsed time, items per hour and gold per hour
 - `/mlh session reset` starts a new session from now
+- `/mlh hud` shows or hides the session HUD
+- `/mlh hud lock` locks the HUD where it is, so a click cannot drag it
 
 ## Limitations
 

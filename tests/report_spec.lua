@@ -41,6 +41,7 @@ wow.load("MyLootHistorySource.lua")
 wow.load("MyLootHistoryPrices.lua")
 wow.load("MyLootHistorySession.lua")
 wow.load("MyLootHistoryData.lua")
+wow.load("MyLootHistoryCurrency.lua")
 
 local MLH = wow.addon
 
@@ -50,6 +51,7 @@ function MLH:setTooltipSuppressed() end
 
 wow.load("MyLootHistoryUIKit.lua")
 wow.load("MyLootHistoryUI.lua")
+wow.load("MyLootHistoryHUD.lua")
 
 MLH:initDatabase()
 
@@ -539,6 +541,192 @@ describe("the export window", function()
         assert.is_not_nil(editBox.text:find("type,name,id"))
 
         _G.MLHExportFrame:Hide()
+    end)
+end)
+
+describe("the session HUD", function()
+    teardown(function()
+        char.config.showHUD = false
+        char.config.hudLocked = false
+        MLH:applyHUD()
+    end)
+
+    it("stays off until it is asked for", function()
+        char.config.showHUD = false
+        MLH:applyHUD()
+
+        assert.is_true(_G.MLHHudFrame == nil or not _G.MLHHudFrame:IsShown())
+    end)
+
+    it("comes up with the three live numbers on it", function()
+        assert.is_true(MLH:toggleHUD())
+
+        local hud = _G.MLHHudFrame
+
+        assert.is_not_nil(hud)
+        assert.is_true(hud:IsShown())
+
+        for i = 1, 3 do
+            assert.is_not.equal("", hud.cells[i].text)
+        end
+    end)
+
+    it("says the same thing the session card does", function()
+        local stats = MLH:getSessionStats()
+
+        assert.are.equal(MLH:formatDuration(stats.duration), _G.MLHHudFrame.cells[1].text)
+    end)
+
+    -- the drag is what a lock is a lock on, so it is the drag that has to check it
+    it("refuses to be dragged while it is locked", function()
+        local hud = _G.MLHHudFrame
+
+        char.config.hudLocked = true
+        hud:Fire("OnDragStart")
+
+        assert.is_nil(hud.calls.StartMoving)
+
+        char.config.hudLocked = false
+        hud:Fire("OnDragStart")
+
+        assert.are.equal(1, hud.calls.StartMoving)
+
+        hud:Fire("OnDragStop")
+
+        assert.is_not_nil(MLH.db.char.ui.hud.point)
+    end)
+
+    -- letting go at the end of that drag is a mouse-up too, and it must not also open the
+    -- report the way a click on the HUD does
+    it("does not count the end of a drag as a click", function()
+        local wasShown = window:IsShown()
+
+        _G.MLHHudFrame:Fire("OnMouseUp", "LeftButton")
+
+        assert.are.equal(wasShown, window:IsShown())
+    end)
+
+    it("starts a new session on a right click", function()
+        local before = MLH.db.char.thisSessionStart
+
+        _G.MLHHudFrame:Fire("OnMouseUp", "RightButton")
+
+        assert.is_true(MLH.db.char.thisSessionStart >= before)
+    end)
+
+    it("goes away again, and takes its ticker with it", function()
+        assert.is_false(MLH:toggleHUD())
+        assert.is_false(_G.MLHHudFrame:IsShown())
+
+        -- and updating a hidden HUD is a no-op rather than an error
+        assert.has_no.errors(function() MLH:updateHUD() end)
+    end)
+end)
+
+describe("the currency tab", function()
+    local originalGetCurrencyInfo = nil
+
+    setup(function()
+        originalGetCurrencyInfo = _G.C_CurrencyInfo.GetCurrencyInfo
+
+        -- a currency with a weekly allowance, so the cap bar is drawn rather than the dash
+        _G.C_CurrencyInfo.GetCurrencyInfo = function(id)
+            return {
+                name = "Valorstones", iconFileID = 9, quality = 1, quantity = 1240,
+                canEarnPerWeek = true, maxWeeklyQuantity = 1500, quantityEarnedThisWeek = 600,
+            }
+        end
+    end)
+
+    teardown(function()
+        _G.C_CurrencyInfo.GetCurrencyInfo = originalGetCurrencyInfo
+
+        MLH:setFilter("view", "items")
+        MLH:refreshReport()
+    end)
+
+    it("puts its tabs in the title bar, not among the filters", function()
+        open()
+
+        assert.are.equal(window.titleBar, window.viewControl:GetParent())
+    end)
+
+    it("switches the whole table over, header and all", function()
+        open()
+
+        MLH:setFilter("view", "currency")
+        MLH:refreshReport()
+
+        assert.is_true(window.header.earned:IsShown())
+        assert.is_true(window.header.cap:IsShown())
+        -- the item columns are not merely empty in this view, they are gone
+        assert.is_false(window.header.value:IsShown())
+        assert.is_false(window.header.quality:IsShown())
+    end)
+
+    it("draws a row per currency with a cap bar", function()
+        local rows = frames.rowsOfKind("budget")
+
+        assert.is_true(#rows > 0)
+        assert.is_true(rows[1].capBar:IsShown())
+        assert.is_not.equal("", rows[1].earned.text)
+    end)
+
+    it("keeps a sort of its own rather than the item table's", function()
+        MLH:setFilter("sortKey", "quantity")
+
+        for _, key in ipairs({ "earned", "perHour", "held", "cap", "name" }) do
+            MLH:setFilter("currencySort", key)
+
+            assert.has_no.errors(function() MLH:refreshReport() end)
+        end
+
+        -- the item table's sort was never touched by any of that
+        assert.are.equal("quantity", MLH:getFilters().sortKey)
+    end)
+
+    it("hides the filters that only mean something for items", function()
+        assert.is_false(window.qualityDropdown:IsShown())
+        assert.is_true(window.rangeControl:IsShown())
+    end)
+
+    it("shows a currency tooltip and links one on shift+click", function()
+        local row = frames.rowsOfKind("budget")[1]
+
+        assert.has_no.errors(function()
+            row:Fire("OnEnter")
+            row:Fire("OnLeave")
+        end)
+
+        frames.shiftDown = true
+        row:Click()
+        frames.shiftDown = false
+
+        assert.is_not_nil(frames.lastLink)
+    end)
+
+    it("exports its own table rather than the item one", function()
+        for i = 1, #window.titleBar.children do
+            local child = window.titleBar.children[i]
+
+            if (child.kind == "Button") then child:Click() end
+        end
+
+        assert.is_not_nil(_G.MLHExportFrame.editBox.text:find("name,id,earned,perHour", 1, true))
+
+        _G.MLHExportFrame:Hide()
+    end)
+
+    it("goes back to the items without leaving a currency column behind", function()
+        -- the export test above clicks every title-bar button, and one of them is Close
+        open()
+
+        MLH:setFilter("view", "items")
+        MLH:refreshReport()
+
+        assert.is_false(window.header.earned:IsShown())
+        assert.is_true(window.header.value:IsShown())
+        assert.are.equal(0, #frames.rowsOfKind("budget"))
     end)
 end)
 

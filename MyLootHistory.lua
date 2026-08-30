@@ -134,6 +134,10 @@ function MLH:OnEnable()
     -- the loot-source events live on their own frame, in MyLootHistorySource.lua
     self:applySourceTracking()
     self:initTooltip()
+
+    -- the HUD is a frame on the screen rather than a window that is opened, so it comes up
+    -- with the addon when it was left on
+    self:applyHUD()
 end
 
 -- Debug output is off by default, and its two switches were read at every call
@@ -345,6 +349,10 @@ function MLH:SlashCommandListener(input)
     elseif (input == "session reset") then
         self:resetSession()
         print(self:getSessionLine())
+    elseif (input == "hud") then
+        print(self:toggleHUD() and L["M_HudShown"] or L["M_HudHidden"])
+    elseif (input == "hud lock") then
+        print(self:toggleHUDLock() and L["M_HudLocked"] or L["M_HudUnlocked"])
     elseif (input == "gui") then
         self:gui()
     elseif (input == "help") then

@@ -46,10 +46,13 @@ function MLH:getFilters()
 
     local params = self.db.char.params
     local descending = params.sortDescending
+    local currencyDescending = params.currencySortDescending
 
     if (descending == nil) then descending = true end
+    if (currencyDescending == nil) then currencyDescending = true end
 
     filters = {
+        view = params.selectedView or "items",
         scope = params.selectedScope or "char",
         session = params.selectedSession or 0,
         range = params.selectedRangeValue or 2,
@@ -59,6 +62,8 @@ function MLH:getFilters()
         search = params.searchText or "",
         sortKey = params.sortKey or "quantity",
         sortDescending = descending,
+        currencySort = params.currencySortKey or "earned",
+        currencySortDescending = currencyDescending,
     }
 
     return filters
@@ -72,6 +77,7 @@ function MLH:setFilter(key, value)
 
     local params = self.db.char.params
     local paramKeys = {
+        view = "selectedView",
         scope = "selectedScope",
         session = "selectedSession",
         range = "selectedRangeValue",
@@ -81,6 +87,8 @@ function MLH:setFilter(key, value)
         search = "searchText",
         sortKey = "sortKey",
         sortDescending = "sortDescending",
+        currencySort = "currencySortKey",
+        currencySortDescending = "currencySortDescending",
     }
 
     params[paramKeys[key]] = value
@@ -822,4 +830,38 @@ function MLH:buildCsv(report)
     end
 
     return table.concat(lines, "\n"), #items + #currencies
+end
+
+-- The currency tab exports what the currency tab shows. Sharing buildCsv's columns would
+-- have meant eleven empty cells and no room for the three things this view is about - the
+-- rate, the balance and the cap - so it gets a table of its own.
+function MLH:buildCurrencyCsv(report)
+    report = report or self:buildCurrencyReport()
+
+    local rows = report.rows
+    local lines = {
+        "name,id,earned,perHour,held,capType,capCurrent,capMax,zone,firstLooted,lastLooted",
+    }
+
+    for i = 1, #rows do
+        local row = rows[i]
+        local cap = row.cap
+
+        lines[#lines+1] = table.concat({
+            csvField(row.name),
+            csvField(row.currencyId),
+            csvField(row.quantity),
+            csvField(string.format("%.2f", row.perHour or 0)),
+            -- empty, not zero, for a currency the client had nothing to say about
+            row.held and csvField(row.held) or "",
+            cap and csvField(cap.kind) or "",
+            cap and csvField(cap.current) or "",
+            cap and csvField(cap.max) or "",
+            csvField(csvTally(row.zones)),
+            csvField(csvDate(row.firstFound)),
+            csvField(csvDate(row.lastFound)),
+        }, ",")
+    end
+
+    return table.concat(lines, "\n"), #rows
 end

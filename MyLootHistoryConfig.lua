@@ -71,6 +71,33 @@ local generalOptions = {
                 MLH:refreshReport()
             end
         },
+        showHUDCheckBox = {
+            order = 12,
+            type = "toggle",
+            name = L["C_ShowHUD"],
+            desc = L["C_ShowHUD_Desc"],
+            get = function (_)
+                return MLH.db.char.config.showHUD
+            end,
+            set = function (_, value)
+                MLH.db.char.config.showHUD = value
+                MLH:applyHUD()
+            end
+        },
+        lockHUDCheckBox = {
+            order = 13,
+            type = "toggle",
+            name = L["C_LockHUD"],
+            desc = L["C_LockHUD_Desc"],
+            -- a lock on a bar that is not on screen is not a setting anyone is looking for
+            disabled = function () return not MLH.db.char.config.showHUD end,
+            get = function (_)
+                return MLH.db.char.config.hudLocked
+            end,
+            set = function (_, value)
+                MLH.db.char.config.hudLocked = value
+            end
+        },
         detailedHeader = {
             type = 'header',
             name = L["C_DetailedSettingsHeader"],

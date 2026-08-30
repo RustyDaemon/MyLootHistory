@@ -1,7 +1,7 @@
 ## Interface: 120100
 ## Title: My Loot History
 ## Author: RustyDaemon
-## Version: 2.0.1
+## Version: 2.1.0
 ## Notes: Look through |cFF00FF00everything|r you looted
 ## IconTexture: Interface\Icons\9xp_sigil_ardenweald01
 ## OptionalDeps: Ace3, Auctionator
@@ -22,10 +22,12 @@ MyLootHistoryPrices.lua
 MyLootHistorySession.lua
 MyLootHistoryTooltip.lua
 MyLootHistoryData.lua
+MyLootHistoryCurrency.lua
 
 config\config.xml
 
 MyLootHistoryUIKit.lua
 MyLootHistoryUI.lua
+MyLootHistoryHUD.lua
 MyLootHistoryMinimap.lua
 MyLootHistoryConfig.lua
