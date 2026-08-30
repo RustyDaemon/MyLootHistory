@@ -1,185 +1,81 @@
 # My Loot History
 
-[![https://www.curseforge.com/wow/addons/my-loot-history](https://img.shields.io/badge/download-CurseForge-orange)](https://www.curseforge.com/wow/addons/my-loot-history) 
+[![CurseForge](https://img.shields.io/badge/download-CurseForge-orange)](https://www.curseforge.com/wow/addons/my-loot-history)
 
-My Loot History is a World of Warcraft addon that tracks everything you looted. Even copper coins.
+**Know exactly what your farming is worth.**
 
-➡️ Get the addon: [CurseForge](https://www.curseforge.com/wow/addons/my-loot-history)
+A World of Warcraft addon that tracks every item, coin and currency you loot — and turns it into a report you actually want to look at.
 
-## What can be tracked
+➡️ [Download on CurseForge](https://www.curseforge.com/wow/addons/my-loot-history) · 🌐 [Website](https://mlh.rustydaemon.com)
 
-- every item you loot: weapons, junk, herbs and everything else
-- every copper coin you loot
-- every currency you pick up: Valorstones, Crests, Flightstones and the rest
+## Why you want it
 
-> It does not track quest rewards or similar.
-
-## What I can do else
-
-- see a big report!
-- with a full list of everything you looted: items, currencies and even coins
-- with an item icon, name, quantity, value and the zone it mostly came from
-- with a date when you looted a particular item (or date range)
-- open a chat and link an item you want
-- with a little gold summary
-- export everything you are looking at to CSV
-- oh! And you can filter this report
+- **Gold per hour, live.** See if this spot is still worth farming — without leaving the game.
+- **Every drop, remembered.** Items, currencies and copper coins, with quantity, value, zone and date.
+- **Know where things drop from.** The tooltip tells you which mob is actually paying for your farm.
+- **Compare last night's farm to tonight's.** Sessions are saved, not thrown away.
+- **All your characters in one view.** Or just this one. Your choice.
 
 ## The report
 
-The window is drawn by the addon rather than assembled out of the default widgets, so it looks like one designed thing:
+Type `/mlh` and you get one clean window:
 
-- **four stat cards across the top** - how long the session has been running, items per hour, gold per hour and what the rows below add up to
-- **an activity graph** - one bar an hour for the last day, so you can see *when* you were earning and not only how much. Hover a bar for that hour's items and value
-- **a value bar behind every row** - how much of the total that one item is worth, which is the fastest way to see the three things actually paying for the session
-- **quality colours everywhere** - the icon border, the name and the marker down the left of each row
-- **a footer** that says what the view adds up to, and which zone most of it came from
+- **Live stat cards** — time farmed, items/hour, gold/hour, and what you're looking at is worth
+- **An hourly graph** — see _when_ you were earning, not just how much
+- **A value bar on every row** — spot the three items paying for the whole session at a glance
+- **A Currencies tab** — earned, per hour, what you're holding, and how close you are to the cap
+- **Filters and sorting** — by character, date, session, zone, name or quality. Sort any column.
+- **Export to CSV** — whatever you're looking at, exactly as you filtered it
 
-It remembers where you left it and how big it was, closes on Escape, and only ever builds as many rows as fit on screen - so a character with thousands of items opens as fast as a fresh one.
+It remembers its size and position, closes on Escape, and stays fast even with thousands of items.
 
-## How much gold per hour am I making?
+## The session HUD
 
-The first three cards are live and keep counting while the window is open: how long you have been at it, how many items per hour that is, and **how much gold per hour** - the value of the loot plus the coins you picked up.
-
-Click the session card to start a new session from that moment, which is what you want when you move to a new farming spot. The same numbers are on the minimap tooltip and behind `/mlh session`.
-
-By default the value of your loot is the vendor price. If you have [Auctionator](https://www.curseforge.com/wow/addons/auctionator) installed, switching the price source in the settings adds an **AH column** beside it - the vendor price keeps its own column, so you can see both at once, and an item the auction house has no price for shows a dash rather than pretending to be worth nothing.
-
-## What did last night's farm make?
-
-Sessions are kept, not just the one you are in. Start a new one and the old one is filed; log in tomorrow and yesterday's is still there. Pick one out of the session picker beside the date range and the whole report - rows, totals and the cards at the top - describes that session: when it ran, how long for, and what it was worth.
-
-A session stores only the window it covered, so its numbers are always worked out from the loot itself and can never drift out of step with your history.
-
-## How many crests am I short?
-
-The report has two tabs, and the **Currencies** one is a budget rather than a list. Every currency the filters select gets a row with four things the item table cannot say:
-
-- **Earned** - how much of it this date range, session, zone or search actually gave you
-- **Per hour** - that number over the length of the window, so a farm can be compared with another one
-- **Held** - what you are carrying right now, read from the client
-- **Cap** - a bar and a fraction for the weekly allowance, or for the season-long cap where a currency has one instead. A currency with no cap says so rather than drawing an empty bar, and a cap you have reached turns green
-
-It follows every filter the item table does - the date range, the session picker, the zone, the search box and the account-wide scope - keeps a sort of its own, and the export button gives you this table as CSV rather than the item one. The balance is the character you are logged in as, even under *All characters*: the client cannot be asked what an alt is carrying while they are logged out.
-
-## Is this spot still worth farming?
-
-Switch on the **session HUD** and the three live numbers - how long you have been at it, items an hour and gold an hour - sit on the screen without the report being open:
+Three numbers on your screen, no window needed:
 
 ```
 1h 42m │ 214 i/h │ 38.4k g/h
 ```
 
-Drag it where you want it and lock it in place once it is there. Left click opens the report, right click starts a new session from that moment - which is what you want when you move to a new spot. It reads from the same place the stat cards do, so the two can never disagree, and it is off until you ask for it, in the settings or with `/mlh hud`.
+Drag it anywhere and lock it. Left click opens the report, right click starts a fresh session when you move to a new spot. Turn it on with `/mlh hud`.
 
-## All my characters at once
+## Tooltips everywhere
 
-Switch **Show loot from** to *All characters* and the report covers the whole account. An item three of your characters have looted is one row, not three: the quantities add up, a Character column says who found most of it, and the tooltip lists all of them.
+Hover any item — in your bags, at a vendor, in the auction house, in chat — and see how many you've looted before and when the last one dropped. No report needed.
 
-Nothing is moved between characters - each one's history stays exactly where it has always been, and this is only a way of reading all of them together. Switch back and the view narrows again. A character who last played under a very old version has their records brought up to the current shape the first time they are read, keeping the quantity, the date and the zone.
+## Prices
 
-## Where did this drop from?
-
-Loot is recorded with what it came from: the creature it dropped off, the container it was in, or that you crafted or gathered it. Switch on the **From** column to see the main source per row, and the item tooltip lists every one of them with a count - which is how you find out that the thing paying for your farm comes off one particular mob.
-
-It is recorded from the moment you install this version; loot picked up before then has no source to show. Recording it can be switched off in the settings, and anything the client will not name honestly is shown as what kind of thing it was rather than guessed at.
-
-Names are learned from what you target or hover, and kept for the whole account - so the first time you target a mob, every drop it has ever given you is named, including the ones recorded before you knew what it was called.
-
-## Was this worth picking up before?
-
-Hover any item in the game - in your bags, at a vendor, in the auction house, or a link in chat - and the tooltip tells you how many you have looted before and when the last one was. No need to open the report at all. It can be switched off in the settings.
-
-## What? I can filter all those?
-
-Yes! And history changes according to you filters. It will show you how much gold you looted and how many items you gathered depending on filters you selected. For example, if you looted 3xHochenblume yesterday and 1xHochenblume today, you will see the exact history.
-
-- by character: this one, or every character on the account
-- by date or date range:
-  - Current session, or any session you have finished
-  - Today
-  - Yesterday
-  - Wednesday-to-Wednesday
-  - This month
-  - All the time
-- by item name: type in the search box. It matches currencies too, and hides the coin line, which has no name to match
-- by zone: the dropdown lists every zone you have ever looted in
-- by item quality
-  - Poor
-  - Common
-  - Uncommon
-  - Rare
-  - Epic
-  - Legendary
-- by default, it filters as a 'item quality and upper'. But you can filter on 'Exact' item quality - there is a checkbox for that
-- gold summary also updates according to date range you change
-
-And you can sort it: click a column header to sort by quality, name, quantity, value, auction value, character, source, zone or the last looted date, and click it again to reverse the order. The search text, the sort column and its direction are remembered per character.
-
-## What can be configured
-
-- Show/hide minimap button
-- Make the report window resizable
-- Show the session HUD, and lock it where you put it
-- Show looted date in the report
-- Show the zone column in the report
-- Show the session cards and the activity graph at the top of the report
-- Show currencies in the report
-- Price source: vendor price alone, or an extra auction house column through Auctionator
-- Record where loot came from, and show the source column in the report
-- Ignore items with 0 (zero) sell price
-- Ignore quest items (note, this is a default state and it can't be changed)
-- Show item ID in the report
-- Show item tooltip on mouse hover in the report
-- Show additional information in the tooltip (a 'Total gathered' summary and the zones it came from)
-- Add the loot summary line to item tooltips everywhere in the game
-- Track currencies
-- Change icon size
-
-## Some helpful additions
-
-Besides, some additional features are available:
-
-- print debug information
-- reset everything (this will erase all looted information for items, currencies and gold)
-- little FAQ
-- small informative statistics (how many items were looted, how many total quantity is and in how many zones you looted them)
+Vendor price by default. Install [Auctionator](https://www.curseforge.com/wow/addons/auctionator) and switch the price source to get an auction house column too — both side by side.
 
 ## Slash commands
 
-- `/mlh` opens the report
-- `/mlh config` opens the configuration window
-- `/mlh session` prints the session summary: elapsed time, items per hour and gold per hour
-- `/mlh session reset` starts a new session from now
-- `/mlh hud` shows or hides the session HUD
-- `/mlh hud lock` locks the HUD where it is, so a click cannot drag it
+| Command              | What it does                         |
+| -------------------- | ------------------------------------ |
+| `/mlh`               | Open the report                      |
+| `/mlh config`        | Open settings                        |
+| `/mlh session`       | Print time, items/hour and gold/hour |
+| `/mlh session reset` | Start a new session now              |
+| `/mlh hud`           | Show or hide the HUD                 |
+| `/mlh hud lock`      | Lock the HUD in place                |
 
-## Limitations
+## Good to know
 
-- The addon can't track items that were upgraded during the looting at the moment (for example, you got 302 il item and it was instantly upgraded to 323 il)
+- Quest rewards are not tracked.
+- Loot sources are recorded from the moment you install — older loot has no source to show.
+- Items upgraded the instant you loot them (302 → 323 ilvl) are not tracked correctly yet.
+- Nearly everything is optional: columns, tooltips, the minimap button, currency tracking, icon size and more live in `/mlh config`.
 
-## Building a release
+## For developers
 
-`tools/build.ps1` (Windows) and `tools/build.sh` (bash) produce the same package: they validate the `.toc`, check that every file it lists exists on disk, run luacheck and the tests if those are installed, stage the addon into `dist/MyLootHistory` without the dev-only files, and zip it as `dist/MyLootHistory-<version>.zip`. They also print the metadata the CurseForge upload form asks for - game version and the newest changelog entry.
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
-```
-
-The `-ExecutionPolicy Bypass` is what to use if PowerShell refuses with *"tools\build.ps1 cannot be loaded because running scripts is disabled on this system"* - it applies to that one process only and changes nothing on the machine. Without that restriction, `.\tools\build.ps1` works directly.
-
-Options, either way of invoking it:
-
-- `-Version 1.5.0` - rewrites `## Version:` in the `.toc` before packaging
-- `-Clean` - removes `dist\` first
+Build a release with `tools/build.ps1` (Windows) or `tools/build.sh` (bash). Both validate the `.toc`, run luacheck and the tests, stage the addon into `dist/MyLootHistory` and zip it.
 
 ```bash
-./tools/build.sh                 # same thing under bash
-./tools/build.sh --version 1.5.0
-./tools/build.sh --clean
+./tools/build.sh                 # or: powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+./tools/build.sh --version 1.5.0 # rewrite the .toc version first
+./tools/build.sh --clean         # wipe dist/ first
 ```
 
-Tests alone run with [busted](https://lunarmodules.github.io/busted/) from the repo root (`luarocks install busted`):
+Run the tests alone with [busted](https://lunarmodules.github.io/busted/) (`luarocks install busted`):
 
 ```
 busted
@@ -187,4 +83,4 @@ busted
 
 ## License
 
-MyLootHistory is licensed under the GNU General Public License version 3. See License file for details.
+GNU General Public License version 3. See the License file for details.
