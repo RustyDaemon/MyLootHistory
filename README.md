@@ -14,6 +14,8 @@ A World of Warcraft addon that tracks every item, coin and currency you loot —
 
 ➡️ [Download on CurseForge](https://www.curseforge.com/wow/addons/my-loot-history) · 🌐 [Website](https://mlh.rustydaemon.com)
 
+![The report window, showing looted items with value, source and zone](assets/screenshots/main.png)
+
 ## Why you want it
 
 - **Gold per hour, live.** See if this spot is still worth farming — without leaving the game.
@@ -35,13 +37,19 @@ Type `/mlh` and you get one clean window:
 
 It remembers its size and position, closes on Escape, and stays fast even with thousands of items.
 
+![The Currencies tab, showing earned, per hour, held and cap progress](assets/screenshots/secondary.png)
+
+_The Currencies tab._
+
+![The CSV export window](assets/screenshots/report.png)
+
+_CSV export of exactly what you filtered._
+
 ## The session HUD
 
 Three numbers on your screen, no window needed:
 
-```
-1h 42m │ 214 i/h │ 38.4k g/h
-```
+![The session HUD: time farmed, items per hour, gold per hour](assets/screenshots/hud.png)
 
 Drag it anywhere and lock it. Left click opens the report, right click starts a fresh session when you move to a new spot. Turn it on with `/mlh hud`.
 
