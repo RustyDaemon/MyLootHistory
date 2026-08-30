@@ -44,7 +44,7 @@ $StageDir  = Join-Path $DistDir $AddonName
 # Anything whose name starts with a dot is dropped at any depth, which covers
 # .git, .github, .vscode, .claude, .luacheckrc, .busted, .gitignore, .DS_Store
 # and any tool config added later without anyone having to remember this file.
-$ExcludeDirs  = @('dist', 'node_modules', 'tests', 'tools', 'web')
+$ExcludeDirs  = @('assets', 'dist', 'node_modules', 'tests', 'tools', 'web')
 $ExcludeFiles = @('DEVELOPMENT.md')
 
 function Fail($msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; exit 1 }

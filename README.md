@@ -1,3 +1,5 @@
+<img src="assets/icon.png" alt="My Loot History" width="128" align="right">
+
 # My Loot History
 
 [![CurseForge](https://img.shields.io/badge/download-CurseForge-orange)](https://www.curseforge.com/wow/addons/my-loot-history)
