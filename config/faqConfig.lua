@@ -63,5 +63,25 @@ MLH.groupFaq = {
             order = 41,
             name = L["F_Restrinctions_Desc"]
         },
+        headerWebsite = {
+            type = 'header',
+            order = 50,
+            name = L["F_Website"],
+        },
+        textWebsite = {
+            type = 'description',
+            order = 51,
+            name = L["F_Website_Desc"]
+        },
+        -- an input rather than a description: description text cannot be selected, and the
+        -- client opens no links, so an editbox is the only way to get the address out
+        inputWebsite = {
+            type = 'input',
+            order = 52,
+            width = 'double',
+            name = L["F_WebsiteLabel"],
+            get = function () return MLH.website end,
+            set = function () end,
+        },
     }
 }

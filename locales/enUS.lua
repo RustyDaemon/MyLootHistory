@@ -106,6 +106,9 @@ L["F_CanILinkToChat"] = "Can I link the item from the report?"
 L["F_CanILinkToChat_Desc"] = "Yes, you can. Just Shift+click on the item icon and it will be linked to the chat. The chat should be opened."
 L["F_Restrinctions"] = "Any known restrictions?"
 L["F_Restrinctions_Desc"] = "As for now, the addon can't track upgraded items (the items that has been upgraded during the looting)."
+L["F_Website"] = "Where can I read more?"
+L["F_Website_Desc"] = "The site has the full guide, the FAQ and the changelog. The address is in the box below - click it and press Ctrl+C to copy it."
+L["F_WebsiteLabel"] = "Website"
 
 -- messages
 L["M_DataWasCleared"] = "Loot data and gold have been erased"
@@ -113,6 +116,19 @@ L["M_HistoryPruned"] = function (entries, records, days)
   return 'Removed '..entries..' loot entries older than '..days..' days'
     ..(records > 0 and (', and '..records..' items that had nothing left') or '')
 end
+L["M_Website"] = function (website)
+  return '|cFF00DD00My Loot History|r: '..website
+end
+
+L["M_Help"] = function (website)
+  return '|cFF00DD00My Loot History|r\n'
+    ..'|cFFFFD100/mlh|r - open the report\n'
+    ..'|cFFFFD100/mlh config|r - open the settings\n'
+    ..'|cFFFFD100/mlh session|r - print the current session line\n'
+    ..'|cFFFFD100/mlh session reset|r - start a new session from now\n'
+    ..'|cFFFFD100/mlh web|r - the addon site: '..website
+end
+
 L["M_ClearDataPrompt"] = "Are you sure you want to clear the history of everything you looted? This includes items and gold and cannot be undone"
 
 L["M_TotalDifferentItemsGathered"] = "Total different items gathered: "

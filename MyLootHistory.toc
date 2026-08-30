@@ -1,12 +1,13 @@
 ## Interface: 120100
 ## Title: My Loot History
 ## Author: RustyDaemon
-## Version: 2.0.0
+## Version: 2.0.1
 ## Notes: Look through |cFF00FF00everything|r you looted
 ## IconTexture: Interface\Icons\9xp_sigil_ardenweald01
 ## OptionalDeps: Ace3, Auctionator
 ## SavedVariables: MyLootHistoryDB
 ## X-License: GPL v3
+## X-Website: https://mlh.rustydaemon.com
 
 libs\embeds.xml
 locales\locales.xml

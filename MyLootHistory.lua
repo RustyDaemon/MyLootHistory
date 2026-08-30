@@ -12,6 +12,9 @@ local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
 
 addon.MLH = MLH
 
+-- the addon's page, kept here rather than in the locale files: it is the same in every language
+MLH.website = "https://mlh.rustydaemon.com"
+
 -- The message forms the client uses when *you* pick something up. The _MULTIPLE variants
 -- have to be tested first: their single-item counterpart matches a multi-item message too.
 --
@@ -344,6 +347,10 @@ function MLH:SlashCommandListener(input)
         print(self:getSessionLine())
     elseif (input == "gui") then
         self:gui()
+    elseif (input == "help") then
+        print(L["M_Help"](self.website))
+    elseif (input == "web" or input == "website") then
+        print(L["M_Website"](self.website))
     else
         self:gui()
     end
