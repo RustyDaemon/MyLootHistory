@@ -17,6 +17,10 @@ which is the whole reason a tally can be kept against a mob rather than against 
 
 local wow = require("tests.support.wow")
 
+-- the game runs Lua 5.1, where unpack is a global; the interpreter these specs run under
+-- may be 5.4, where it only exists as table.unpack
+local unpack = unpack or table.unpack
+
 -- the client's own splitter: a plain split on a single character, empty fields included
 _G.strsplit = function(delimiter, text)
     local parts = {}
