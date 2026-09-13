@@ -1,17 +1,3 @@
---[[
-The account-wide scope.
-
-Every history is still stored per character; what this covers is reading several of them at
-once. The things worth pinning down are the ones that would be invisible until someone with
-eight alts opened the window: that an item two characters looted is one row and not two,
-that the quantities and the gold add up across all of them, and that switching back to the
-per-character scope really does narrow it again.
-
-The other character's table is deliberately sparse. AceDB strips a value that still equals
-its default before saving, so a character who never looted a currency has no foundCurrency
-at all - which is exactly the shape the walk has to survive.
---]]
-
 local wow = require("tests.support.wow")
 
 _G.Enum.ItemQuality = { Poor = 0, Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5 }
@@ -61,7 +47,6 @@ local function seed()
         },
     }
 
-    -- a second character, holding the same ore and something of its own
     wow.addCharacter(MLH.db, "Alt - Testrealm", {
         foundItems = {
             {
@@ -74,7 +59,6 @@ local function seed()
             },
         },
         foundGold = { { quantity = 2500, foundOn = now - 1000, zoneID = 2 } },
-        -- no foundCurrency at all, the way AceDB really saves a character who found none
     })
 
     MLH:setFilter("scope", "char")
@@ -155,7 +139,6 @@ describe("the account-wide report", function()
 
         local report = MLH:buildReport()
 
-        -- 7 to the alt against 5 to the current character, so the alt leads the breakdown
         assert.are.equal("Alt", itemById(report, 100).characters[1].name)
         assert.are.equal(7, itemById(report, 100).characters[1].quantity)
         assert.are.equal("Tester", itemById(report, 200).charName)
@@ -173,7 +156,6 @@ describe("the account-wide report", function()
 
         local report = MLH:buildReport()
 
-        -- only the alt looted in zone 2, so the ore row is the alt's seven and nothing else
         assert.are.equal(7, itemById(report, 100).totalQuantity)
         assert.are.equal(1, #itemById(report, 100).characters)
         assert.is_nil(itemById(report, 200))

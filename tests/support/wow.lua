@@ -1,23 +1,7 @@
---[[
-Just enough of the WoW client to load the addon's pure-logic modules outside the
-game. Only what the modules under test actually reach for - this is not an
-emulator, and it should stay small enough to read in one sitting.
-
-Two things matter for correctness of the tests:
-
-  * `date` and `time` are globals in WoW (there is no `os` table), and they can
-    be frozen here, so every date-range assertion is against a fixed clock
-    instead of whatever day the suite happens to run on.
-  * `LibStub` is real enough to let the modules register and find each other.
---]]
-
 local wow = {}
-
--- ── clock ────────────────────────────────────────────────────────────────────
 
 local frozenNow = nil
 
--- Freeze the clock. Accepts an epoch number, or a table as os.time() takes one.
 function wow.freeze(when)
     frozenNow = type(when) == "table" and os.time(when) or when
 end
@@ -39,8 +23,6 @@ end
 _G.date = function(format, t)
     return os.date(format or "%c", t or wow.now())
 end
-
--- ── LibStub ──────────────────────────────────────────────────────────────────
 
 local libraries = {}
 local revisions = {}
@@ -72,7 +54,6 @@ function LibStub:GetLibrary(name, silent)
     return LibStub(name, silent)
 end
 
--- Register a stub library by hand.
 function wow.provide(name, lib)
     libraries[name] = lib
     revisions[name] = math.huge   -- a real NewLibrary call must not clobber a stub
@@ -80,10 +61,6 @@ function wow.provide(name, lib)
     return lib
 end
 
--- ── Ace3 stubs ───────────────────────────────────────────────────────────────
-
--- Locale table that answers with the key itself, or a function returning it, so
--- a module can do L["X"] or L["X"](a, b) without the test caring which.
 local locale = setmetatable({}, {
     __index = function(_, key)
         return setmetatable({}, {
@@ -113,11 +90,6 @@ end
 
 wow.deepCopy = deepCopy
 
--- AceDB, reduced to the part the addon uses: a `char` table seeded from defaults,
--- the `keys.char` the current character is filed under, and the `sv.char` table
--- holding every character - which is what the account-wide scope reads.
--- The real library layers defaults behind a metatable; a copy is equivalent for
--- everything the tests do and far easier to reason about.
 wow.charKey = "Tester - Testrealm"
 
 wow.provide("AceDB-3.0", {
@@ -132,19 +104,12 @@ wow.provide("AceDB-3.0", {
     end,
 })
 
--- Files a second character's history under `sv.char`, the way another character's saved
--- variables would be sitting there after they logged out. Only the tables handed in exist:
--- AceDB strips anything still equal to its default before saving, so this is what the
--- account-wide walk really meets.
 function wow.addCharacter(db, key, data)
     db.sv.char[key] = data
 
     return data
 end
 
--- The addon object. Modules after the first do
--- LibStub("AceAddon-3.0"):GetAddon("MyLootHistory"), so both calls hand back the
--- same table the test can then poke at.
 local addon = {}
 
 wow.provide("AceAddon-3.0", {
@@ -154,10 +119,7 @@ wow.provide("AceAddon-3.0", {
 
 wow.addon = addon
 
--- Called by MLH:resetData; MyLootHistoryPrices.lua is not loaded by these specs.
 function addon:clearPriceCache() end
-
--- ── client API ───────────────────────────────────────────────────────────────
 
 _G.print = _G.print
 
@@ -179,15 +141,25 @@ _G.C_Item = {
     GetItemQualityColor = function() return 1, 1, 1, "ffffffff" end,
 }
 
+wow.tickers = {}
+
+function wow.tick()
+    for _, ticker in ipairs(wow.tickers) do
+        if (not ticker.cancelled) then ticker.callback() end
+    end
+end
+
 _G.C_Timer = {
     NewTimer = function() return { Cancel = function() end } end,
-    NewTicker = function() return { Cancel = function() end } end,
+    NewTicker = function(_, callback)
+        local ticker = { callback = callback, Cancel = function(self) self.cancelled = true end }
+        wow.tickers[#wow.tickers+1] = ticker
+        return ticker
+    end,
 }
 
 _G.GetMoneyString = function(copper) return tostring(copper or 0).."c" end
 
--- The client's thousands separator. What it puts between the groups is a locale's business
--- and no spec asserts on it, so the number itself is enough.
 _G.BreakUpLargeNumbers = function(value) return tostring(value or 0) end
 
 _G.Enum = {
@@ -196,7 +168,6 @@ _G.Enum = {
     TooltipDataType = { Item = 0 },
 }
 
--- Loads one of the addon's files, relative to the repo root.
 function wow.load(path)
     local root = os.getenv("MLH_ROOT") or "."
     local chunk, err = loadfile(root.."/"..path)

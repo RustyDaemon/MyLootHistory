@@ -8,8 +8,6 @@ See License file for details.
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
--- Auction-house prices are optional: Auctionator is not a dependency, and the vendor price
--- is always the fallback, so a character without it behaves exactly as it did before.
 local sources = {
     vendor = {
         label = "S_PriceVendor",
@@ -22,9 +20,7 @@ local sources = {
             return Auctionator ~= nil and Auctionator.API ~= nil and Auctionator.API.v1 ~= nil
                 and Auctionator.API.v1.GetAuctionPriceByItemID ~= nil
         end,
-        -- Auctionator keys its database by item link, so anything whose link carries more than
-        -- the ID - gear with an item level, anything with a bonus ID - is only found that way.
-        -- The ID lookup stays as the fallback: it is all a stored record without a link has.
+        -- Query the full item link first to preserve bonus IDs and item levels.
         getPrice = function(itemID, itemLink)
             local api = Auctionator.API.v1
 
@@ -41,8 +37,6 @@ local sources = {
     },
 }
 
--- One price per item per redraw. An auction-house lookup is far more expensive than reading
--- a cached vendor price, and the report asks for the same items over and over.
 local priceCache = {}
 local priceCacheSource = nil
 
@@ -69,18 +63,12 @@ function MLH:getPriceSource()
     return key, source
 end
 
--- Drops the cached prices. Called when the source changes and whenever the report is
--- redrawn, so a price that moved between two openings of the window is picked up.
 function MLH:clearPriceCache()
     priceCache = {}
     priceCacheSource = nil
 end
 
--- The unit price of an item under the active source, falling back to the vendor price the
--- caller already has whenever the source has nothing to say about the item - which is the
--- common case for soulbound gear, and for anything the auction house has not seen since the
--- last scan. The second return marks that fallback, so a row showing a vendor price under an
--- auction-house source can say so rather than looking like a market price of a few silver.
+-- The second return value indicates fallback to the vendor price.
 function MLH:getItemPrice(itemID, vendorPrice, itemLink)
     vendorPrice = vendorPrice or 0
 

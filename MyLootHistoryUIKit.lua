@@ -5,32 +5,17 @@ Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 See License file for details.
 --]]
 
--- The look of the addon, and every control the report is built out of.
---
--- Nothing here knows what loot is. It is a small widget kit: panels, buttons, a search box,
--- a dropdown, a toggle, a segmented control and a scrollbar, all drawn from plain textures
--- rather than the Blizzard templates, so the report can look like one designed thing instead
--- of a stack of default frames. Every widget is a frame with the handful of methods the
--- report actually calls on it.
-
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 
 local UI = {}
 MLH.UI = UI
 
--- ── theme ─────────────────────────────────────────────────────────────────────
-
--- Read out of the client rather than hard-coded, so every locale keeps a font that can
--- draw its own alphabet.
 local FONT = GameFontNormal:GetFont()
 local FONT_NUMBER = (NumberFontNormal and NumberFontNormal:GetFont()) or FONT
 
 UI.font = FONT
 UI.fontNumber = FONT_NUMBER
 
--- A deep neutral ground with a single warm accent. Gold is the addon's subject, so it is
--- the only saturated colour in the window; everything else is a step on one grey ramp,
--- which is what keeps the quality colours of the items readable.
 local C = {
     shadow      = { 0.00, 0.00, 0.00 },
     window      = { 0.043, 0.047, 0.055 },
@@ -59,17 +44,11 @@ function UI:rgb(name, alpha)
     return c[1], c[2], c[3], alpha or 1
 end
 
--- Choosing between two colours has to happen on the name. Writing
--- `cond and self:rgb(a) or self:rgb(b)` inline truncates the four return values down to
--- the red channel alone, which the setters reject.
+-- Choose the color name first: and/or truncates multiple return values.
 function UI:rgbIf(condition, nameTrue, nameFalse, alpha)
     return self:rgb(condition and nameTrue or nameFalse, alpha)
 end
 
--- ── primitives ────────────────────────────────────────────────────────────────
-
--- A 1px hairline on each edge. Four textures rather than a backdrop: backdrops carry an
--- 8px inset and a tiling edge file, neither of which can draw a crisp single-pixel line.
 local function addBorder(frame, r, g, b, a)
     local edges = {}
 
@@ -108,8 +87,6 @@ end
 
 UI.addBorder = function(_, frame, ...) return addBorder(frame, ...) end
 
--- A flat filled rectangle with an optional hairline border. The building block of
--- everything below.
 function UI:panel(parent, colorName, bordered, alpha)
     local frame = CreateFrame("Frame", nil, parent)
     local bg = frame:CreateTexture(nil, "BACKGROUND")
@@ -141,8 +118,6 @@ function UI:text(parent, size, colorName, flags)
     return fs
 end
 
--- Digits in the condensed number font, which is what lets a six-figure gold total sit in
--- a column that a proportional font would overflow.
 function UI:number(parent, size, colorName)
     local fs = parent:CreateFontString(nil, "OVERLAY")
 
@@ -152,8 +127,6 @@ function UI:number(parent, size, colorName)
     return fs
 end
 
--- A vertical or horizontal fade. Used for the title bar, the stat cards and the value
--- bars behind the rows: a flat fill reads as a box, a gradient reads as a surface.
 function UI:gradient(parent, layer, orientation, r1, g1, b1, a1, r2, g2, b2, a2)
     local tex = parent:CreateTexture(nil, layer or "ARTWORK")
 
@@ -165,10 +138,6 @@ function UI:gradient(parent, layer, orientation, r1, g1, b1, a1, r2, g2, b2, a2)
     return tex
 end
 
--- ── tooltips ──────────────────────────────────────────────────────────────────
-
--- Every widget takes its tooltip the same way: a title and an optional second line, both
--- optional, both allowed to be functions when the text changes with the state.
 function UI:tooltip(frame, title, body, anchor)
     frame.tooltipTitle = title
     frame.tooltipBody = body
@@ -199,11 +168,6 @@ function UI:tooltip(frame, title, body, anchor)
     return frame
 end
 
--- ── hover highlight ───────────────────────────────────────────────────────────
-
--- One highlight texture, faded in and out over a few frames. Widgets that snap between
--- two colours feel like a web page from 2003; the fade is most of why this kit feels
--- like part of a modern client.
 local function attachHover(frame, colorName, maxAlpha, layer)
     local hl = frame:CreateTexture(nil, layer or "ARTWORK")
 
@@ -227,7 +191,6 @@ local function attachHover(frame, colorName, maxAlpha, layer)
             return
         end
 
-        -- framerate-independent easing: the same feel at 30fps and at 200
         hl:SetAlpha(current + (target - current) * math.min(elapsed * 12, 1))
     end)
 
@@ -235,8 +198,6 @@ local function attachHover(frame, colorName, maxAlpha, layer)
 end
 
 UI.attachHover = function(_, frame, ...) return attachHover(frame, ...) end
-
--- ── button ────────────────────────────────────────────────────────────────────
 
 function UI:button(parent, text, width, height, onClick)
     local button = CreateFrame("Button", nil, parent)
@@ -268,7 +229,6 @@ function UI:button(parent, text, width, height, onClick)
 
     button.SetLabel = function(_, value) label:SetText(value) end
 
-    -- an accented button: one per screen at most, for the action the window is about
     button.SetAccent = function(_, on)
         if (on) then
             bg:SetColorTexture(0.24, 0.19, 0.06, 1)
@@ -284,7 +244,6 @@ function UI:button(parent, text, width, height, onClick)
     return button
 end
 
--- A square button carrying a texture instead of a label: the close cross, the gear.
 function UI:iconButton(parent, size, texture, onClick, texCoord)
     local button = CreateFrame("Button", nil, parent)
 
@@ -311,10 +270,6 @@ function UI:iconButton(parent, size, texture, onClick, texCoord)
     return button
 end
 
--- ── search box ────────────────────────────────────────────────────────────────
-
--- An edit box that looks like a search field: a magnifier, placeholder text while it is
--- empty, and a clear button that only exists while there is something to clear.
 function UI:searchBox(parent, width, height, placeholder, onChange)
     local frame = self:panel(parent, "window", true)
     frame:SetSize(width, height or 26)
@@ -365,7 +320,6 @@ function UI:searchBox(parent, width, height, placeholder, onChange)
         editBox:ClearFocus()
     end)
 
-    -- clicking anywhere in the field, not only on the 12px of text, starts typing
     frame:EnableMouse(true)
     frame:SetScript("OnMouseDown", function() editBox:SetFocus() end)
 
@@ -379,12 +333,6 @@ function UI:searchBox(parent, width, height, placeholder, onChange)
     return frame
 end
 
--- ── dropdown ──────────────────────────────────────────────────────────────────
-
--- The client's own dropdown carries three decades of chrome and cannot be restyled, so
--- this is a plain button that opens a list of plain buttons. `items` is a list of
--- { value, text } pairs, resolved every time it opens - the zone list grows while the
--- player plays.
 function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
     local frame = self:panel(parent, "raised", true)
     frame:SetSize(width, height or 26)
@@ -409,8 +357,7 @@ function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
     arrow:SetPoint("RIGHT", -4, 0)
     arrow:SetVertexColor(self:rgb("textFaint"))
 
-    -- The menu is a child of UIParent, not of the dropdown: it has to be able to draw
-    -- over the rows below it, and a child is clipped by its parent's strata.
+    -- Parent to UIParent so the menu can draw above the rows.
     local menu = self:panel(UIParent, "window", true)
     menu:SetFrameStrata("FULLSCREEN_DIALOG")
     menu:Hide()
@@ -443,8 +390,7 @@ function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
                 entry:SetPoint("RIGHT", -1, 0)
                 attachHover(entry, "raised", 1, "BACKGROUND")
 
-                -- a child of the entry, not of the menu: a shorter list hides its spare
-                -- entries, and a marker parented to the menu would stay lit under nothing
+                -- Parent markers to entries so hiding spare entries also hides their markers.
                 entry.check = entry:CreateTexture(nil, "OVERLAY")
                 entry.check:SetSize(3, 12)
                 entry.check:SetColorTexture(UI:rgb("accent"))
@@ -498,7 +444,6 @@ function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
         arrow:SetVertexColor(UI:rgb("accent"))
     end)
 
-    -- clicking anywhere else closes it, which is what every other menu in the client does
     menu:SetScript("OnShow", function(self)
         self.closer = self.closer or CreateFrame("Button", nil, UIParent)
         self.closer:SetAllPoints(UIParent)
@@ -520,11 +465,6 @@ function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
     return frame
 end
 
--- ── segmented control ─────────────────────────────────────────────────────────
-
--- A row of joined buttons where exactly one is lit. The date range is six mutually
--- exclusive choices that the player changes constantly, so it is worth the width: a
--- dropdown would cost two clicks and hide the other five options.
 function UI:segmented(parent, height, options, getValue, onSelect)
     local frame = self:panel(parent, "window", true)
     frame:SetHeight(height or 26)
@@ -602,10 +542,6 @@ function UI:segmented(parent, height, options, getValue, onSelect)
     return frame
 end
 
--- ── toggle ────────────────────────────────────────────────────────────────────
-
--- A checkbox drawn as a small square that fills with the accent colour, plus its label,
--- with the whole thing clickable rather than only the 14px box.
 function UI:toggle(parent, text, getValue, onToggle)
     local button = CreateFrame("Button", nil, parent)
     local box = self:panel(button, "window", true)
@@ -653,10 +589,6 @@ function UI:toggle(parent, text, getValue, onToggle)
     return button
 end
 
--- ── scrollbar ─────────────────────────────────────────────────────────────────
-
--- A thin track and a draggable thumb, sized to how much of the list is on screen. It
--- hides itself when everything fits, which the client's own scroll frames do not.
 function UI:scrollbar(parent, onScroll)
     local bar = self:panel(parent, "window", false)
     bar:SetWidth(8)
@@ -715,8 +647,6 @@ function UI:scrollbar(parent, onScroll)
         applyFromThumb()
     end)
 
-    -- `visible` and `total` are in pixels: how tall the viewport is and how tall the
-    -- content is. The thumb is the ratio of the two, never smaller than a grabbable 24px.
     bar.Update = function(_, visible, total, offset)
         bar.range = math.max(total - visible, 0)
         bar.offset = math.min(math.max(offset or bar.offset, 0), bar.range)
@@ -741,10 +671,6 @@ function UI:scrollbar(parent, onScroll)
     return bar
 end
 
--- ── section heading ───────────────────────────────────────────────────────────
-
--- A small caps label with a rule running off to the right of it, for the blocks inside
--- the list that are not items.
 function UI:sectionHeading(parent, text)
     local frame = CreateFrame("Frame", nil, parent)
     frame:SetHeight(20)

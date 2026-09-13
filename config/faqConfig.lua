@@ -73,8 +73,6 @@ MLH.groupFaq = {
             order = 51,
             name = L["F_Website_Desc"]
         },
-        -- an input rather than a description: description text cannot be selected, and the
-        -- client opens no links, so an editbox is the only way to get the address out
         inputWebsite = {
             type = 'input',
             order = 52,

@@ -10,12 +10,8 @@ local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
 local isHooked = false
 
--- The report window builds a far more detailed tooltip of its own, so the one-line summary
--- is suppressed while it is doing that rather than shown twice.
 local suppressed = false
 
--- itemID -> summary, thrown away for an item as soon as its record grows. A tooltip runs on
--- every mouseover in the UI, so it must not walk a long history each time.
 local summaryCache = {}
 
 local function getSummary(itemID)
@@ -29,8 +25,6 @@ local function getSummary(itemID)
 
     if (cached and cached.entries == entries) then return cached end
 
-    -- no label for an unnameable zone: the line has room for one zone, and naming
-    -- it "unknown" says less than leaving the zone out of the tooltip altogether
     local quantity, zones, _, lastFound = MLH:aggregateLoot(lootData, nil)
 
     local summary = {
@@ -73,7 +67,6 @@ function MLH:initTooltip()
     isHooked = true
 end
 
--- Used by the report window, which draws its own tooltip through GameTooltip:SetHyperlink.
 function MLH:setTooltipSuppressed(value)
     suppressed = value and true or false
 end

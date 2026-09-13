@@ -1,17 +1,4 @@
---[[
-The report window, built against the frame mock in tests/support/frames.lua and then
-clicked on.
-
-This is not a test of how the window looks - nothing here can see it. It is a test that
-every path through it runs: opening, filling rows from pooled frames, scrolling past the
-end, every sort column, both dropdowns, the search box, the empty state, a resize, the
-export window and closing again. A missing field or a mistyped method is a Lua error in
-the client and a red test here, which is the whole point - before this the report was the
-one part of the addon that could only be checked by logging in.
-
-The window keeps its state between tests on purpose: it is one long-lived frame in the
-game too, and the order below is the order a player would do things in.
---]]
+-- Tests share one persistent window, matching the client lifecycle.
 
 local wow = require("tests.support.wow")
 local frames = require("tests.support.frames")
@@ -24,7 +11,6 @@ for i = 0, 5 do
     _G["ITEM_QUALITY"..i.."_DESC"] = "Quality"..i
 end
 
--- the report colours rows by quality, so this one has to answer with numbers
 _G.C_Item.GetItemQualityColor = function(quality)
     assert(type(quality) == "number", "GetItemQualityColor wants a number, got "..tostring(quality))
 
@@ -45,8 +31,6 @@ wow.load("MyLootHistoryCurrency.lua")
 
 local MLH = wow.addon
 
--- MyLootHistoryTooltip registers against TooltipDataProcessor, which is not modelled; the
--- report only ever calls this one function out of it
 function MLH:setTooltipSuppressed() end
 
 wow.load("MyLootHistoryUIKit.lua")
@@ -66,7 +50,6 @@ char.config.resizableReportWindow = true
 
 char.foundItems = {}
 
--- enough rows that the list has to scroll, and the pooled frames have to be refilled
 for i = 1, 60 do
     char.foundItems[i] = {
         itemId = 1000 + i,
@@ -80,7 +63,6 @@ for i = 1, 60 do
     }
 end
 
--- and one from a version that stored neither a link nor a timestamp
 char.foundItems[61] = {
     itemId = 9999, itemName = "Undated Thing", itemTexture = 133784,
     lootData = { { quantity = 1, zoneID = 1 } },
@@ -96,16 +78,12 @@ char.foundCurrency = {
 
 local window = nil
 
--- Opens the window if it is not up, and puts the filters back to "everything", so a test
--- that leaves a filter behind cannot decide what the next one sees.
 local function open()
     if (not window or not window:IsShown()) then
         MLH:gui()
 
         window = _G.MLHReportFrame
 
-        -- an anchored frame has no computed size under the mock, so the viewport is given
-        -- one by hand; without it the list would only ever ask for a single row
         window.list:SetHeight(400)
     end
 
@@ -197,7 +175,6 @@ describe("the list", function()
         end)
     end)
 
-    -- a record from an old version has no link, and SetHyperlink(nil) is an error
     it("falls back to the item id when a record carries no link", function()
         MLH:setFilter("search", "Undated")
         MLH:refreshReport()
@@ -484,7 +461,6 @@ describe("the window itself", function()
     end)
 
     it("remembers where it was left", function()
-        -- closing is what writes the size down, so the saved values go in after it
         window:Hide()
 
         MLH.db.char.ui.width = 1000
@@ -517,7 +493,6 @@ describe("the export window", function()
         for i = 1, #window.titleBar.children do
             local child = window.titleBar.children[i]
 
-            -- the three title-bar buttons are export, settings and close, right to left
             if (child.kind == "Button") then exportButton = exportButton or child end
         end
 
@@ -577,7 +552,6 @@ describe("the session HUD", function()
         assert.are.equal(MLH:formatDuration(stats.duration), _G.MLHHudFrame.cells[1].text)
     end)
 
-    -- the drag is what a lock is a lock on, so it is the drag that has to check it
     it("refuses to be dragged while it is locked", function()
         local hud = _G.MLHHudFrame
 
@@ -596,8 +570,6 @@ describe("the session HUD", function()
         assert.is_not_nil(MLH.db.char.ui.hud.point)
     end)
 
-    -- letting go at the end of that drag is a mouse-up too, and it must not also open the
-    -- report the way a click on the HUD does
     it("does not count the end of a drag as a click", function()
         local wasShown = window:IsShown()
 
@@ -618,7 +590,6 @@ describe("the session HUD", function()
         assert.is_false(MLH:toggleHUD())
         assert.is_false(_G.MLHHudFrame:IsShown())
 
-        -- and updating a hidden HUD is a no-op rather than an error
         assert.has_no.errors(function() MLH:updateHUD() end)
     end)
 end)
@@ -629,7 +600,6 @@ describe("the currency tab", function()
     setup(function()
         originalGetCurrencyInfo = _G.C_CurrencyInfo.GetCurrencyInfo
 
-        -- a currency with a weekly allowance, so the cap bar is drawn rather than the dash
         _G.C_CurrencyInfo.GetCurrencyInfo = function(id)
             return {
                 name = "Valorstones", iconFileID = 9, quality = 1, quantity = 1240,
@@ -659,7 +629,6 @@ describe("the currency tab", function()
 
         assert.is_true(window.header.earned:IsShown())
         assert.is_true(window.header.cap:IsShown())
-        -- the item columns are not merely empty in this view, they are gone
         assert.is_false(window.header.value:IsShown())
         assert.is_false(window.header.quality:IsShown())
     end)
@@ -681,7 +650,6 @@ describe("the currency tab", function()
             assert.has_no.errors(function() MLH:refreshReport() end)
         end
 
-        -- the item table's sort was never touched by any of that
         assert.are.equal("quantity", MLH:getFilters().sortKey)
     end)
 
@@ -718,7 +686,6 @@ describe("the currency tab", function()
     end)
 
     it("goes back to the items without leaving a currency column behind", function()
-        -- the export test above clicks every title-bar button, and one of them is Close
         open()
 
         MLH:setFilter("view", "items")
@@ -742,6 +709,37 @@ describe("a character who has looted nothing", function()
 
         assert.is_true(window.empty:IsShown())
 
+        window:Hide()
+    end)
+end)
+
+describe("live loot updates", function()
+    it("refreshes items and currencies on the next tick without mixing the tabs", function()
+        if (window) then window:Hide() end
+        MLH:initDatabase()
+        MLH:setFilter("view", "items")
+        open()
+        MLH:addItem(4242, 2, nil, 1, 1, "Live Ore", 1, 100)
+        MLH:addCurrency(3008, 3, "Valorstones", 9, 1, 1)
+        MLH:addGold(123, 1)
+        wow.tick()
+        assert.are.equal(1, #frames.rowsOfKind("item"))
+        assert.are.equal(1, #frames.rowsOfKind("gold"))
+        assert.are.equal(0, #frames.rowsOfKind("currency"))
+        assert.is_false(window.empty:IsShown())
+        local csv = MLH:buildCsv()
+        assert.is_nil(csv:find("\ncurrency,", 1, true))
+        MLH:setFilter("view", "currency")
+        MLH:refreshReport()
+        MLH:addCurrency(3008, 4, "Valorstones", 9, 1, 1)
+        wow.tick()
+        local rows = frames.rowsOfKind("budget")
+        assert.are.equal(1, #rows)
+        assert.are.equal("+7", tostring(rows[1].earned.text))
+        MLH:setFilter("range", 1)
+        MLH:resetSession()
+        wow.tick()
+        assert.is_true(window.empty:IsShown())
         window:Hide()
     end)
 end)

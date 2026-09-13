@@ -5,29 +5,14 @@ Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 See License file for details.
 --]]
 
--- The report window.
---
--- It is one frame, built by hand out of the kit in MyLootHistoryUIKit and fed by
--- MyLootHistoryData, laid out as a dashboard rather than a table: the live session across
--- the top as four stat cards next to a graph of the last day, the filters under them, and
--- the loot itself in a virtualised list where every row carries a bar showing what share of
--- the session's value it is.
---
--- The list is virtualised on purpose. A character with a few thousand distinct items used to
--- get a frame per row on every redraw; here the number of frames is however many fit on
--- screen, and scrolling re-fills the same dozen.
-
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 local UI = MLH.UI
-
--- ── layout constants ──────────────────────────────────────────────────────────
 
 local PAD = 14
 local TITLE_HEIGHT = 44
 local STATS_HEIGHT = 86
 local FILTER_HEIGHT = 58
--- what a second line of filters adds: the control, its caption, and the gap between rows
 local FILTER_ROW = 48
 local FILTER_GAP = 10
 local HEADER_HEIGHT = 24
@@ -46,8 +31,6 @@ local COLUMN_WIDTH = {
     lastLooted = 124,
 }
 
--- The currency tab is a different table: what a crest is worth in gold is not a question,
--- and what it is capped at is.
 local CURRENCY_COLUMN_WIDTH = {
     earned = 68,
     perHour = 78,
@@ -55,8 +38,6 @@ local CURRENCY_COLUMN_WIDTH = {
     cap = 168,
 }
 
--- Every column is packed against the one to its right, and a right-aligned number followed
--- by a left-aligned word would otherwise run straight into it ("1g 0sCollegiate Calamity").
 local COLUMN_GAP = 14
 
 local MIN_WIDTH = 780
@@ -66,19 +47,11 @@ local DEFAULT_HEIGHT = 620
 
 local ACTIVITY_HOURS = 24
 
--- The client's own coin, inline. A trailing "g" after a rounded figure reads as part of the
--- number ("12.3kg"); the coin reads as a unit.
 local GOLD_ICON = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:0:-1|t"
 
--- The sort direction on the active column. FRIZQT__.TTF has no glyph for ▲/▼ - they come
--- out as an empty box - so these are the client's own scroll arrows, inline.
--- The arrow sits in the middle of its file with a wide transparent margin, so the last four
--- numbers crop that margin away: without them the visible arrow is a third of the size asked
--- for. (path:height:width:xoff:yoff:fileW:fileH:left:right:top:bottom)
+-- Use cropped client textures: FRIZQT__.TTF lacks arrow glyphs.
 local SORT_UP = " |TInterface\\ChatFrame\\UI-ChatIcon-ScrollUp-Up:16:16:0:-2:32:32:8:24:8:24|t"
 local SORT_DOWN = " |TInterface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up:16:16:0:-2:32:32:8:24:8:24|t"
-
--- ── state ─────────────────────────────────────────────────────────────────────
 
 local window = nil
 local rows = {}
@@ -91,11 +64,7 @@ local scrollOffset = 0
 local refreshReport, rebuildList, layoutRows, updateScroll, updateSession, updateActivity,
       updateFooter, buildWindow, saveWindowPosition, showExportWindow, columnLayout
 
--- ── helpers ───────────────────────────────────────────────────────────────────
-
 local function iconSize()
-    -- read five different ways once, two of them without a fallback, so a saved variable
-    -- written before the setting existed left them doing arithmetic on nil
     return MLH.db.char.config.reportIconSize or 24
 end
 
@@ -105,15 +74,10 @@ local function qualityColor(quality)
     return r, g, b
 end
 
--- Which of the report's two tables is being looked at. Both are drawn by the same rows and
--- the same header, so nearly everything below asks this rather than being duplicated.
 local function isCurrencyView()
     return MLH:getFilters().view == "currency"
 end
 
--- Where every column sits, given the width the window currently has. The header labels and
--- the row cells both lay themselves out from this, which is why they cannot drift apart
--- when a column is switched off or the window is dragged wider.
 function columnLayout()
     local config = MLH.db.char.config
     local layout = { cursor = -PAD }
@@ -126,9 +90,6 @@ function columnLayout()
         return right, width
     end
 
-    -- The currency table claims no column the item table does, which is what lets one pooled
-    -- row draw either: a cell the active layout never claimed has no anchor, and the code
-    -- that places them hides exactly those.
     if (isCurrencyView()) then
         layout.capRight, layout.capWidth = claim(CURRENCY_COLUMN_WIDTH.cap)
         layout.heldRight, layout.heldWidth = claim(CURRENCY_COLUMN_WIDTH.held)
@@ -145,7 +106,6 @@ function columnLayout()
         layout.lastLootedRight, layout.lastLootedWidth = claim(COLUMN_WIDTH.lastLooted)
     end
 
-    -- who looted it only needs saying when the view covers more than one character
     if (MLH:getScope() == "account") then
         layout.characterRight, layout.characterWidth = claim(COLUMN_WIDTH.character)
     end
@@ -158,8 +118,6 @@ function columnLayout()
         layout.sourceRight, layout.sourceWidth = claim(COLUMN_WIDTH.source)
     end
 
-    -- an auction-house price source earns its own column: the vendor price is what the item
-    -- is guaranteed to be worth, and replacing it would throw that number away
     if (MLH:getPriceSource() ~= "vendor") then
         layout.marketRight, layout.marketWidth = claim(COLUMN_WIDTH.market)
     end
@@ -168,7 +126,6 @@ function columnLayout()
     layout.quantityRight, layout.quantityWidth = claim(COLUMN_WIDTH.quantity)
 
     layout.nameLeft = PAD + 6 + iconSize() + 10
-    -- the cursor already carries a gap from the last column claimed
     layout.nameRight = layout.cursor
 
     return layout
@@ -187,9 +144,6 @@ local function applyCell(fontString, right, width, justify)
     fontString:SetJustifyH(justify or "RIGHT")
 end
 
--- Which column the active table is sorted by, and which way. The two tables keep separate
--- answers - they share no column but the name - so every reader asks here rather than
--- reaching for a filter that only describes one of them.
 local function sortState()
     local active = MLH:getFilters()
 
@@ -198,7 +152,6 @@ local function sortState()
     return active.sortKey, active.sortDescending
 end
 
--- A click on a header: the same column again reverses it, a new column takes over.
 local function setSort(key)
     local currency = isCurrencyView()
     local currentKey, descending = sortState()
@@ -209,21 +162,13 @@ local function setSort(key)
     end
 
     MLH:setFilter(currency and "currencySort" or "sortKey", key)
-    -- names and places read best A-Z, everything else reads best largest-first
     MLH:setFilter(currency and "currencySortDescending" or "sortDescending",
         key ~= "name" and key ~= "zone" and key ~= "character")
 end
 
--- ── stat cards ────────────────────────────────────────────────────────────────
-
--- A card is a label, a big number and a small footnote. Four of them carry everything the
--- old one-line session bar said, at a size that can be read from across the room - which is
--- the point, since the player is usually looking at the game and not at the report.
 local function createCard(parent, caption, accentColorName)
     local card = UI:panel(parent, "panel", true)
 
-    -- a plain frame takes no mouse input, and without it neither the hover nor the tooltip
-    -- would ever fire
     card:EnableMouse(true)
 
     UI:attachHover(card, "panelHover", 0.6, "BORDER")
@@ -260,10 +205,6 @@ local function createCard(parent, caption, accentColorName)
     return card
 end
 
--- ── activity graph ────────────────────────────────────────────────────────────
-
--- One bar an hour for the last day, scaled to the busiest hour in the window. It answers
--- the question the numbers cannot: not how much you made, but when.
 local function createActivityGraph(parent)
     local graph = UI:panel(parent, "panel", true)
 
@@ -340,8 +281,6 @@ function updateActivity()
 
         bar:SetWidth(barWidth)
         bar:SetPoint("BOTTOM", graph, "BOTTOMLEFT", 10 + (i - 0.5) * (usable / ACTIVITY_HOURS), 16)
-        -- an hour that earned something never draws as nothing: a 1px stub says "you were
-        -- here", which is a different statement from an empty column
         bar:SetHeight(math.max(ratio * maxHeight, bucket.value > 0 and 2 or 1))
 
         bar.fill:SetAlpha(bucket.value > 0 and 1 or 0.25)
@@ -350,8 +289,6 @@ function updateActivity()
         bar.valueText = MLH:formatGoldCompact(bucket.value)
     end
 end
-
--- ── list rows ─────────────────────────────────────────────────────────────────
 
 local function createRow(parent)
     local row = CreateFrame("Button", nil, parent)
@@ -364,8 +301,6 @@ local function createRow(parent)
     stripe:SetColorTexture(1, 1, 1, 0.022)
     row.stripe = stripe
 
-    -- how much of the filtered value this one row is, drawn as a fading bar under it.
-    -- It is the fastest way to see which three things are actually paying for the session.
     local heat = UI:gradient(row, "BORDER", "HORIZONTAL", 1, 0.82, 0.30, 0.16, 1, 0.82, 0.30, 0)
     heat:SetPoint("TOPLEFT")
     heat:SetPoint("BOTTOMLEFT")
@@ -386,8 +321,6 @@ local function createRow(parent)
 
     local icon = row:CreateTexture(nil, "OVERLAY")
     icon:SetPoint("CENTER", iconBorder, "CENTER")
-    -- the stock icon art has a 4px transparent margin baked into it; trimming it is what
-    -- lets the quality border sit tight against the artwork
     icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     row.icon = icon
 
@@ -414,8 +347,6 @@ local function createRow(parent)
     row.zone:SetWordWrap(false)
     row.lastLooted:SetWordWrap(false)
 
-    -- the currency table's own cells. They live on the same pooled row as the item cells and
-    -- are shown by the same rule: a cell the active column layout did not claim is hidden.
     row.earned = UI:number(row, 14, "text")
     row.perHour = UI:text(row, 12, "textDim")
     row.held = UI:number(row, 12, "text")
@@ -424,9 +355,6 @@ local function createRow(parent)
     row.perHour:SetWordWrap(false)
     row.capText:SetWordWrap(false)
 
-    -- how far through a weekly allowance or a lifetime maximum the currency is. A bar
-    -- rather than a fraction alone, because "nearly capped" is the thing being asked and a
-    -- shape answers it without being read.
     local capBar = UI:panel(row, "raised", true)
     capBar:SetHeight(7)
     capBar:Hide()
@@ -439,7 +367,6 @@ local function createRow(parent)
     capBar.fill = capFill
     row.capBar = capBar
 
-    -- the heading rows inside the list - "Currencies" and the like - reuse the same frame
     row.heading = UI:text(row, 11, "textFaint")
     row.heading:SetPoint("LEFT", PAD + 4, 0)
 
@@ -449,8 +376,6 @@ local function createRow(parent)
     row.headingRule:SetHeight(1)
     row.headingRule:SetColorTexture(UI:rgb("border"))
 
-    -- hooked rather than set: the hover fade above registered an OnEnter of its own, and
-    -- SetScript would replace it rather than run alongside it
     row:HookScript("OnEnter", function(self)
         if (not self.entry or not MLH.db.char.config.showTooltip) then return end
 
@@ -460,13 +385,8 @@ local function createRow(parent)
             GameTooltip:SetOwner(self, "ANCHOR_NONE")
             GameTooltip:SetPoint("TOPLEFT", window, "TOPRIGHT", 6, 0)
 
-            -- the rows below say the same thing in more detail, so the global tooltip line
-            -- stays out of the report's own tooltip
             MLH:setTooltipSuppressed(true)
 
-            -- A record written by an old version can carry no link, and the client only
-            -- hands one back for an item it has cached. SetHyperlink(nil) errors, so the ID
-            -- is the fallback: it says the same thing and every record has one.
             if (entry.item.itemLink) then
                 GameTooltip:SetHyperlink(entry.item.itemLink)
             else
@@ -503,7 +423,6 @@ local function createRow(parent)
                         ..table.concat(sources, ", ").."|r", 1, 1, 1, true)
                 end
 
-                -- who found it, but only when that is more than one answer
                 if (item.characters and #item.characters > 1) then
                     local names = {}
 
@@ -524,12 +443,8 @@ local function createRow(parent)
             GameTooltip:SetPoint("TOPLEFT", window, "TOPRIGHT", 6, 0)
             GameTooltip:SetCurrencyByID(entry.currency.currencyId)
 
-            -- the client's own tooltip already says what the currency is and what the cap
-            -- is; what it cannot say is where this one came from and how fast
             if (entry.kind == "budget") then
                 local currency = entry.currency
-                -- a colour call in the middle of an argument list is truncated to its red
-                -- channel alone, so the three are read out first
                 local dimR, dimG, dimB = UI:rgb("textDim")
                 local zones = {}
 
@@ -572,9 +487,6 @@ local function createRow(parent)
     return row
 end
 
--- The cap column is the one cell that is not a fontstring, so it places itself: the fraction
--- on the upper line and the bar under it, or the "no cap" dash alone on the row's own line
--- when there is nothing to draw.
 local function applyCapCell(row, layout)
     local bar = row.capBar
     local text = row.capText
@@ -603,18 +515,11 @@ local function applyCapCell(row, layout)
     bar:ClearAllPoints()
     bar:SetPoint("RIGHT", row, "RIGHT", layout.capRight, -8)
     bar:SetWidth(layout.capWidth)
-    -- a currency one pickup into its allowance still draws something: an empty bar and a
-    -- bar that has not been started look the same, and they are not the same
     bar.fill:SetWidth(math.max((layout.capWidth - 2) * (row.capRatio or 0), 1))
 end
 
--- Fills one pooled row from one display entry. Everything a row can be - an item, a
--- currency, the gold line, a section heading - is set up here, because a pooled frame that
--- was something else last frame has to be fully re-dressed rather than patched.
 local function fillRow(row, entry, index, layout)
     row.entry = entry
-    -- cleared here rather than in each branch: a pooled row that carried a capped currency
-    -- last frame would otherwise draw its bar under whatever it is now
     row.hasCap = false
     row.capRatio = 0
 
@@ -657,8 +562,6 @@ local function fillRow(row, entry, index, layout)
     row.iconBorder:SetSize(size + 2, size + 2)
     row.icon:SetSize(size, size)
 
-    -- name and subtitle: one centred line when there is nothing to say underneath, two
-    -- stacked lines when there is
     local subtitleParts = {}
     local config = MLH.db.char.config
 
@@ -676,8 +579,6 @@ local function fillRow(row, entry, index, layout)
         row.quantity:SetTextColor(UI:rgb("text"))
         row.value:SetText(MLH:formatMoneyShort(item.vendorValue or item.totalValue))
         row.value:SetAlpha(1)
-        -- a dash rather than a zero: the auction house having no price for an item is not
-        -- the same as the item being worthless
         row.market:SetText(item.marketValue and MLH:formatMoneyShort(item.marketValue) or "-")
         row.market:SetAlpha(item.marketValue and 1 or 0.35)
         row.character:SetText(item.charName or "")
@@ -706,8 +607,6 @@ local function fillRow(row, entry, index, layout)
 
         row.quantity:SetText(currency.quantity)
         row.quantity:SetTextColor(UI:rgb("text"))
-        -- currencies have no vendor value and no auction price, so the column stays empty
-        -- rather than claiming they are worth nothing
         row.value:SetText("")
         row.value:SetAlpha(1)
         row.market:SetText("")
@@ -731,13 +630,9 @@ local function fillRow(row, entry, index, layout)
         row.name:SetText(currency.name)
         row.name:SetTextColor(r, g, b)
 
-        -- the sign is the point: this column is what the range added, not what is in hand
         row.earned:SetText("+"..currency.quantity)
         row.perHour:SetText(L["R_PerHourValue"](string.format("%.1f", currency.perHour or 0)))
 
-        -- only the character at the keyboard can be asked what it is carrying, so under the
-        -- account-wide scope this is one character's balance beside everyone's earnings, and
-        -- a dash is what a currency the client would not talk about gets
         row.held:SetText(currency.held and BreakUpLargeNumbers(currency.held) or "-")
         row.held:SetAlpha(currency.held and 1 or 0.35)
 
@@ -757,7 +652,6 @@ local function fillRow(row, entry, index, layout)
             row.capText:SetTextColor(UI:rgb("textFaint"))
         end
 
-        -- the currency table has no zone column, so where it came from goes under the name
         subtitleParts[#subtitleParts+1] = currency.zoneName
 
         row.heat:SetAlpha(0)
@@ -814,15 +708,9 @@ local function fillRow(row, entry, index, layout)
     applyCapCell(row, layout)
 end
 
--- ── the list ──────────────────────────────────────────────────────────────────
-
--- Flattens the report into the sequence of rows the list scrolls through. Items first,
--- then the currencies under their own heading, then the gold the range earned.
 function rebuildList()
     displayList = {}
 
-    -- the currency table is one row per currency and nothing else: no headings, no money
-    -- line, and no items to put either of them between
     if (isCurrencyView()) then
         for i = 1, #report.rows do
             displayList[#displayList+1] = { kind = "budget", currency = report.rows[i] }
@@ -835,22 +723,12 @@ function rebuildList()
         displayList[#displayList+1] = { kind = "item", item = report.items[i] }
     end
 
-    if (#report.currencies > 0) then
-        displayList[#displayList+1] = { kind = "heading", text = L["R_Currencies"] }
-
-        for i = 1, #report.currencies do
-            displayList[#displayList+1] = { kind = "currency", currency = report.currencies[i] }
-        end
-    end
-
     if (report.gold > 0) then
         displayList[#displayList+1] = { kind = "heading", text = L["R_Money"] }
         displayList[#displayList+1] = { kind = "gold", gold = report.gold }
     end
 end
 
--- Draws whatever is under the current scroll offset. The pool is as tall as the viewport
--- plus one row, and grows only when the window is dragged taller.
 function layoutRows()
     if (not window) then return end
 
@@ -899,8 +777,6 @@ function updateScroll(offset)
 
     layoutRows()
 end
-
--- ── header ────────────────────────────────────────────────────────────────────
 
 local function createHeaderColumn(parent, key, text, justify)
     local button = CreateFrame("Button", nil, parent)
@@ -990,13 +866,10 @@ local function refreshHeader()
     header.quality:SetPoint("LEFT", header, "LEFT", PAD + 4, 0)
     header.quality:SetWidth(iconSize() + 4)
 
-    -- sorting a table of currencies by item quality is not a question anyone has
     header.quality:SetShown(not isCurrencyView())
     header.zone:SetShown(config.showZone and not isCurrencyView())
     header.lastLooted:SetShown(config.showLastLooted and not isCurrencyView())
 
-    -- the currency table's own header says what the balance column is, since it is the one
-    -- number in the window that belongs to the character at the keyboard alone
     header.held.hint = report and report.heldIsCurrentCharacter == false
         and L["R_ColHeldAccountHint"] or nil
 
@@ -1013,14 +886,9 @@ local function refreshHeader()
     end
 end
 
--- ── session and footer ────────────────────────────────────────────────────────
-
 function updateSession()
     if (not window or not window.cards) then return end
 
-    -- While the report is filtered to a finished session the cards describe that session:
-    -- showing the live one beside a list of last night's loot would be two different
-    -- questions answered in one row.
     local viewing = MLH:getFilters().range == 1 and MLH:getSelectedSession() or nil
     local stats = MLH:getSessionStats(viewing)
     local cards = window.cards
@@ -1034,8 +902,6 @@ function updateSession()
 
     if (not report) then return end
 
-    -- the fourth card is "what is in view", and what is in view depends on which table is
-    -- open: gold under the items, currency earned under the currencies
     if (isCurrencyView()) then
         cards.filtered:Set(BreakUpLargeNumbers(report.totalEarned),
             MLH:getRangeName(MLH:getFilters().range), "accent")
@@ -1054,8 +920,6 @@ function updateFooter()
             L["R_CurrencyEarned"].."|cFFFFFFFF"..BreakUpLargeNumbers(report.totalEarned).."|r",
         }
 
-        -- only worth a line when there is a cap to be at: a view of uncapped currencies
-        -- would otherwise carry a permanent "0 of 0"
         if (report.cappedTotal > 0) then
             parts[#parts+1] = L["R_CapsReached"](report.cappedCount, report.cappedTotal)
         end
@@ -1072,14 +936,8 @@ function updateFooter()
         L["R_SellPrice"]..GetMoneyString(report.totalVendorValue),
     }
 
-    -- with an auction-house source on, the two value columns get a total each: the vendor
-    -- one covers every row, the market one only the rows that had a price
     if (MLH:getPriceSource() ~= "vendor") then
         parts[#parts+1] = L["R_MarketPrice"]..GetMoneyString(report.totalMarketValue)
-    end
-
-    if (#report.currencies > 0) then
-        parts[#parts+1] = L["R_CurrenciesCount"].."|cFFFFFFFF"..#report.currencies.."|r"
     end
 
     window.footerText:SetText(table.concat(parts, "   |cFF4A4A55|||r   "))
@@ -1089,15 +947,15 @@ function updateFooter()
     window.footerZone:SetText(topZone and L["R_MostlyFrom"](topZone.name) or "")
 end
 
--- ── refresh ───────────────────────────────────────────────────────────────────
+local renderedRevision
 
 function refreshReport(keepScroll)
     if (not window) then return end
 
-    -- an auction-house price can move while the window is open, so each redraw asks again
     MLH:clearPriceCache()
 
     report = isCurrencyView() and MLH:buildCurrencyReport() or MLH:buildReport()
+    renderedRevision = MLH.historyRevision
 
     rebuildList()
     refreshHeader()
@@ -1123,13 +981,9 @@ function refreshReport(keepScroll)
     window.exactToggle:Refresh()
     window.viewControl:Refresh()
 
-    -- the session picker comes and goes with the date range, and the character column with
-    -- the scope, so the bar and the columns are laid out again from here
     window:UpdateLayout()
 end
 
--- The window rebuilds itself when a setting it draws from changes, so the options panel
--- does not have to be closed and the report reopened to see the effect.
 function MLH:refreshReport()
     if (not window or not window:IsShown()) then return end
 
@@ -1137,8 +991,6 @@ function MLH:refreshReport()
     window:UpdateLayout()
     refreshReport(true)
 end
-
--- ── window ────────────────────────────────────────────────────────────────────
 
 function saveWindowPosition()
     if (not window) then return end
@@ -1169,7 +1021,6 @@ function buildWindow()
         frame:SetResizeBounds(MIN_WIDTH, MIN_HEIGHT)
     end
 
-    -- a soft drop shadow, so the window sits on top of the game world rather than in it
     local shadow = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
     shadow:SetPoint("TOPLEFT", -6, 6)
     shadow:SetPoint("BOTTOMRIGHT", 6, -6)
@@ -1181,7 +1032,6 @@ function buildWindow()
 
     UI:addBorder(frame, UI:rgb("borderLight"))
 
-    -- title bar ---------------------------------------------------------------
     local titleBar = CreateFrame("Frame", nil, frame)
     titleBar:SetPoint("TOPLEFT", 1, -1)
     titleBar:SetPoint("TOPRIGHT", -1, -1)
@@ -1224,9 +1074,6 @@ function buildWindow()
     subtitle:SetPoint("LEFT", title, "RIGHT", 10, 0)
     subtitle:SetText(UnitName("player").." · "..(GetRealmName() or ""))
 
-    -- The two tables of the report, as tabs in the title bar rather than as a control in the
-    -- filter row: which table you are looking at is what the window *is*, and the row below
-    -- is a set of filters *of* it. It also keeps the filters flowing onto one line for longer.
     local viewControl = UI:segmented(titleBar, 26, {
         { value = "items", text = L["R_ViewItems"] },
         { value = "currency", text = L["R_ViewCurrencies"] },
@@ -1234,8 +1081,6 @@ function buildWindow()
         function() return MLH:getFilters().view end,
         function(value)
             MLH:setFilter("view", value)
-            -- the two tables are different lengths of list, so the new one starts at the top
-            -- rather than wherever the old one was scrolled to
             refreshReport()
         end)
     viewControl:SetPoint("LEFT", subtitle, "RIGHT", 20, 0)
@@ -1256,7 +1101,6 @@ function buildWindow()
     export:SetPoint("RIGHT", settings, "LEFT", -2, 0)
     UI:tooltip(export, L["R_Export"], L["R_ExportTooltip"])
 
-    -- stat cards ---------------------------------------------------------------
     local statsRow = CreateFrame("Frame", nil, frame)
     statsRow:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", PAD, -PAD)
     statsRow:SetPoint("TOPRIGHT", titleBar, "BOTTOMRIGHT", -PAD, -PAD)
@@ -1269,8 +1113,6 @@ function buildWindow()
         filtered = createCard(statsRow, L["G_InView"], "borderLight"),
     }
 
-    -- the session card is also the reset button: the number it shows is the thing being
-    -- reset, so there is nowhere better to put it
     cards.time:EnableMouse(true)
     cards.time:SetScript("OnMouseUp", function()
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
@@ -1287,7 +1129,6 @@ function buildWindow()
     graph:SetPoint("BOTTOMRIGHT")
     graph:SetWidth(GRAPH_WIDTH)
 
-    -- filters ------------------------------------------------------------------
     local filterBar = CreateFrame("Frame", nil, frame)
     filterBar:SetPoint("TOPLEFT", statsRow, "BOTTOMLEFT", 0, -PAD)
     filterBar:SetPoint("TOPRIGHT", statsRow, "BOTTOMRIGHT", 0, -PAD)
@@ -1298,8 +1139,6 @@ function buildWindow()
 
         MLH:setFilter("search", text)
 
-        -- rebuilding the list on every keystroke is wasteful on a long history, so the
-        -- redraw waits until the typing stops
         if (searchTimer) then searchTimer:Cancel() end
 
         searchTimer = C_Timer.NewTimer(0.25, function()
@@ -1335,8 +1174,6 @@ function buildWindow()
             MLH:setFilter("zone", value)
             refreshReport()
         end)
-    -- the session picker only means anything while the range is a session, so it is only
-    -- there then - the layout below closes the gap when it is not
     local sessionDropdown = UI:dropdown(filterBar, 190, 26, L["S_SessionPicker"],
         function() return MLH:getSessionList() end,
         function() return MLH:getFilters().session or 0 end,
@@ -1358,10 +1195,6 @@ function buildWindow()
             refreshReport()
         end)
 
-    -- The filters are sized by their own text - the date range alone is six buttons - and at
-    -- the narrow end of the window they do not fit on one line. Rather than let the tail of
-    -- the row hang outside the frame they flow onto as many lines as they need, and the bar
-    -- grows to hold them.
     local function layoutFilters()
         local available = math.max(filterBar:GetWidth(), 1)
         local flow = {
@@ -1370,16 +1203,11 @@ function buildWindow()
         }
 
         sessionDropdown:SetShown(MLH:getFilters().range == 1)
-        -- one character on the account is not a choice worth offering
         scopeDropdown:SetShown(MLH:getCharacterCount() > 1)
 
-        -- a currency has no quality worth filtering by: every one of them is its own colour
-        -- and none of them is an upgrade
         qualityDropdown:SetShown(not isCurrencyView())
         exactToggle:SetShown(not isCurrencyView())
 
-        -- first pass works out which row each control lands on, since where a row sits
-        -- vertically depends on how many rows there turn out to be
         local placements = {}
         local rows, x = 1, 0
 
@@ -1403,10 +1231,7 @@ function buildWindow()
         for i = 1, #placements do
             local placement = placements[i]
             local control = placement.control
-            -- the last row sits on the bottom of the bar and the earlier ones stack above it
             local y = (rows - placement.row) * FILTER_ROW
-            -- the toggle is a bare checkbox with no caption above it, so it is nudged up to
-            -- sit on the same optical line as the boxed controls beside it
             local nudge = control == exactToggle and 3 or 0
 
             control:ClearAllPoints()
@@ -1418,7 +1243,6 @@ function buildWindow()
 
     layoutFilters()
 
-    -- column header ------------------------------------------------------------
     local header = CreateFrame("Frame", nil, frame)
     header:SetPoint("TOPLEFT", filterBar, "BOTTOMLEFT", -PAD + 1, -4)
     header:SetPoint("TOPRIGHT", filterBar, "BOTTOMRIGHT", PAD - 1, -4)
@@ -1430,7 +1254,6 @@ function buildWindow()
     headerRule:SetHeight(1)
     headerRule:SetColorTexture(UI:rgb("border"))
 
-    -- the icon column has no name of its own, so it carries the quality sort
     header.quality = createHeaderColumn(header, "quality", L["R_ColQuality"], "LEFT")
     header.name = createHeaderColumn(header, "name", L["R_ColItem"], "LEFT")
     header.quantity = createHeaderColumn(header, "quantity", L["R_ColQuantity"], "RIGHT")
@@ -1441,13 +1264,11 @@ function buildWindow()
     header.zone = createHeaderColumn(header, "zone", L["R_ColZone"], "LEFT")
     header.lastLooted = createHeaderColumn(header, "lastLooted", L["R_ColLooted"], "LEFT")
 
-    -- the currency table's columns. Only one set is ever placed, so they can share the row
     header.earned = createHeaderColumn(header, "earned", L["R_ColEarned"], "RIGHT")
     header.perHour = createHeaderColumn(header, "perHour", L["R_ColPerHour"], "RIGHT")
     header.held = createHeaderColumn(header, "held", L["R_ColHeld"], "RIGHT")
     header.cap = createHeaderColumn(header, "cap", L["R_ColCap"], "RIGHT")
 
-    -- list ---------------------------------------------------------------------
     local list = CreateFrame("Frame", nil, frame)
     list:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -2)
     list:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, FOOTER_HEIGHT + 1)
@@ -1465,7 +1286,6 @@ function buildWindow()
     scrollbar:SetPoint("TOPRIGHT", -3, -2)
     scrollbar:SetPoint("BOTTOMRIGHT", -3, 2)
 
-    -- empty state --------------------------------------------------------------
     local empty = CreateFrame("Frame", nil, list)
     empty:SetAllPoints()
 
@@ -1489,7 +1309,6 @@ function buildWindow()
     end)
     emptyReset:SetPoint("TOP", emptyText, "BOTTOM", 0, -16)
 
-    -- footer -------------------------------------------------------------------
     local footer = UI:panel(frame, "panel", false)
     footer:SetPoint("BOTTOMLEFT", 1, 1)
     footer:SetPoint("BOTTOMRIGHT", -1, 1)
@@ -1508,7 +1327,6 @@ function buildWindow()
     footerZone:SetPoint("RIGHT", -PAD - 14, 0)
     footerZone:SetJustifyH("RIGHT")
 
-    -- resize grip --------------------------------------------------------------
     local grip = CreateFrame("Button", nil, frame)
     grip:SetSize(16, 16)
     grip:SetPoint("BOTTOMRIGHT", -2, 2)
@@ -1535,7 +1353,6 @@ function buildWindow()
 
     UI:tooltip(grip, L["R_ResizeHint"])
 
-    -- assembly -----------------------------------------------------------------
     frame.titleBar = titleBar
     frame.statsRow = statsRow
     frame.cards = cards
@@ -1559,9 +1376,6 @@ function buildWindow()
     frame.footerZone = footerZone
     frame.grip = grip
 
-    -- The card row is the only part whose geometry depends on the window width, since the
-    -- cards share whatever the graph does not take. Everything else is anchored to two
-    -- edges and follows the frame on its own.
     frame.UpdateLayout = function(self)
         local showSession = MLH.db.char.config.showSessionBar and true or false
 
@@ -1621,8 +1435,6 @@ function buildWindow()
         self.scopeDropdown:Close()
     end)
 
-    -- a short fade rather than a hard pop, which is what makes the window feel attached to
-    -- the click that opened it
     local fade = frame:CreateAnimationGroup()
     local alpha = fade:CreateAnimation("Alpha")
     alpha:SetFromAlpha(0)
@@ -1639,14 +1451,10 @@ function buildWindow()
     return frame
 end
 
--- ── export ────────────────────────────────────────────────────────────────────
-
 local exportWindow = nil
 
 function showExportWindow()
-    -- the export is of what is on screen, and what is on screen is one of two tables. An
-    -- `and/or` between the two calls would truncate the pair they answer with to the csv
-    -- alone, leaving the hint below claiming nothing was exported
+    -- Avoid and/or here: both the CSV and hint return values are needed.
     local csv, count
 
     if (isCurrencyView()) then
@@ -1715,8 +1523,6 @@ function showExportWindow()
         editBox:SetTextColor(UI:rgb("textDim"))
         editBox:SetWidth(540)
         editBox:SetScript("OnEscapePressed", function() frame:Hide() end)
-        -- the text is a read-only view of the report: typing in it would only make the
-        -- copy wrong, so every edit puts it straight back
         editBox:SetScript("OnTextChanged", function(self, userInput)
             if (userInput) then self:SetText(self.csv or "") end
         end)
@@ -1740,8 +1546,6 @@ function showExportWindow()
     exportWindow.editBox:SetFocus()
     exportWindow.editBox:HighlightText()
 end
-
--- ── entry point ───────────────────────────────────────────────────────────────
 
 function MLH:gui()
     if (not window) then
@@ -1772,19 +1576,20 @@ function MLH:gui()
 
     window.fade:Play()
 
-    -- The list is sized by its anchors, and on the very first frame after Show that height
-    -- can still be the one it was created with, which would fill the viewport with a single
-    -- row. One more pass next frame, once the layout has settled, costs nothing.
+    -- Fill again next frame, after anchored viewport dimensions settle.
     C_Timer.After(0, function()
         if (window and window:IsShown()) then updateScroll(scrollOffset) end
     end)
 
-    -- the session numbers and the graph keep moving while the window sits open
+    -- Coalesce loot bursts into one refresh per tick, preserving scroll position.
     ticker = C_Timer.NewTicker(1, function()
-        updateSession()
+        if (renderedRevision ~= MLH.historyRevision) then
+            refreshReport(true)
+            updateActivity()
+        else
+            updateSession()
+        end
 
-        -- the graph only changes shape once a minute at most, and redrawing 24 bars every
-        -- second for an hour is a waste of the frame budget
         if (time() % 30 == 0) then updateActivity() end
     end)
 end

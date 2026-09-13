@@ -5,20 +5,10 @@ Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 See License file for details.
 --]]
 
--- Everything the report shows, worked out from the stored history: the active filters, the
--- item and currency lists they select, the gold total, the dropdown contents, the last-24h
--- activity graph and the CSV export.
---
--- This used to live inside the report window, which meant the export and the rows could in
--- principle disagree about what "the current filters" selected. Here there is one filter
--- state and one list builder, and the window is only a way of looking at them.
-
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local DU = LibStub("DateUtils-1.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
--- The live filter state. Seeded from the saved params on first use, and written back to
--- them on every change, so it survives a reload and a UI recycle alike.
 local filters = nil
 
 local rangeKeys = {
@@ -30,8 +20,6 @@ local rangeKeys = {
     [6] = "RR_AllTheTime",
 }
 
--- The compact labels the segmented control uses. The full names are still what the
--- tooltips and the footer say.
 local rangeShortKeys = {
     [1] = "RS_Session",
     [2] = "RS_Today",
@@ -69,7 +57,6 @@ function MLH:getFilters()
     return filters
 end
 
--- One place that writes a filter, so nothing can change the state without persisting it.
 function MLH:setFilter(key, value)
     local active = self:getFilters()
 
@@ -102,8 +89,6 @@ function MLH:resetFilters()
     self:setFilter("search", "")
 end
 
--- True when the view is showing something narrower than the whole history, which is what
--- decides whether the empty state offers to clear the filters.
 function MLH:hasActiveFilters()
     local active = self:getFilters()
 
@@ -111,19 +96,16 @@ function MLH:hasActiveFilters()
         or active.zone ~= 0 or active.search ~= ""
 end
 
--- The one place the date range is turned into a yes/no about a single record. Items,
--- gold and currency all ask it, so the three can never drift apart.
-function MLH:isInSelectedRange(foundOn)
+function MLH:isInSelectedRange(foundOn, entry)
     local range = self:getFilters().range
 
-    -- An entry written by a very old version can carry no timestamp, and there is no way to
-    -- place it in or out of a bounded range: comparing it against the session start errored,
-    -- and date("*t", nil) reads the clock, which made it look like it was looted today. It
-    -- belongs to "all the time" alone, which is the only range that asks nothing of the date.
+    -- Undated legacy entries belong only to the unbounded date range.
     if (foundOn == nil) then return range == 6 end
 
     if (range == 1) then --the selected session, live or finished
         local session = self:getSelectedSession()
+
+        if (entry) then return self:isEntryInSession(entry, session) end
 
         if (session.startedOn == nil or foundOn < session.startedOn) then return false end
 
@@ -166,7 +148,7 @@ function MLH:calculateGoldFound()
         for i = 1, #gold do
             local entry = gold[i]
 
-            if (self:isInSelectedZone(entry.zoneID) and self:isInSelectedRange(entry.foundOn)) then
+            if (self:isInSelectedZone(entry.zoneID) and self:isInSelectedRange(entry.foundOn, entry)) then
                 total = total + entry.quantity
             end
         end
@@ -175,9 +157,6 @@ function MLH:calculateGoldFound()
     return total
 end
 
--- Every currency the character picked up inside the active date range and zone, busiest
--- first. The quality filter is about items and does not apply here, but the search box is a
--- name filter and a currency has a name, so that one does.
 function MLH:collectCurrencies()
     local search = self:getFilters().search
     local currencies = {}
@@ -188,7 +167,6 @@ function MLH:collectCurrencies()
 
     search = search ~= "" and search:lower() or nil
 
-    -- the same merge the items get: one row per currency, however many characters earned it
     for h = 1, #histories do
         local foundCurrency = histories[h].currency
 
@@ -208,7 +186,7 @@ function MLH:collectCurrencies()
             for j = 1, #lootData do
                 local entry = lootData[j]
 
-                if (self:isInSelectedZone(entry.zoneID) and self:isInSelectedRange(entry.foundOn)) then
+                if (self:isInSelectedZone(entry.zoneID) and self:isInSelectedRange(entry.foundOn, entry)) then
                     matched[#matched+1] = entry
                 end
             end
@@ -221,7 +199,6 @@ function MLH:collectCurrencies()
         local quantity, zones, firstFound, lastFound =
             self:aggregateLoot(matchedById[id], L["R_UnknownZone"])
 
-        -- the client wins over the record: a currency can be renamed by a patch
         local info = C_CurrencyInfo.GetCurrencyInfo(id)
         local name = (info and info.name) or record.currencyName or ("#"..id)
 
@@ -248,11 +225,7 @@ function MLH:collectCurrencies()
     return currencies
 end
 
--- Turns two timestamps into the "Looted" cell: one date when everything came from a single
--- day, a range when it did not, and nothing at all when no entry carries a date.
 local function formatDateRange(firstFound, lastFound)
-    -- With no dated entry at all there is nothing honest to show: date() reads the clock
-    -- when it is handed a nil, which claimed the item was looted today.
     if (firstFound == nil or lastFound == nil) then return "" end
 
     local firstDate = date('*t', firstFound)
@@ -268,17 +241,12 @@ local function formatDateRange(firstFound, lastFound)
     return date(firstFormat, firstFound)..' - '..date(dateFormat..' %Y', lastFound)
 end
 
--- Applies every active filter and resolves the display data, so the report window and the
--- CSV export always describe exactly the same set of items.
 function MLH:collectItems()
     local active = self:getFilters()
     local items = {}
     local search = active.search ~= "" and active.search:lower() or nil
     local priceKey = self:getPriceSource()
 
-    -- One character or every character on the account, depending on the scope. An item
-    -- looted by three of them is one row: the history is about the item, and which
-    -- characters found it is something the row says, not something that splits it.
     local histories = self:getHistories()
     local byItemId = {}
 
@@ -288,7 +256,6 @@ function MLH:collectItems()
 
         for i = 1, #itemsFound do
             local item = itemsFound[i]
-            -- nothing below mutates the stored records, so they are read in place
             local matched = {}
             local matchedQuantity = 0
 
@@ -296,7 +263,7 @@ function MLH:collectItems()
                 local lootData = item.lootData[j]
 
                 if (self:isInSelectedZone(lootData.zoneID)
-                    and self:isInSelectedRange(lootData.foundOn)) then
+                    and self:isInSelectedRange(lootData.foundOn, lootData)) then
                     matched[#matched+1] = lootData
                     matchedQuantity = matchedQuantity + (tonumber(lootData.quantity) or 1)
                 end
@@ -306,7 +273,6 @@ function MLH:collectItems()
                 local newItem = byItemId[item.itemId]
 
                 if (not newItem) then
-                    -- a fresh shell holding references to the loot entries that pass the filters
                     newItem = {
                         itemId = item.itemId,
                         itemLink = item.itemLink,
@@ -324,8 +290,6 @@ function MLH:collectItems()
                     byItemId[item.itemId] = newItem
                     items[#items+1] = newItem
                 else
-                    -- a record written by a character who saw the item when the client had
-                    -- more to say about it fills in what an emptier record is missing
                     newItem.itemLink = newItem.itemLink or item.itemLink
                     newItem.itemName = newItem.itemName or item.itemName
                     newItem.itemTexture = newItem.itemTexture or item.itemTexture
@@ -346,9 +310,6 @@ function MLH:collectItems()
         end
     end
 
-    -- Resolving the display data and applying the filters that read it - quality, and the
-    -- search box, which matches the name the client hands back rather than the stored one -
-    -- happens once per merged item rather than once per record.
     local kept = {}
 
     for i = 1, #items do
@@ -366,7 +327,6 @@ function MLH:collectItems()
                 canBeAdded = false
             end
 
-            -- the live client data wins over the record: names and prices can change between patches
             local cachedName, cachedLink, cachedQuality, _, _, _, _, _, _, cachedTexture, cachedSellPrice =
                 C_Item.GetItemInfo(newItem.itemId)
 
@@ -381,43 +341,29 @@ function MLH:collectItems()
             end
 
             if (canBeAdded) then
-                -- oldest first, so lootData[#] is the most recent find - which is the
-                -- entry the fallback sell price below is read from
                 table.sort(newItem.lootData, function(l, r) return (l.foundOn or 0) < (r.foundOn or 0) end)
 
-                -- the quantities looted, not the number of loot events
                 newItem.totalQuantity, newItem.zones, newItem.firstFound, newItem.lastFound =
                     self:aggregateLoot(newItem.lootData, L["R_UnknownZone"])
 
                 newItem.zoneName = newItem.zones[1] and newItem.zones[1].name or L["R_UnknownZone"]
 
-                -- what it dropped from, for the entries that were recorded with a source;
-                -- everything looted before source tracking existed simply has none
                 newItem.sources = self:aggregateSources(newItem.lootData)
                 newItem.sourceName = newItem.sources[1] and newItem.sources[1].name or ""
 
-                -- an item the client has not cached this session has no price to read, so the
-                -- one stamped on the most recent loot entry stands in for it
                 if (newItem.sellPrice == nil) then
                     newItem.sellPrice = newItem.lootData[#newItem.lootData].sellPrice or 0
                 end
 
-                -- with an auction-house price source switched on this is the market price,
-                -- and the vendor price whenever that source has nothing for the item
                 newItem.unitPrice, newItem.vendorPriced =
                     self:getItemPrice(newItem.itemId, newItem.sellPrice, newItem.itemLink)
                 newItem.totalValue = newItem.unitPrice * newItem.totalQuantity
 
-                -- The vendor price is what the item is always worth, so it keeps its column
-                -- whatever the source is; a market price sits beside it, and stays nil for
-                -- the items the auction house had nothing to say about.
                 newItem.vendorValue = newItem.sellPrice * newItem.totalQuantity
                 newItem.marketValue = (priceKey ~= "vendor" and not newItem.vendorPriced)
                     and newItem.totalValue or nil
                 newItem.dateRange = formatDateRange(newItem.firstFound, newItem.lastFound)
 
-                -- who found it, most prolific first, so characters[1] is the one the row
-                -- names where there is only room for one
                 table.sort(newItem.characters, function(l, r)
                     if (l.quantity == r.quantity) then return l.name < r.name end
                     return l.quantity > r.quantity
@@ -446,10 +392,7 @@ function MLH:sortItems(items)
         if (key == "quantity") then return item.totalQuantity end
         if (key == "quality") then return item.quality end
         if (key == "value") then return item.vendorValue or item.totalValue end
-        -- items with no market price sort as worthless rather than as a nil
         if (key == "market") then return item.marketValue or 0 end
-        -- an item whose entries are all undated sorts as the oldest there is, rather than
-        -- putting a nil in front of table.sort's comparator
         if (key == "lastLooted") then return item.lastFound or 0 end
         if (key == "zone") then return item.zoneName end
         if (key == "character") then return item.charName or "" end
@@ -462,7 +405,6 @@ function MLH:sortItems(items)
         local lv, rv = value(l), value(r)
 
         if (lv == rv) then
-            -- the name is the tie-break, so equal rows keep a stable, readable order
             return l.itemName < r.itemName
         end
 
@@ -472,23 +414,14 @@ function MLH:sortItems(items)
     end)
 end
 
--- The whole view in one call: the rows, the totals and the headline numbers the summary
--- panel reads. Built once per redraw and handed around, so nothing walks the history twice.
 function MLH:buildReport()
-    local config = self.db.char.config
     local items = self:collectItems()
-    local currencies = config.showCurrency and self:collectCurrencies() or {}
     local report = {
         items = items,
-        currencies = currencies,
-        -- The search box filters by name, and coins have none, so a search hides the money
-        -- line rather than leaving it sitting under a list it has nothing to do with -
-        -- which also means a search that matches nothing empties the window, as it should.
+        currencies = {},
         gold = self:getFilters().search == "" and self:calculateGoldFound() or 0,
         totalQuantity = 0,
         totalValue = 0,
-        -- the two columns totalled separately: vendor for every item, market for the ones
-        -- the auction house actually had a price for
         totalVendorValue = 0,
         totalMarketValue = 0,
         currencyQuantity = 0,
@@ -514,10 +447,6 @@ function MLH:buildReport()
         end
     end
 
-    for i = 1, #currencies do
-        report.currencyQuantity = report.currencyQuantity + currencies[i].quantity
-    end
-
     for name, quantity in pairs(zoneTotals) do
         report.zones[#report.zones+1] = { name = name, quantity = quantity }
     end
@@ -530,15 +459,6 @@ function MLH:buildReport()
     return report
 end
 
--- ── activity graph ────────────────────────────────────────────────────────────
-
--- What the last `hours` hours were worth, one bucket an hour, newest last. Loot is stamped
--- with a time and nothing ever looked at it; a farming addon that cannot show you when you
--- were earning is missing the most interesting thing it knows.
---
--- Item value uses the price stamped on the entry rather than the live one: the buckets are
--- a shape, and asking the auction house for a price per entry would cost far more than the
--- graph is worth.
 function MLH:getActivityBuckets(hours)
     hours = hours or 24
 
@@ -567,8 +487,6 @@ function MLH:getActivityBuckets(hours)
         for i = 1, #foundItems do
             local lootData = foundItems[i].lootData
 
-            -- entries are appended in time order, so the walk runs backwards and stops as soon
-            -- as it falls out of the window
             for j = #lootData, 1, -1 do
                 local entry = lootData[j]
 
@@ -607,10 +525,6 @@ function MLH:getActivityBuckets(hours)
     return buckets, peak, bucketStart
 end
 
--- ── dropdown contents ─────────────────────────────────────────────────────────
-
--- Poor through Legendary. Artifact, Heirloom and WoW Token sit above it in the enum
--- and are not ordinary loot, so the range is named rather than trimmed off the end.
 function MLH:getQualityList()
     local list = {}
 
@@ -657,8 +571,6 @@ function MLH:getShortRangeList()
     return list
 end
 
--- Every zone the character has ever looted in, named. Built from the whole history rather
--- than the current date range, so switching the range never empties the dropdown.
 function MLH:getZoneList()
     local list = { { value = 0, text = L["RR_AnyZone"] } }
     local seen = {}
@@ -708,10 +620,6 @@ function MLH:getZoneFilterName()
     return self:getZoneName(zone) or L["R_UnknownZone"]
 end
 
--- ── formatting ────────────────────────────────────────────────────────────────
-
--- GetMoneyString spells all three units out with icons, which is far too wide for a column.
--- This keeps the two units that matter and colours them the way the game does.
 function MLH:formatMoneyShort(copper)
     copper = copper or 0
 
@@ -730,8 +638,6 @@ function MLH:formatMoneyShort(copper)
     return rest.."|cFFEDA55Fc|r"
 end
 
--- Gold alone, thousands-separated, for the places that have room for one number and no
--- room for three units - the stat cards and the graph tooltip.
 function MLH:formatGoldCompact(copper)
     local gold = math.floor((copper or 0) / 10000)
 
@@ -749,8 +655,6 @@ function MLH:formatGoldCompact(copper)
     return separated
 end
 
--- ── CSV export ────────────────────────────────────────────────────────────────
-
 local function csvField(value)
     value = tostring(value or "")
 
@@ -761,14 +665,10 @@ local function csvField(value)
     return value
 end
 
--- date() reads the clock when it is handed a nil, so an entry that carries no timestamp
--- would export as "looted right now". An empty cell is the truthful answer.
 local function csvDate(timestamp)
     return timestamp and date("%Y-%m-%d %H:%M:%S", timestamp) or ""
 end
 
--- "Hallowfall (12); Azj-Kahet (3)" - the shape the zone, source and character breakdowns
--- all share, so all three export the same way.
 local function csvTally(entries)
     local parts = {}
 
@@ -783,7 +683,6 @@ function MLH:buildCsv(report)
     report = report or self:buildReport()
 
     local items = report.items
-    local currencies = report.currencies
     local lines = {
         "type,name,id,quality,quantity,value,marketValue,source,character,zone,firstLooted,lastLooted",
     }
@@ -799,7 +698,6 @@ function MLH:buildCsv(report)
             csvField(qualityName),
             csvField(item.totalQuantity),
             csvField(item.vendorValue or item.totalValue),
-            -- empty, not zero, when the auction house had no price for the item
             item.marketValue and csvField(item.marketValue) or "",
             csvField(csvTally(item.sources or {})),
             csvField(csvTally(item.characters or {})),
@@ -809,32 +707,9 @@ function MLH:buildCsv(report)
         }, ",")
     end
 
-    -- currencies have no quality and no value of either kind, so those cells stay empty
-    for i = 1, #currencies do
-        local currency = currencies[i]
-
-        lines[#lines+1] = table.concat({
-            "currency",
-            csvField(currency.name),
-            csvField(currency.currencyId),
-            "",
-            csvField(currency.quantity),
-            "",
-            "",
-            "",
-            "",
-            csvField(csvTally(currency.zones)),
-            csvField(csvDate(currency.firstFound)),
-            csvField(csvDate(currency.lastFound)),
-        }, ",")
-    end
-
-    return table.concat(lines, "\n"), #items + #currencies
+    return table.concat(lines, "\n"), #items
 end
 
--- The currency tab exports what the currency tab shows. Sharing buildCsv's columns would
--- have meant eleven empty cells and no room for the three things this view is about - the
--- rate, the balance and the cap - so it gets a table of its own.
 function MLH:buildCurrencyCsv(report)
     report = report or self:buildCurrencyReport()
 
@@ -852,7 +727,6 @@ function MLH:buildCurrencyCsv(report)
             csvField(row.currencyId),
             csvField(row.quantity),
             csvField(string.format("%.2f", row.perHour or 0)),
-            -- empty, not zero, for a currency the client had nothing to say about
             row.held and csvField(row.held) or "",
             cap and csvField(cap.kind) or "",
             cap and csvField(cap.current) or "",

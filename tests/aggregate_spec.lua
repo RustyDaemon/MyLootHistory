@@ -1,14 +1,3 @@
---[[
-MLH:aggregateLoot is what the report rows, the CSV export and the game tooltip all
-now agree through, so a mistake here shows up in three places at once and in none
-of them obviously - a quantity that is quietly wrong looks exactly like a quantity
-that is right.
-
-The stub names any zone id below 900 and refuses the rest, standing in for a zone
-a patch has removed. Ids are not reused between tests: getZoneName memoises, so a
-shared id would carry one test's answer into the next.
---]]
-
 local wow = require("tests.support.wow")
 
 wow.load("MyLootHistory.lua")
@@ -54,7 +43,6 @@ describe("MLH:aggregateLoot quantities", function()
     end)
 
     it("counts an entry with no quantity as one", function()
-        -- a record written by a very old version can be missing the field
         local quantity = MLH:aggregateLoot({ entry(nil, 1, 100), entry(2, 1, 200) }, UNKNOWN)
 
         assert.are.equal(3, quantity)
@@ -83,8 +71,6 @@ describe("MLH:aggregateLoot zones", function()
     end)
 
     it("breaks a tie on quantity by zone name, so the order is stable", function()
-        -- the report and the tooltip are redrawn constantly; two zones with the same
-        -- count must not swap places between one redraw and the next
         local _, first = MLH:aggregateLoot({ entry(4, 21, 100), entry(4, 20, 200) }, UNKNOWN)
         local _, second = MLH:aggregateLoot({ entry(4, 20, 100), entry(4, 21, 200) }, UNKNOWN)
 
@@ -105,14 +91,11 @@ describe("MLH:aggregateLoot zones", function()
     end)
 
     it("leaves unnameable zones out of the tally when given no label", function()
-        -- what the game tooltip wants: it has room for one zone, and "unknown" says
-        -- less than showing no zone at all
         local quantity, zones = MLH:aggregateLoot({
             entry(2, 40, 100),
             entry(6, 903, 200),
         }, nil)
 
-        -- the quantity still counts it: the item really was looted
         assert.are.equal(8, quantity)
         assert.are.same({ "Zone 40" }, zoneNames(zones))
     end)
@@ -143,7 +126,6 @@ describe("MLH:aggregateLoot timestamps", function()
     end)
 
     it("does not assume the entries are in time order", function()
-        -- collectItems sorts before calling, collectCurrencies does not
         local _, _, firstFound, lastFound = MLH:aggregateLoot({
             entry(1, 1, 900), entry(1, 1, 100),
         }, UNKNOWN)

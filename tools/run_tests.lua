@@ -5,24 +5,11 @@ Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 See License file for details.
 --]]
 
--- A stand-in for busted, for machines where it cannot be installed - the luarocks that ships
--- with Lua for Windows is too old to parse busted's rockspec. It implements the part of the
--- API the specs in tests/ actually use, and nothing else:
---
---     lua tools/run_tests.lua              every tests/*_spec.lua
---     lua tools/run_tests.lua filters      only the specs whose name contains "filters"
---
--- `busted` remains the tool of record: it runs the same files unchanged, and CI should use
--- it. This is here so that "nothing verifies the addon" is never true again.
-
 package.path = "./?.lua;./?/init.lua;"..package.path
 
 local passed, failed, failures = 0, 0, {}
 local stack = {}
--- level 1 is the file itself: a spec may call before_each outside any describe
 local befores, afters = { {} }, { {} }
-
--- ── the assertion table ───────────────────────────────────────────────────────
 
 local function describeValue(value)
     if (type(value) == "string") then return string.format("%q", value) end
@@ -34,7 +21,6 @@ local function fail(message)
     error(message, 3)
 end
 
--- Deep equality for assert.are.same. Tables compare by content, everything else by ==.
 local function same(l, r)
     if (l == r) then return true end
     if (type(l) ~= "table" or type(r) ~= "table") then return false end
@@ -121,8 +107,6 @@ function assertions.has_error(fn, message)
     end
 end
 
--- busted spells the same assertion several ways - assert.are.equal, assert.is_not.equal,
--- assert.are_not.equal - so each spelling is a small table pointing at the same functions.
 local function namespace(map)
     return setmetatable({}, {
         __index = function(_, key)
@@ -158,15 +142,12 @@ _G.assert = setmetatable({
     truthy = assertions.is_truthy,
     falsy = assertions.is_falsy,
 }, {
-    -- plain assert(value, message) still has to work: the specs and the addon both use it
     __call = function(_, value, message)
         if (not value) then error(message or "assertion failed!", 2) end
 
         return value
     end,
 })
-
--- ── describe / it ─────────────────────────────────────────────────────────────
 
 local function currentName(name)
     local parts = {}
@@ -207,8 +188,6 @@ function _G.after_each(fn)
     level[#level+1] = fn
 end
 
--- busted runs every enclosing before_each outermost-first, and the after_each hooks in the
--- reverse order; anything else and a nested spec sees its parent's setup half-applied.
 local function runHooks(levels, reverse)
     for i = 1, #levels do
         local level = levels[reverse and (#levels - i + 1) or i]
@@ -238,8 +217,6 @@ function _G.pending(name)
     print("  pending: "..currentName(name))
 end
 
--- ── the run ───────────────────────────────────────────────────────────────────
-
 local filter = ...
 
 local function specFiles()
@@ -251,7 +228,6 @@ local function specFiles()
         listing:close()
     end
 
-    -- not Windows, or dir found nothing: fall back to ls
     if (#files == 0) then
         listing = io.popen("ls tests/*_spec.lua 2>/dev/null")
 
@@ -279,7 +255,6 @@ for i = 1, #files do
     if (not filter or file:find(filter, 1, true)) then
         print("── "..file)
 
-        -- each file starts with a clean assertion stack; a load error is a failure, not a crash
         befores, afters = { {} }, { {} }
 
         local chunk, err = loadfile(file)

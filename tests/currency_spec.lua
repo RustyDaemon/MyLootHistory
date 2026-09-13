@@ -1,17 +1,3 @@
---[[
-The currency budget view.
-
-Two things are worth pinning down here. The first is the window a rate is measured over:
-"per hour" is a division, and the number it divides by is the only part of it the history
-cannot answer on its own - every range but yesterday is still running, so it is measured up
-to now rather than to its nominal end.
-
-The second is the caps, which come out of the client rather than out of the history. A
-currency can be capped weekly, capped over its lifetime, capped against everything ever
-earned rather than against the balance in hand, or not capped at all, and the four have to
-read differently rather than all collapsing to a full bar or an empty one.
---]]
-
 local wow = require("tests.support.wow")
 
 wow.load("utils/DateUtils.lua")
@@ -28,8 +14,6 @@ local MLH = wow.addon
 
 local now = nil
 
--- What the client says about each currency: 3008 has a weekly allowance, 3107 a season-long
--- cap counted against everything ever earned, and 3009 no cap at all.
 local currencyInfo = {
     [3008] = {
         name = "Valorstones", iconFileID = 1, quality = 1,
@@ -118,11 +102,9 @@ describe("the window a rate is measured over", function()
     it("reaches back to the oldest pickup for all the time", function()
         MLH:setFilter("range", 6)
 
-        -- the oldest entry in the seed is the 90-minute-old valorstone pickup
         assert.are.equal(5400, MLH:getRangeDuration())
     end)
 
-    -- a range that has only just begun would otherwise divide a rate by nothing
     it("is never zero", function()
         MLH:setFilter("range", 1)
         MLH.db.char.thisSessionStart = now
@@ -156,7 +138,6 @@ describe("the currency report", function()
         local report = MLH:buildCurrencyReport()
         local row = rowFor(report, 3008)
 
-        -- 420 valorstones over the 5400 seconds the history covers is 280 an hour
         assert.are.equal(280, math.floor(row.perHour + 0.5))
     end)
 
@@ -192,7 +173,6 @@ describe("the currency report", function()
         currencyInfo[3008].maxQuantity = 0
     end)
 
-    -- an uncapped currency has to read as "no cap" rather than as a bar at either end
     it("leaves an uncapped currency without one", function()
         assert.is_nil(rowFor(MLH:buildCurrencyReport(), 3009).cap)
     end)
@@ -233,7 +213,6 @@ describe("the currency report", function()
 
         local report = MLH:buildCurrencyReport()
 
-        -- the 90-minute-old valorstone pickup is outside it, the 15-minute-old one is not
         assert.are.equal(120, rowFor(report, 3008).quantity)
     end)
 

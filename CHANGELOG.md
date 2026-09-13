@@ -1,3 +1,10 @@
+## 2.1.1
+
+- Fixed coin tracking when gold, silver or copper denominations are absent from a loot message.
+- New sessions identify their loot explicitly, preventing duplicate counts when resetting within the same second. Existing saved sessions remain readable.
+- The open report now refreshes within one second of new loot or a session reset, preserving its filters and scroll position.
+- Currencies appear only on the Currencies tab and in its export. Removed the obsolete option to show them below items.
+
 ## 2.1.0
 
 - The report has a Currencies tab. Every currency the filters select gets a row of its own with what you earned in that window, what that is an hour, what you are carrying now, and a bar showing how close the weekly or seasonal cap is - so "how many crests before the cap" is one click rather than four addons. The tab follows the same date range, session, zone, search and scope as the item table, keeps its own sort, and exports its own CSV.

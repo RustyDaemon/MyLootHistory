@@ -1,14 +1,3 @@
---[[
-Retention is the only code in the addon that deletes a player's history, and it
-deletes it in place - compacting the same tables the saved variables are written
-from. A mistake here is unrecoverable for the player, and invisible until they
-notice loot missing, so this is the file most worth having.
-
-The index tests at the bottom are the subtle ones: pruning shifts every record's
-position in foundItems, and the itemId -> index map has to be dropped when that
-happens, or the tooltip starts reporting one item's history under another's name.
---]]
-
 local wow = require("tests.support.wow")
 
 wow.load("utils/DateUtils.lua")
@@ -20,8 +9,6 @@ local MLH = wow.addon
 local DAY = 86400
 local NOW = os.time({ year = 2026, month = 6, day = 17, hour = 14, min = 30, sec = 0 })
 
--- A loot entry `daysAgo` days before the frozen clock. Fractional days are
--- allowed so an entry can be placed just inside or just outside a cutoff.
 local function entry(daysAgo, quantity, zoneID)
     return {
         quantity = quantity or 1,
@@ -35,7 +22,6 @@ local function record(itemId, entries)
     return { itemId = itemId, itemName = "Item "..itemId, lootData = entries }
 end
 
--- Rebuilds the database from scratch, so no test can leak state into the next.
 local function withHistory(history)
     MLH:initDatabase()
 
@@ -102,8 +88,6 @@ describe("MLH:pruneHistory entry pruning", function()
     end)
 
     it("keeps an entry from earlier today", function()
-        -- the cutoff is midnight `days` days ago, so today is always inside a
-        -- retention window of one day or more
         local char = withHistory({
             retentionDays = 1,
             foundItems = { record(1, { entry(0) }) },
@@ -115,8 +99,6 @@ describe("MLH:pruneHistory entry pruning", function()
     end)
 
     it("never drops an entry that has no timestamp", function()
-        -- there is no way to tell whether an undated entry is inside the window,
-        -- so it stays; a record written by a very old version can look like this
         local char = withHistory({
             retentionDays = 30,
             foundItems = { record(1, { { quantity = 3, zoneID = 1 }, entry(90) }) },
@@ -128,8 +110,6 @@ describe("MLH:pruneHistory entry pruning", function()
     end)
 
     it("leaves no holes in the compacted lootData", function()
-        -- the entries are compacted in place, so every index from 1 to # has to be
-        -- occupied; a hole would make # unreliable and silently truncate the table
         local char = withHistory({
             retentionDays = 30,
             foundItems = { record(1, { entry(90), entry(5), entry(90), entry(4), entry(90) }) },
@@ -254,9 +234,6 @@ end)
 
 describe("MLH:getItemRecord after pruning", function()
     it("still finds the right record once positions have shifted", function()
-        -- The index maps itemId -> position in foundItems. Pruning moves records
-        -- to lower positions, so an index built before the prune points at the
-        -- wrong record afterwards: ask for item 4 and get item 2's history.
         local char = withHistory({
             retentionDays = 30,
             foundItems = {
@@ -267,7 +244,6 @@ describe("MLH:getItemRecord after pruning", function()
             },
         })
 
-        -- force the index to be built while the old positions are still in place
         assert.are.equal(4, MLH:getItemRecord(4).itemId)
 
         MLH:pruneHistory()

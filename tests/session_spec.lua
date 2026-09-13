@@ -1,17 +1,3 @@
---[[
-Session history.
-
-A session used to be one timestamp: "when you logged in". Now a finished one is filed and
-can be looked at again, which turns the session into a window - a start and an end - that
-the report can filter by like any other date range.
-
-A session stores nothing but that window on purpose: what it was worth is worked out from
-the loot entries inside it every time it is asked for, so a session can never drift out of
-step with the history it describes. These specs are mostly about the edges of that window:
-where a session ends when the client cannot say when the player logged out, what happens to
-a session that recorded nothing, and what a pick that no longer exists falls back to.
---]]
-
 local wow = require("tests.support.wow")
 
 wow.load("utils/DateUtils.lua")
@@ -30,8 +16,6 @@ local now = nil
 local function seed()
     MLH:initDatabase()
 
-    -- a session's duration is the clock minus its start, so the clock has to hold still or a
-    -- spec that happens to straddle a second is off by one
     wow.freeze(os.time())
 
     now = wow.now()
@@ -44,7 +28,6 @@ local function seed()
         {
             itemId = 100, itemName = "Copper Ore", itemTexture = 1, quality = 1,
             lootData = {
-                -- one from before this session, two inside it
                 { quantity = 4, foundOn = now - 7200, zoneID = 1, sellPrice = 100 },
                 { quantity = 5, foundOn = now - 1800, zoneID = 1, sellPrice = 100 },
                 { quantity = 3, foundOn = now - 600, zoneID = 1, sellPrice = 100 },
@@ -64,7 +47,6 @@ local function seed()
     MLH:setFilter("search", "")
 end
 
--- the frozen clock is this file's, and nothing after it should inherit one
 after_each(function() wow.unfreeze() end)
 
 describe("MLH:closeSession", function()
@@ -75,8 +57,6 @@ describe("MLH:closeSession", function()
 
         assert.is_not_nil(session)
         assert.are.equal(now - 3600, session.startedOn)
-        -- the client cannot say when the player logged out, and the last loot is the only
-        -- honest answer; the gold at -1200 is older than the ore at -600
         assert.are.equal(now - 600, session.endedOn)
         assert.are.equal(1, #MLH.db.char.sessions)
     end)
@@ -96,7 +76,6 @@ describe("MLH:closeSession", function()
         MLH:closeSession()
 
         assert.are.equal(40, #MLH.db.char.sessions)
-        -- the one just filed is the newest, and survived
         assert.are.equal(now - 3600, MLH.db.char.sessions[40].startedOn)
     end)
 end)
@@ -155,7 +134,6 @@ describe("the session date range", function()
     it("selects a finished session once one is picked", function()
         MLH:closeSession()
 
-        -- a new session, and a pick of the one that just ended
         MLH.db.char.thisSessionStart = wow.now()
         MLH:setFilter("range", 1)
         MLH:setFilter("session", now - 3600)
@@ -196,5 +174,47 @@ describe("retention", function()
 
         assert.are.equal(1, #MLH.db.char.sessions)
         assert.are.equal(now - day, MLH.db.char.sessions[1].startedOn)
+    end)
+end)
+
+describe("pickups at a session boundary", function()
+    before_each(seed)
+
+    it("keeps all three loot types in exactly one session during same-second resets", function()
+        MLH:resetData()
+        MLH:beginSession()
+        MLH:addGold(10000, 1)
+        MLH:addItem(42, 2, nil, 1, 1, "Ore", 1, 100)
+        MLH:addCurrency(50, 3, "Currency", 1, 1, 1)
+        MLH:resetSession()
+        local first = MLH:getSessions()[1]
+        assert.are.equal(0, MLH:getSessionStats().rawGold)
+        assert.are.equal(0, MLH:getSessionStats().quantity)
+        assert.are.equal(0, MLH:getSessionStats().currencyQuantity)
+        MLH:addGold(20000, 1)
+        MLH:addItem(42, 4, nil, 1, 1, "Ore", 1, 100)
+        MLH:addCurrency(50, 6, "Currency", 1, 1, 1)
+        MLH:resetSession()
+        local second = MLH:getSessions()[1]
+        assert.are_not.equal(first.id, second.id)
+        assert.are.equal(10000, MLH:getSessionStats(first).rawGold)
+        assert.are.equal(2, MLH:getSessionStats(first).quantity)
+        assert.are.equal(3, MLH:getSessionStats(first).currencyQuantity)
+        assert.are.equal(20000, MLH:getSessionStats(second).rawGold)
+        MLH:setFilter("range", 1)
+        MLH:setFilter("session", first.id)
+        assert.are.equal(first, MLH:getSelectedSession())
+        assert.are.equal(10000, MLH:calculateGoldFound())
+        MLH:setFilter("session", second.id)
+        assert.are.equal(20000, MLH:calculateGoldFound())
+    end)
+
+    it("separates a legacy session from new pickups at the same timestamp", function()
+        MLH:addGold(10000, 1)
+        MLH:resetSession()
+        local previous = MLH:getSessions()[1]
+        MLH:addGold(20000, 1)
+        assert.are.equal(15000, MLH:getSessionStats(previous).rawGold)
+        assert.are.equal(20000, MLH:getSessionStats().rawGold)
     end)
 end)

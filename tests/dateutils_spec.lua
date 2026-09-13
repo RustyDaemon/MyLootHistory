@@ -1,18 +1,9 @@
---[[
-DateUtils drives every date range in the report: pick the wrong day and the
-player sees the wrong loot, with nothing to hint that anything is off. The clock
-is frozen for each case so these assertions mean the same thing on every day of
-the year - which is the whole reason this file exists.
---]]
-
 local wow = require("tests.support.wow")
 
 wow.load("utils/DateUtils.lua")
 
 local DU = LibStub("DateUtils-1.0")
 
--- Wednesday 17 June 2026, 14:30:00 local time. Mid-week, mid-month, mid-year:
--- far from every boundary, so a failure here is about the logic and not the date.
 local WEDNESDAY = { year = 2026, month = 6, day = 17, hour = 14, min = 30, sec = 0 }
 
 local DAY = 86400
@@ -54,8 +45,6 @@ describe("DateUtils:getDate", function()
     end)
 
     it("counts backwards across a month boundary", function()
-        -- 17 June minus 20 days is 28 May: the day field goes negative and has to
-        -- be normalised, which is the only reason this function goes through time()
         local result = DU:getDate(-20, true)
 
         assert.are.equal(5, result.month)
@@ -94,8 +83,6 @@ describe("DateUtils:dateIsToday", function()
     end)
 
     it("is false for the same day a year ago", function()
-        -- yday repeats every year, so this used to read as today for any character
-        -- with more than a year of history - which retentionDays = 0 allows
         assert.is_falsy(DU:dateIsToday(at({ year = 2025 }), true))
     end)
 
@@ -133,7 +120,6 @@ describe("DateUtils:dateIsYesterday", function()
     end)
 
     it("is false for the same day of the year, a year ago", function()
-        -- 16 June 2025 and 16 June 2026 share a yday, so this read as yesterday
         assert.is_falsy(DU:dateIsYesterday(at({ year = 2025, day = 16 }), true))
     end)
 end)
@@ -151,8 +137,6 @@ describe("DateUtils:dateIsInCurrentMonth", function()
     end)
 
     it("is false for the same month a year ago", function()
-        -- month was compared without the year, so June 2025 was "this month" in
-        -- June 2026. Same root cause as the dateIsToday case above.
         assert.is_falsy(DU:dateIsInCurrentMonth(at({ year = 2025 }), true))
     end)
 
@@ -166,7 +150,6 @@ describe("DateUtils:isWed", function()
     after_each(function() wow.unfreeze() end)
 
     it("is true only for Wednesday", function()
-        -- Lua numbers weekdays from Sunday = 1, so Wednesday is 4
         assert.is_true(DU:isWed(4))
 
         for wday = 1, 7 do
@@ -185,7 +168,6 @@ describe("DateUtils:getLastWed", function()
     after_each(function() wow.unfreeze() end)
 
     it("lands on a Wednesday whatever day it is asked about", function()
-        -- Sunday 14 June 2026 through Saturday 20 June 2026
         for offset = 0, 6 do
             wow.freeze({ year = 2026, month = 6, day = 14 + offset, hour = 12 })
 
@@ -209,7 +191,6 @@ describe("DateUtils:getLastWed", function()
 
         local lastWed = DU:getLastWed(4)
 
-        -- 17 June is a Wednesday, so the previous reset was 10 June
         assert.are.equal(10, lastWed.day)
         assert.are.equal(6, lastWed.month)
     end)
@@ -221,7 +202,6 @@ describe("DateUtils:getLastWed", function()
     end)
 
     it("crosses a month boundary correctly", function()
-        -- Tuesday 7 July 2026: the previous Wednesday is 1 July
         wow.freeze({ year = 2026, month = 7, day = 7, hour = 12 })
 
         local lastWed = DU:getLastWed(DU:getToday().wday)
@@ -248,16 +228,10 @@ describe("DateUtils:dateInRangeTillToday", function()
     end)
 
     it("includes last year's loot when the range spans New Year", function()
-        -- The upper bound used to be `yday <= today.yday`, comparing day-of-year
-        -- without the year. In early January the previous Wednesday is still in
-        -- December, whose yday is ~360 - far greater than today's - so everything
-        -- from last year was excluded and the reset range looked nearly empty.
         wow.freeze({ year = 2026, month = 1, day = 2, hour = 12 })
 
         local from = DU:getLastWed(DU:getToday().wday)
 
-        -- the sample is taken from inside the range rather than guessed at, so the
-        -- test cannot fail for the uninteresting reason of falling before its start
         assert.are.equal(2025, from.year)
 
         local lastYear = os.time(from) + 12 * 3600
@@ -276,7 +250,6 @@ describe("DateUtils:dateInRangeTillToday", function()
     end)
 
     it("excludes the same day a year earlier", function()
-        -- inside the yday window the old comparison allowed, but a year out
         assert.is_falsy(DU:dateInRangeTillToday(at({ year = 2025 }), DU:getDate(-3, true)))
     end)
 end)

@@ -1,16 +1,3 @@
---[[
-The filter state and the lists it selects.
-
-Every number the report shows comes out of MLH:buildReport, and every filter in the window
-narrows it: the date range, the zone, the quality, the search box. They are worth pinning
-down because they interact - "epic items, this reset, in Hallowfall, called 'ore'" has to
-mean the intersection of four things, and a mistake in any one of them looks like a report
-that is merely a bit short rather than a report that is wrong.
-
-The awkward record types are here too: one written before quality was stored, and one
-written before timestamps were, which belongs to "all the time" and to no bounded range.
---]]
-
 local wow = require("tests.support.wow")
 
 _G.Enum.ItemQuality = { Poor = 0, Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5 }
@@ -19,8 +6,6 @@ for i = 0, 5 do
     _G["ITEM_QUALITY"..i.."_DESC"] = "Quality"..i
 end
 
--- the client wins over the stored record for a currency's name, so the stub has to answer
--- with the name the specs below search for
 _G.C_CurrencyInfo.GetCurrencyInfo = function(id)
     return { name = "Valorstones", iconFileID = id, quality = 1 }
 end
@@ -59,7 +44,6 @@ local function seed()
             itemId = 200, itemName = "Bright Gem", itemTexture = 2, quality = 4,
             lootData = { { quantity = 1, foundOn = now - 300, zoneID = 1, sellPrice = 90000 } },
         },
-        -- written by a version that stored neither a quality nor a timestamp
         {
             itemId = 300, itemName = "Ancient Relic", itemTexture = 3,
             lootData = { { quantity = 2, zoneID = 1 } },
@@ -90,15 +74,15 @@ end
 describe("MLH:buildReport", function()
     before_each(seed)
 
-    it("adds up every item, coin and currency in range", function()
+    it("adds up items and coins, leaving currencies to their own tab", function()
         local report = MLH:buildReport()
 
         assert.are.equal(3, #report.items)
         assert.are.equal(11, report.totalQuantity)
         assert.are.equal(5 * 400 + 3 * 400 + 90000, report.totalValue)
         assert.are.equal(12845, report.gold)
-        assert.are.equal(1, #report.currencies)
-        assert.are.equal(40, report.currencies[1].quantity)
+        assert.are.equal(0, #report.currencies)
+        assert.are.equal(40, MLH:collectCurrencies()[1].quantity)
     end)
 
     it("knows the most valuable row, which is what the row bars are scaled to", function()
@@ -162,8 +146,6 @@ describe("the filters", function()
         assert.are.equal(1, #MLH:collectCurrencies())
     end)
 
-    -- coins have no name to match, so leaving the money line under a name search would
-    -- mean a search matching nothing still showed a row
     it("hides the money line while a search is active", function()
         MLH:setFilter("search", "gem")
 
@@ -273,7 +255,6 @@ describe("the activity graph", function()
         assert.are.equal(5 * 400 + 3 * 400 + 90000 + 12845, total)
     end)
 
-    -- the graph ignores the filters on purpose: it is the shape of the day, not of the view
     it("is not narrowed by the date filter", function()
         MLH:setFilter("range", 1)
 
@@ -312,7 +293,7 @@ describe("the CSV export", function()
 
         for _ in csv:gmatch("[^\n]+") do lines = lines + 1 end
 
-        assert.are.equal(4, count)
+        assert.are.equal(3, count)
         assert.are.equal(count + 1, lines)
     end)
 

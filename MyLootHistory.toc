@@ -1,7 +1,7 @@
 ## Interface: 120100
 ## Title: My Loot History
 ## Author: RustyDaemon
-## Version: 2.1.0
+## Version: 2.1.1
 ## Notes: Look through |cFF00FF00everything|r you looted
 ## IconTexture: Interface\Icons\9xp_sigil_ardenweald01
 ## OptionalDeps: Ace3, Auctionator

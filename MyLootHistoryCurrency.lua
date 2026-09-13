@@ -5,26 +5,12 @@ Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 See License file for details.
 --]]
 
--- The currency budget view.
---
--- The report has always been able to list currencies, but only as rows in the item list: a
--- name and a quantity, which answers "what did I pick up" and nothing else. What a player
--- actually wants to know about a crest or a valorstone is different - how much of it they
--- hold now, how close the weekly cap is, and how fast the thing they are doing is earning it.
---
--- None of that is in the history: the caps and the balance live in the client, and the rate
--- comes from the history divided by the window the filters describe. This file is where the
--- two meet, so the view can be a table of budgets rather than a list of pickups.
-
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local DU = LibStub("DateUtils-1.0")
 
 local SECONDS_PER_HOUR = 3600
 local SECONDS_PER_DAY = 86400
 
--- The oldest dated pickup the current scope holds, which is what "all the time" is a
--- duration of. Loot entries are appended in time order, so the first entry of each record
--- is the oldest one it has and the walk never goes deeper than that.
 local function earliestFound(self)
     local histories = self:getHistories()
     local earliest = nil
@@ -52,11 +38,6 @@ local function earliestFound(self)
     return earliest
 end
 
--- How long the active date range covers, in seconds, so a quantity can be turned into a
--- rate. Every range but "yesterday" is still running, so it is measured up to now rather
--- than to its nominal end: half an hour into today, 60 crests is 120 an hour, not 2.5.
---
--- Never zero: a range that has only just begun would otherwise divide the rate by nothing.
 function MLH:getRangeDuration()
     local range = self:getFilters().range
     local now = time()
@@ -92,13 +73,6 @@ function MLH:getRangeDuration()
     return math.max(duration, 1)
 end
 
--- What the cap bar draws, or nil for a currency that has no cap at all - which is most of
--- them, and which has to read as "no cap" rather than as a full bar or an empty one.
---
--- A weekly allowance wins over a lifetime maximum where a currency has both: the weekly one
--- is the number that decides what the player does today. `useTotalEarnedForMaxQty` is the
--- client's own flag for a cap counted against everything ever earned rather than against
--- the balance in hand, which is how the season-long crest caps work.
 local function capProgress(info)
     if (not info) then return nil end
 
@@ -129,8 +103,6 @@ function MLH:sortCurrencyRows(rows)
     local value = function(row)
         if (key == "earned") then return row.quantity end
         if (key == "perHour") then return row.perHour end
-        -- a currency the client will not talk about sorts as nothing held rather than as a
-        -- nil, which table.sort's comparator cannot order
         if (key == "held") then return row.held or 0 end
         if (key == "cap") then return row.capRatio or -1 end
 
@@ -148,14 +120,7 @@ function MLH:sortCurrencyRows(rows)
     end)
 end
 
--- The whole currency view in one call, built on the same collectCurrencies the item list
--- uses - so the two can never disagree about what the filters select - with the live
--- balance and the caps read out of the client and hung off each row.
---
--- The balance and the caps belong to whoever is logged in. Under the account-wide scope the
--- earned column still covers every character, but "held" cannot: there is no way to ask the
--- client what a character who is not logged in is carrying, and inventing one would be
--- worse than saying so, which is what `heldIsCurrentCharacter` lets the view do.
+-- Balances and caps are for the logged-in character, even under account-wide scope.
 function MLH:buildCurrencyReport()
     local rows = self:collectCurrencies()
     local duration = self:getRangeDuration()

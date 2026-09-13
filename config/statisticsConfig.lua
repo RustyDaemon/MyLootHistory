@@ -16,7 +16,6 @@ MLH.groupStatistics = {
         statisticsText = {
             type = 'description',
             fontSize = 'medium',
-            -- read when the page is drawn, so looting never pays for it
             name = function() return MLH:getStatisticsText() end,
         }
     }

@@ -5,17 +5,6 @@ Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 See License file for details.
 --]]
 
--- The session HUD.
---
--- The three live numbers - how long you have been at it, items an hour and gold an hour -
--- already exist as stat cards at the top of the report, but the report is a window you open
--- to read and then close again. The question those three answer ("is this spot still worth
--- farming?") is one the player wants answered *while* farming, without a 940px window over
--- the middle of the screen.
---
--- So this is the same three numbers and nothing else: a small bar that can sit anywhere,
--- reading from MLH:getSessionStats like the cards do, so the two can never disagree.
-
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 local UI = MLH.UI
@@ -24,8 +13,6 @@ local CELL_COUNT = 3
 local WIDTH = 246
 local HEIGHT = 30
 
--- The client's own coin, inline: a trailing "g" after a rounded figure reads as part of the
--- number ("12.3kg"), the coin reads as a unit. The report uses the same one.
 local GOLD_ICON = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:0:-1|t"
 
 local hud = nil
@@ -67,7 +54,6 @@ local function buildHud()
     UI:addBorder(frame, UI:rgb("border"))
     UI:attachHover(frame, "panelHover", 0.5, "BORDER")
 
-    -- the same warm stripe the session card carries, so the bar reads as part of the addon
     local stripe = frame:CreateTexture(nil, "ARTWORK")
     stripe:SetPoint("TOPLEFT")
     stripe:SetPoint("BOTTOMLEFT")
@@ -94,8 +80,6 @@ local function buildHud()
         end
     end
 
-    -- the cells share the width left of the stripe, and are laid out from here rather than
-    -- at a fixed pitch so a change to WIDTH needs no second edit
     frame.LayoutCells = function(self)
         local usable = self:GetWidth() - 4
         local cellWidth = usable / CELL_COUNT
@@ -128,8 +112,7 @@ local function buildHud()
     end)
 
     frame:SetScript("OnMouseUp", function(self, button)
-        -- letting go at the end of a drag is a mouse-up too, and it must not also count as
-        -- the click that opens the report
+        -- Do not treat the mouse-up ending a drag as a report-opening click.
         if (self.dragging) then
             self.dragging = nil
             return
@@ -154,8 +137,6 @@ local function buildHud()
     return frame
 end
 
--- The numbers themselves. One call, so the ticker and every other caller show the same
--- thing at the same moment.
 function MLH:updateHUD()
     if (not hud or not hud:IsShown()) then return end
 
@@ -176,7 +157,6 @@ function MLH:showHUD()
     if (saved.point) then
         hud:SetPoint(saved.point, UIParent, saved.relativePoint or saved.point, saved.x or 0, saved.y or 0)
     else
-        -- above the centre of the screen, clear of the action bars and of the minimap
         hud:SetPoint("TOP", UIParent, "TOP", 0, -180)
     end
 
@@ -199,8 +179,6 @@ function MLH:hideHUD()
     if (hud) then hud:Hide() end
 end
 
--- Puts the HUD in whatever state the settings ask for. Called on login and whenever one of
--- the two switches moves, so nothing else has to know how it is shown.
 function MLH:applyHUD()
     if (self.db.char.config.showHUD) then
         self:showHUD()

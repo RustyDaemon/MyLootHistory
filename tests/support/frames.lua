@@ -1,24 +1,3 @@
---[[
-Just enough of the WoW widget API to build the report window outside the game and then
-click on it.
-
-The report is the one part of the addon that used to be untestable: it was widget
-construction, and widget construction needs a client. It does not need a *real* client
-though - it needs frames that remember their size, their scripts and their children. That
-is all this is.
-
-Two rules make it small enough to trust:
-
-  * Unknown methods are no-ops that return the widget, so only the ones whose return value
-    the addon actually reads have to be written out.
-  * Only PascalCase keys are synthesised. Widget methods are PascalCase and the fields the
-    addon hangs on a frame (`row.entry`, `bar.fill`) are not, so reading an unset field
-    still answers nil - otherwise `if frame.entry then` would be true for every frame.
-
-`Fire` is the point of the whole thing: it runs the handlers a script has, the way the
-client would, so a spec can click a header or scroll a list and watch what happens.
---]]
-
 local frames = {}
 
 local widget = {}
@@ -31,7 +10,6 @@ local widgetMeta = {
 
         if (key:sub(1, 1):upper() ~= key:sub(1, 1)) then return nil end
 
-        -- anything not modelled is a setter: remember that it was called, do nothing
         local fn = function(s)
             s.calls[key] = (s.calls[key] or 0) + 1
 
@@ -71,8 +49,6 @@ end
 
 frames.all = {}
 
--- ── sizing and visibility ─────────────────────────────────────────────────────
-
 function widget:SetWidth(w) self.width = w return self end
 function widget:SetHeight(h) self.height = h return self end
 function widget:SetSize(w, h) self.width, self.height = w, h return self end
@@ -105,8 +81,6 @@ function widget:GetPoint() return "CENTER", nil, "CENTER", 0, 0 end
 function widget:GetParent() return self.parent end
 function widget:GetNumPoints() return #self.points end
 
--- ── scripts ───────────────────────────────────────────────────────────────────
-
 function widget:SetScript(name, handler)
     self.scripts[name] = { handler }
 
@@ -124,7 +98,6 @@ function widget:GetScript(name)
     return self.scripts[name] and self.scripts[name][1]
 end
 
--- Runs every handler registered for a script, the way the client would.
 function widget:Fire(name, ...)
     local handlers = self.scripts[name]
 
@@ -141,8 +114,6 @@ function widget:Click(...)
     return self
 end
 
--- ── text ──────────────────────────────────────────────────────────────────────
-
 function widget:SetText(value) self.text = value ~= nil and tostring(value) or "" return self end
 function widget:GetText() return self.text end
 function widget:SetFormattedText(fmt, ...) self.text = string.format(fmt, ...) return self end
@@ -153,15 +124,11 @@ function widget:GetFont() return "Fonts\\FRIZQT__.TTF", 12, "" end
 function widget:SetFont(path, size, flags)
     assert(type(path) == "string", "SetFont wants a font path")
     assert(type(size) == "number", "SetFont wants a size")
-    -- the client rejects a nil third argument outright, so nothing here may pass one
     assert(type(flags) == "string", "SetFont wants flags as a string, got "..type(flags))
 
     return self
 end
 
--- `UI:rgb` returns four values, and putting that call anywhere but last in an argument
--- list - or inside an `and`/`or` - silently truncates it to the red channel. Checking all
--- three channels here is what turns that into a test failure instead of a live error.
 function widget:SetTextColor(r, g, b)
     assert(type(r) == "number" and type(g) == "number" and type(b) == "number",
         "SetTextColor wants three numbers, got "
@@ -169,8 +136,6 @@ function widget:SetTextColor(r, g, b)
 
     return self
 end
-
--- ── children ──────────────────────────────────────────────────────────────────
 
 function widget:CreateTexture(name)
     return newWidget("Texture", name, self)
@@ -222,9 +187,6 @@ end
 
 function widget:SetScrollChild(child) self.scrollChild = child return self end
 
--- ── globals ───────────────────────────────────────────────────────────────────
-
--- Installs the widget API into _G. Call once, before loading the UI modules.
 function frames.install()
     _G.UIParent = newWidget("Frame", "UIParent")
     _G.UIParent:SetSize(1920, 1080)
@@ -275,14 +237,11 @@ function frames.install()
         return false
     end
 
-    -- the report defers its first re-layout by a frame; here "next frame" is "now"
     _G.C_Timer.After = function(_, fn) fn() end
 
     local tooltip = newWidget("GameTooltip", "GameTooltip")
 
     tooltip.SetOwner = noop
-    -- AddLine(text, r, g, b, wrap): a colour has to arrive as three numbers, which is the
-    -- same truncation trap as SetTextColor when `UI:rgb` is not the last argument
     tooltip.AddLine = function(self, _, r, g, b)
         if (r ~= nil) then
             assert(type(r) == "number" and type(g) == "number" and type(b) == "number",
@@ -316,15 +275,12 @@ function frames.install()
     return frames
 end
 
--- The first real Button among a frame's children. Textures and font strings are children
--- too, so a spec cannot just take children[1].
 function frames.firstButton(frame)
     for i = 1, #frame.children do
         if (frame.children[i].kind == "Button") then return frame.children[i] end
     end
 end
 
--- Every pooled list row currently showing an entry of the given kind.
 function frames.rowsOfKind(kind)
     local found = {}
 

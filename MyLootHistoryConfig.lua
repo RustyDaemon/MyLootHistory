@@ -12,8 +12,6 @@ local ACFGDLG = LibStub("AceConfigDialog-3.0")
 local MLH_MMIcon = LibStub("LibDBIcon-1.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
--- How long a character's history is kept. 0 is "forever", and the dropdown lists it first
--- because it is the default and the only choice that never deletes anything.
 local retentionOrder = { 0, 30, 90, 180, 365, 730 }
 local retentionValues = {}
 
@@ -89,7 +87,6 @@ local generalOptions = {
             type = "toggle",
             name = L["C_LockHUD"],
             desc = L["C_LockHUD_Desc"],
-            -- a lock on a bar that is not on screen is not a setting anyone is looking for
             disabled = function () return not MLH.db.char.config.showHUD end,
             get = function (_)
                 return MLH.db.char.config.hudLocked
@@ -112,7 +109,6 @@ local generalOptions = {
                     order = 1,
                     width = "double",
                     type = "toggle",
-                    -- descStyle = "inline",
                     name = L["C_ShowLastLootedRow"],
                     desc = L["C_ShowLastLootedRow_Desc"],
                     get = function (_)
@@ -158,7 +154,6 @@ local generalOptions = {
                     type = "toggle",
                     name = L["C_ShowSourceColumn"],
                     desc = L["C_ShowSourceColumn_Desc"],
-                    -- the column can only show what was recorded, so it follows the switch above
                     disabled = function () return not MLH.db.char.config.trackLootSource end,
                     get = function (_)
                         return MLH.db.char.config.showSource
@@ -172,7 +167,6 @@ local generalOptions = {
                     order = 3,
                     width = "double",
                     type = "toggle",
-                    -- descStyle = "inline",
                     name = L["C_IgnoreZeroPriceItems"],
                     desc = L["C_IgnoreZeroPriceItems_Desc"],
                     get = function (_)
@@ -194,21 +188,6 @@ local generalOptions = {
                     end,
                     set = function (_, value)
                         MLH.db.char.config.showSessionBar = value
-                        MLH:refreshReport()
-                    end
-                },
-
-                showCurrencyCheckBox = {
-                    order = 5,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_ShowCurrency"],
-                    desc = L["C_ShowCurrency_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.showCurrency
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.showCurrency = value
                         MLH:refreshReport()
                     end
                 },
@@ -344,8 +323,6 @@ local generalOptions = {
 
                         MLH.db.char.config.retentionDays = value
 
-                        -- Forever removes nothing, so it needs no confirmation; anything else
-                        -- takes effect now rather than at the next login, and that deletes.
                         if (value <= 0) then return end
 
                         StaticPopupDialogs["PROMPT_PRUNE_HISTORY"] = {
@@ -441,10 +418,6 @@ function MLH:initConfig()
     ACFGDLG:AddToBlizOptions("MyLootHistory_MainOptions", "My Loot History")
 end
 
--- The statistics page walks the whole history, so it is read when that page is drawn and
--- never while looting: this used to be recomputed on every single loot message, which on a
--- long history meant a full scan - plus a linear search through the zone list per entry -
--- for every pickup.
 function MLH:getStatisticsText()
     local itemsFound = self.db.char.foundItems
     local itemTypesAmount = #itemsFound
@@ -457,10 +430,8 @@ function MLH:getStatisticsText()
         for j = 1, #lootData do
             local entry = lootData[j]
 
-            -- an entry written by a very old version can carry no quantity
             totalAmount = totalAmount + (tonumber(entry.quantity) or 1)
 
-            -- ... and no zone, which is a group of its own rather than a nil table key
             local zoneID = entry.zoneID or entry.zone or false
 
             if (not seenZones[zoneID]) then

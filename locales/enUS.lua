@@ -8,7 +8,6 @@ See License file for details.
 local L = LibStub("AceLocale-3.0"):NewLocale("MyLootHistory", "enUS", true, true)
 
 -- core
-L["_MoneyPattern"] = "%d+"
 
 L["_IntroMessage"] = function (addonName)
   return '|cFF00DD00'..addonName..'|r loaded. Happy looting! |cFFFF0000♥|r'
@@ -65,8 +64,6 @@ L["C_ShowAdditionalTooltipData"] = "Show additional tooltip data"
 L["C_ShowAdditionalTooltipData_Desc"] = "Show or hide the additional tooltip data like item total quantity gathered, etc."
 L["C_ShowSessionBar"] = "Show session bar"
 L["C_ShowSessionBar_Desc"] = "Show the live session line at the top of the report: elapsed time, items per hour and gold per hour. Click it to start a new session"
-L["C_ShowCurrency"] = "Show currencies in the report"
-L["C_ShowCurrency_Desc"] = "List the currencies you picked up under the items, and include them in the CSV export"
 L["C_TrackCurrency"] = "Track currencies"
 L["C_TrackCurrency_Desc"] = "Record currencies (Valorstones, Crests, and so on) as they are picked up. Turning this off stops new records; the ones already stored are kept"
 L["C_GameTooltipLine"] = "Add a line to item tooltips"

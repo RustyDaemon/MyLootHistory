@@ -1,27 +1,7 @@
---[[
-Loot source attribution.
-
-The client never says "this item came off that mob" in one call. The loot window carries the
-GUID of whatever is being looted, and the name has to come from somewhere else: whatever the
-player has targeted or hovered. The combat log would name every kill, but registering
-COMBAT_LOG_EVENT_UNFILTERED is an action the client only allows the Blizzard UI and it blocks
-the addon outright - so the name book is filled from targeting instead, and read at draw
-time, which is what lets a name learned today apply to loot recorded last week.
-
-These specs cover that seam, and the far more common case of a drop the client says nothing
-useful about - which has to end up with no source rather than a wrong one.
-
-The GUID strings below are the real shape the client uses. The npc ID is the sixth field,
-which is the whole reason a tally can be kept against a mob rather than against a corpse.
---]]
-
 local wow = require("tests.support.wow")
 
--- the game runs Lua 5.1, where unpack is a global; the interpreter these specs run under
--- may be 5.4, where it only exists as table.unpack
 local unpack = unpack or table.unpack
 
--- the client's own splitter: a plain split on a single character, empty fields included
 _G.strsplit = function(delimiter, text)
     local parts = {}
     local start = 1
@@ -52,15 +32,10 @@ _G.UnitExists = function(unit) return units[unit] ~= nil end
 _G.UnitGUID = function(unit) return units[unit] and units[unit].guid end
 _G.UnitName = function(unit) return units[unit] and units[unit].name end
 
--- the player targets something, which is where a name comes from now
 local function targeting(guid, name)
     units.target = { guid = guid, name = name }
 end
 
--- The client's secret values: something it has decided an addon may not read - the GUID and
--- the name of a delve's quest percon are the ones that got here first. The real thing errors
--- the moment it is split, concatenated or printed, and so does this, so a missing guard fails
--- the spec instead of quietly storing a value nothing can ever show.
 local secrets = setmetatable({}, { __mode = "k" })
 
 local function secret()
@@ -151,7 +126,6 @@ describe("learning a name", function()
     end)
 
     it("names loot recorded before the name was known", function()
-        -- the drop is stored with an id and no name at all
         local entries = { { quantity = 1, source = { kind = "creature", id = 224466 } } }
 
         assert.are.equal("R_SourceCreature", tostring(MLH:aggregateSources(entries)[1].name))
@@ -159,7 +133,6 @@ describe("learning a name", function()
         targeting(RAVAGER, "Void Ravager")
         MLH:noteUnitName("target")
 
-        -- and the same stored drop now answers with the name, because it is resolved on read
         assert.are.equal("Void Ravager", MLH:aggregateSources(entries)[1].name)
     end)
 end)
@@ -187,7 +160,6 @@ describe("the open loot window", function()
         local source = MLH:getCurrentSource()
 
         assert.are.equal("object", source.kind)
-        -- the locale stub answers with the key itself, so the fallback is checked by name
         assert.are.equal("R_SourceObject", tostring(MLH:getSourceName(source)))
     end)
 

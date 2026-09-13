@@ -1,17 +1,3 @@
---[[
-The upgrade from the pre-lootData shape.
-
-A record written by one of the first versions is one pickup, flat: a quantity, the zone table
-the client handed back and the date as a string. Everything since reads `record.lootData`, so
-one such record left in the saved variables took the whole report down - which is how it was
-found: the account scope walked an alt who had not logged in for two years and errored on
-`attempt to get length of field 'lootData' (a nil value)`.
-
-What matters here is that nothing is lost in the process: the quantity, the date and the zone
-all have to come out the other side, because this rewrites the player's history in place and
-there is no second copy of it.
---]]
-
 local wow = require("tests.support.wow")
 
 _G.Enum.ItemQuality = { Poor = 0, Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5 }
@@ -31,7 +17,6 @@ wow.load("MyLootHistoryData.lua")
 
 local MLH = wow.addon
 
--- 28 Dec 2023, 13:05:44 local time - the stamp the string below has to parse back to
 local LEGACY_TIME = os.time({ year = 2023, month = 12, day = 28, hour = 13, min = 5, sec = 44 })
 local LEGACY_DATE = os.date("%a %b %d %H:%M:%S %Y", LEGACY_TIME)
 
@@ -62,7 +47,6 @@ describe("MLH:upgradeCharacterData", function()
         assert.are.equal(LEGACY_TIME, entry.foundOn)
         assert.are.equal(2023, entry.zoneID)
 
-        -- and the record itself no longer claims to be a loot entry as well
         assert.is_nil(record.quantity)
         assert.is_nil(record.foundOn)
         assert.is_nil(record.zone)
@@ -116,7 +100,6 @@ describe("MLH:upgradeCharacterData", function()
         assert.are.equal(1, entry.zoneID)
         assert.are.equal(400, entry.sellPrice)
 
-        -- stamped, so the next read is a comparison and not another walk
         assert.is_false(MLH:upgradeCharacterData(data))
     end)
 
