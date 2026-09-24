@@ -26,7 +26,7 @@ function MLH:beginSession()
     char.sessionSerial = (char.sessionSerial or 0) + 1
     char.currentSessionID = self:getCharacterKey()..":"..char.sessionSerial
     char.thisSessionStart = time()
-    self.historyRevision = (self.historyRevision or 0) + 1
+    self:bumpRevision()
 end
 
 -- History is chronological; scan backwards. Missing quantity counts as one, or zero for gold.

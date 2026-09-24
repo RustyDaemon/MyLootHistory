@@ -52,11 +52,7 @@ end
 
 _G.issecretvalue = function(value) return secrets[value] == true end
 
-wow.load("utils/DateUtils.lua")
-wow.load("MyLootHistory.lua")
-wow.load("MyLootHistoryDB.lua")
-wow.load("MyLootHistoryScope.lua")
-wow.load("MyLootHistorySource.lua")
+wow.loadThrough("MyLootHistorySource.lua")
 
 local MLH = wow.addon
 

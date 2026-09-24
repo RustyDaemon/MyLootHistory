@@ -19,23 +19,13 @@ end
 
 wow.provide("AceConfigDialog-3.0", { Open = function() end })
 
-wow.load("utils/DateUtils.lua")
-wow.load("MyLootHistory.lua")
-wow.load("MyLootHistoryDB.lua")
-wow.load("MyLootHistoryScope.lua")
-wow.load("MyLootHistorySource.lua")
-wow.load("MyLootHistoryPrices.lua")
-wow.load("MyLootHistorySession.lua")
-wow.load("MyLootHistoryData.lua")
-wow.load("MyLootHistoryCurrency.lua")
+wow.loadThrough("MyLootHistoryCurrency.lua")
 
 local MLH = wow.addon
 
 function MLH:setTooltipSuppressed() end
 
-wow.load("MyLootHistoryUIKit.lua")
-wow.load("MyLootHistoryUI.lua")
-wow.load("MyLootHistoryHUD.lua")
+wow.loadThrough("MyLootHistoryHUD.lua")
 
 MLH:initDatabase()
 

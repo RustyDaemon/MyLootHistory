@@ -272,6 +272,12 @@ function MLH:getZoneName(zoneID)
     return zoneName
 end
 
+-- Sort comparator: highest quantity first, ties broken by name.
+function MLH.byQuantityThenName(l, r)
+    if (l.quantity == r.quantity) then return l.name < r.name end
+    return l.quantity > r.quantity
+end
+
 function MLH:aggregateLoot(entries, unknownZoneName)
     local quantity, firstFound, lastFound = 0, nil, nil
     local zoneCounts, zones = {}, {}
@@ -298,10 +304,7 @@ function MLH:aggregateLoot(entries, unknownZoneName)
         zones[#zones+1] = { name = zoneName, quantity = zoneQuantity }
     end
 
-    table.sort(zones, function(l, r)
-        if (l.quantity == r.quantity) then return l.name < r.name end
-        return l.quantity > r.quantity
-    end)
+    table.sort(zones, MLH.byQuantityThenName)
 
     return quantity, zones, firstFound, lastFound
 end

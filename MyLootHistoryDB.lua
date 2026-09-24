@@ -147,9 +147,8 @@ function MLH:upgradeCharacterData(data)
     return true
 end
 
-local itemIndex = nil
-
-local currencyIndex = nil
+-- id -> position in foundItems/foundCurrency, keyed by the record's id field; built lazily.
+local indexes = {}
 
 local function buildIndex(records, key)
     local index = {}
@@ -175,61 +174,60 @@ local function totalQuantity(lootData)
     return total
 end
 
-local function getItemIndex(foundItems)
-    if (not itemIndex) then
-        itemIndex = buildIndex(foundItems, "itemId")
+local function getIndex(records, key)
+    if (not indexes[key]) then
+        indexes[key] = buildIndex(records, key)
     end
 
-    return itemIndex
+    return indexes[key]
 end
 
-local function getCurrencyIndex(foundCurrency)
-    if (not currencyIndex) then
-        currencyIndex = buildIndex(foundCurrency, "currencyId")
-    end
+local function resetIndexes()
+    indexes = {}
+end
 
-    return currencyIndex
+-- Report caches compare against this to know the history changed.
+function MLH:bumpRevision()
+    self.historyRevision = (self.historyRevision or 0) + 1
+end
+
+local function newLootEntry(self, quantity, zoneID)
+    return {
+        quantity = quantity,
+        foundOn = time(),
+        sessionID = self.db.char.currentSessionID,
+        zoneID = zoneID,
+    }
 end
 
 function MLH:initDatabase()
     self.db = ADB:New("MyLootHistoryDB", defaults)
     self:upgradeCharacterData(self.db.char)
-    itemIndex = nil
-    currencyIndex = nil
+    resetIndexes()
 end
 
 function MLH:getItemRecord(itemID)
     if (not itemID) then return nil end
 
     local foundItems = self.db.char.foundItems
-    local index = getItemIndex(foundItems)[itemID]
+    local index = getIndex(foundItems, "itemId")[itemID]
 
     return index and foundItems[index] or nil
 end
 
 function MLH:addGold(quantity, zoneID)
-    self.historyRevision = (self.historyRevision or 0) + 1
-    table.insert(self.db.char.foundGold, {
-        quantity = quantity,
-        foundOn = time(),
-        sessionID = self.db.char.currentSessionID,
-        zoneID = zoneID
-    })
+    self:bumpRevision()
+    table.insert(self.db.char.foundGold, newLootEntry(self, quantity, zoneID))
 end
 
 function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemName, zoneID, sellPrice, source)
     local foundItems = self.db.char.foundItems
-    local index = getItemIndex(foundItems)[itemID]
+    local index = getIndex(foundItems, "itemId")[itemID]
 
-    self.historyRevision = (self.historyRevision or 0) + 1
-    local newLootDataObj = {
-        quantity = quantity,
-        foundOn = time(),
-        sessionID = self.db.char.currentSessionID,
-        zoneID = zoneID,
-        sellPrice = sellPrice or 0,
-        source = source,
-    }
+    self:bumpRevision()
+    local newLootDataObj = newLootEntry(self, quantity, zoneID)
+    newLootDataObj.sellPrice = sellPrice or 0
+    newLootDataObj.source = source
 
     if (index == nil) then
         local newItem = {
@@ -242,7 +240,7 @@ function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemN
         }
 
         table.insert(foundItems, newItem)
-        itemIndex[itemID] = #foundItems
+        indexes.itemId[itemID] = #foundItems
 
         return quantity
     end
@@ -255,15 +253,10 @@ end
 
 function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, currencyQuality, zoneID)
     local foundCurrency = self.db.char.foundCurrency
-    local index = getCurrencyIndex(foundCurrency)[currencyID]
+    local index = getIndex(foundCurrency, "currencyId")[currencyID]
 
-    self.historyRevision = (self.historyRevision or 0) + 1
-    local newLootDataObj = {
-        quantity = quantity,
-        foundOn = time(),
-        sessionID = self.db.char.currentSessionID,
-        zoneID = zoneID,
-    }
+    self:bumpRevision()
+    local newLootDataObj = newLootEntry(self, quantity, zoneID)
 
     if (index == nil) then
         table.insert(foundCurrency, {
@@ -274,7 +267,7 @@ function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, curre
             lootData = { newLootDataObj },
         })
 
-        currencyIndex[currencyID] = #foundCurrency
+        indexes.currencyId[currencyID] = #foundCurrency
 
         return quantity
     end
@@ -291,46 +284,43 @@ function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, curre
     return totalQuantity(lootData)
 end
 
-local function pruneEntries(entries, cutoff)
-    local kept, removed = 0, 0
+-- Drops the elements failing keep(), in place, preserving order. keep() runs once per element,
+-- first to last, so it may have side effects. Returns how many were dropped.
+local function compact(list, keep)
+    local kept = 0
 
-    for i = 1, #entries do
-        local entry = entries[i]
+    for i = 1, #list do
+        local value = list[i]
 
-        if (entry.foundOn == nil or entry.foundOn >= cutoff) then
+        if (keep(value)) then
             kept = kept + 1
-            entries[kept] = entry
-        else
-            removed = removed + 1
+            list[kept] = value
         end
     end
 
-    for i = #entries, kept + 1, -1 do
-        entries[i] = nil
+    local removed = #list - kept
+
+    for i = #list, kept + 1, -1 do
+        list[i] = nil
     end
 
     return removed
 end
 
+local function pruneEntries(entries, cutoff)
+    return compact(entries, function(entry)
+        return entry.foundOn == nil or entry.foundOn >= cutoff
+    end)
+end
+
 local function pruneRecords(records, cutoff)
-    local kept, removedEntries, removedRecords = 0, 0, 0
+    local removedEntries = 0
 
-    for i = 1, #records do
-        local record = records[i]
-
+    local removedRecords = compact(records, function(record)
         removedEntries = removedEntries + pruneEntries(record.lootData, cutoff)
 
-        if (#record.lootData > 0) then
-            kept = kept + 1
-            records[kept] = record
-        else
-            removedRecords = removedRecords + 1
-        end
-    end
-
-    for i = #records, kept + 1, -1 do
-        records[i] = nil
-    end
+        return #record.lootData > 0
+    end)
 
     return removedEntries, removedRecords
 end
@@ -347,40 +337,27 @@ function MLH:pruneHistory(days)
     local currencyEntries, currencyRecords = pruneRecords(char.foundCurrency, cutoff)
 
     if (char.sessions) then
-        local kept = 0
-
-        for i = 1, #char.sessions do
-            local session = char.sessions[i]
-
-            if ((session.endedOn or session.startedOn or 0) >= cutoff) then
-                kept = kept + 1
-                char.sessions[kept] = session
-            end
-        end
-
-        for i = #char.sessions, kept + 1, -1 do
-            char.sessions[i] = nil
-        end
+        compact(char.sessions, function(session)
+            return (session.endedOn or session.startedOn or 0) >= cutoff
+        end)
     end
 
     removedEntries = removedEntries + currencyEntries + pruneEntries(char.foundGold, cutoff)
     removedRecords = removedRecords + currencyRecords
 
     if (removedEntries > 0) then
-        itemIndex = nil
-        currencyIndex = nil
+        resetIndexes()
     end
 
     return removedEntries, removedRecords
 end
 
 function MLH:resetData()
-    self.historyRevision = (self.historyRevision or 0) + 1
+    self:bumpRevision()
     self.db.char.foundItems = {}
     self.db.char.foundGold = {}
     self.db.char.foundCurrency = {}
-    itemIndex = nil
-    currencyIndex = nil
+    resetIndexes()
 
     self:clearPriceCache()
 

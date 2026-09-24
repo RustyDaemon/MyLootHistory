@@ -16,6 +16,8 @@ local FONT_NUMBER = (NumberFontNormal and NumberFontNormal:GetFont()) or FONT
 UI.font = FONT
 UI.fontNumber = FONT_NUMBER
 
+UI.GOLD_ICON = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:0:-1|t"
+
 local C = {
     shadow      = { 0.00, 0.00, 0.00 },
     window      = { 0.043, 0.047, 0.055 },
@@ -86,6 +88,16 @@ local function addBorder(frame, r, g, b, a)
 end
 
 UI.addBorder = function(_, frame, ...) return addBorder(frame, ...) end
+
+-- Black drop shadow extending `inset` pixels past each edge of the frame.
+function UI:addShadow(frame, inset, alpha, subLevel)
+    local shadow = frame:CreateTexture(nil, "BACKGROUND", nil, subLevel or -8)
+    shadow:SetPoint("TOPLEFT", -inset, inset)
+    shadow:SetPoint("BOTTOMRIGHT", inset, -inset)
+    shadow:SetColorTexture(0, 0, 0, alpha)
+
+    return shadow
+end
 
 function UI:panel(parent, colorName, bordered, alpha)
     local frame = CreateFrame("Frame", nil, parent)
@@ -363,10 +375,7 @@ function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
     menu:Hide()
     menu:EnableMouse(true)
 
-    local shadow = menu:CreateTexture(nil, "BACKGROUND", nil, -1)
-    shadow:SetPoint("TOPLEFT", -4, 4)
-    shadow:SetPoint("BOTTOMRIGHT", 4, -4)
-    shadow:SetColorTexture(0, 0, 0, 0.5)
+    self:addShadow(menu, 4, 0.5, -1)
 
     local entries = {}
 

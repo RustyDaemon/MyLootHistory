@@ -13,7 +13,7 @@ local CELL_COUNT = 3
 local WIDTH = 246
 local HEIGHT = 30
 
-local GOLD_ICON = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:0:-1|t"
+local GOLD_ICON = UI.GOLD_ICON
 
 local hud = nil
 local ticker = nil
@@ -42,10 +42,7 @@ local function buildHud()
     frame:RegisterForDrag("LeftButton")
     frame:Hide()
 
-    local shadow = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
-    shadow:SetPoint("TOPLEFT", -4, 4)
-    shadow:SetPoint("BOTTOMRIGHT", 4, -4)
-    shadow:SetColorTexture(0, 0, 0, 0.35)
+    UI:addShadow(frame, 4, 0.35)
 
     local bg = frame:CreateTexture(nil, "BACKGROUND", nil, -7)
     bg:SetAllPoints()

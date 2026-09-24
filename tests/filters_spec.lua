@@ -10,14 +10,7 @@ _G.C_CurrencyInfo.GetCurrencyInfo = function(id)
     return { name = "Valorstones", iconFileID = id, quality = 1 }
 end
 
-wow.load("utils/DateUtils.lua")
-wow.load("MyLootHistory.lua")
-wow.load("MyLootHistoryDB.lua")
-wow.load("MyLootHistoryScope.lua")
-wow.load("MyLootHistorySource.lua")
-wow.load("MyLootHistoryPrices.lua")
-wow.load("MyLootHistorySession.lua")
-wow.load("MyLootHistoryData.lua")
+wow.loadThrough("MyLootHistoryData.lua")
 
 local MLH = wow.addon
 

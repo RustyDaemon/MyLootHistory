@@ -29,6 +29,22 @@ local rangeShortKeys = {
     [6] = "RS_All",
 }
 
+-- Filter key -> saved param name in db.char.params.
+local paramKeys = {
+    view = "selectedView",
+    scope = "selectedScope",
+    session = "selectedSession",
+    range = "selectedRangeValue",
+    quality = "selectedQualityValue",
+    exactQuality = "selectedExactItemQuality",
+    zone = "selectedZoneID",
+    search = "searchText",
+    sortKey = "sortKey",
+    sortDescending = "sortDescending",
+    currencySort = "currencySortKey",
+    currencySortDescending = "currencySortDescending",
+}
+
 function MLH:getFilters()
     if (filters) then return filters end
 
@@ -62,23 +78,7 @@ function MLH:setFilter(key, value)
 
     active[key] = value
 
-    local params = self.db.char.params
-    local paramKeys = {
-        view = "selectedView",
-        scope = "selectedScope",
-        session = "selectedSession",
-        range = "selectedRangeValue",
-        quality = "selectedQualityValue",
-        exactQuality = "selectedExactItemQuality",
-        zone = "selectedZoneID",
-        search = "searchText",
-        sortKey = "sortKey",
-        sortDescending = "sortDescending",
-        currencySort = "currencySortKey",
-        currencySortDescending = "currencySortDescending",
-    }
-
-    params[paramKeys[key]] = value
+    self.db.char.params[paramKeys[key]] = value
 end
 
 function MLH:resetFilters()
@@ -217,10 +217,7 @@ function MLH:collectCurrencies()
         end
     end
 
-    table.sort(currencies, function(l, r)
-        if (l.quantity == r.quantity) then return l.name < r.name end
-        return l.quantity > r.quantity
-    end)
+    table.sort(currencies, MLH.byQuantityThenName)
 
     return currencies
 end
@@ -364,10 +361,7 @@ function MLH:collectItems()
                     and newItem.totalValue or nil
                 newItem.dateRange = formatDateRange(newItem.firstFound, newItem.lastFound)
 
-                table.sort(newItem.characters, function(l, r)
-                    if (l.quantity == r.quantity) then return l.name < r.name end
-                    return l.quantity > r.quantity
-                end)
+                table.sort(newItem.characters, MLH.byQuantityThenName)
 
                 newItem.charName = #newItem.characters > 1
                     and L["R_SeveralCharacters"](#newItem.characters)
@@ -451,10 +445,7 @@ function MLH:buildReport()
         report.zones[#report.zones+1] = { name = name, quantity = quantity }
     end
 
-    table.sort(report.zones, function(l, r)
-        if (l.quantity == r.quantity) then return l.name < r.name end
-        return l.quantity > r.quantity
-    end)
+    table.sort(report.zones, MLH.byQuantityThenName)
 
     return report
 end

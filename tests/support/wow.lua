@@ -168,13 +168,52 @@ _G.Enum = {
     TooltipDataType = { Item = 0 },
 }
 
+local loaded = {}
+
 function wow.load(path)
     local root = os.getenv("MLH_ROOT") or "."
     local chunk, err = loadfile(root.."/"..path)
 
     if (not chunk) then error("could not load "..path..": "..tostring(err)) end
 
+    loaded[path] = true
+
     return chunk(path, addon)
+end
+
+-- The addon files the stubs can run, in MyLootHistory.toc order (loadorder_spec keeps the two in sync).
+-- Left out: MyLootHistoryTooltip/Minimap/Config and config/, which need more of the client than is faked.
+wow.loadOrder = {
+    "utils/DateUtils.lua",
+    "MyLootHistory.lua",
+    "MyLootHistoryDB.lua",
+    "MyLootHistoryScope.lua",
+    "MyLootHistorySource.lua",
+    "MyLootHistoryPrices.lua",
+    "MyLootHistorySession.lua",
+    "MyLootHistoryData.lua",
+    "MyLootHistoryCurrency.lua",
+    "MyLootHistoryUIKit.lua",
+    "MyLootHistoryUI.lua",
+    "MyLootHistoryHUD.lua",
+}
+
+-- Loads every file in load order up to and including `last`, skipping any already loaded,
+-- so a spec can stub something between two calls.
+function wow.loadThrough(last)
+    local stop = nil
+
+    for i = 1, #wow.loadOrder do
+        if (wow.loadOrder[i] == last) then stop = i end
+    end
+
+    if (not stop) then error("wow.loadThrough: not in wow.loadOrder: "..tostring(last), 2) end
+
+    for i = 1, stop do
+        local path = wow.loadOrder[i]
+
+        if (not loaded[path]) then wow.load(path) end
+    end
 end
 
 return wow

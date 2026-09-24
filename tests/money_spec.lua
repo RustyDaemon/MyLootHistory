@@ -1,7 +1,5 @@
 local wow = require("tests.support.wow")
-wow.load("utils/DateUtils.lua")
-wow.load("MyLootHistory.lua")
-wow.load("MyLootHistoryDB.lua")
+wow.loadThrough("MyLootHistoryDB.lua")
 wow.load("locales/enUS.lua")
 local MLH = wow.addon
 

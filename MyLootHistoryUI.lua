@@ -47,7 +47,7 @@ local DEFAULT_HEIGHT = 620
 
 local ACTIVITY_HOURS = 24
 
-local GOLD_ICON = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:0:-1|t"
+local GOLD_ICON = UI.GOLD_ICON
 
 -- Use cropped client textures: FRIZQT__.TTF lacks arrow glyphs.
 local SORT_UP = " |TInterface\\ChatFrame\\UI-ChatIcon-ScrollUp-Up:16:16:0:-2:32:32:8:24:8:24|t"
@@ -1021,10 +1021,7 @@ function buildWindow()
         frame:SetResizeBounds(MIN_WIDTH, MIN_HEIGHT)
     end
 
-    local shadow = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
-    shadow:SetPoint("TOPLEFT", -6, 6)
-    shadow:SetPoint("BOTTOMRIGHT", 6, -6)
-    shadow:SetColorTexture(0, 0, 0, 0.45)
+    UI:addShadow(frame, 6, 0.45)
 
     local bg = frame:CreateTexture(nil, "BACKGROUND", nil, -7)
     bg:SetAllPoints()
@@ -1209,7 +1206,7 @@ function buildWindow()
         exactToggle:SetShown(not isCurrencyView())
 
         local placements = {}
-        local rows, x = 1, 0
+        local lineCount, x = 1, 0
 
         for i = 1, #flow do
             local control = flow[i]
@@ -1218,11 +1215,11 @@ function buildWindow()
                 local width = control:GetWidth()
 
                 if (x > 0 and x + width > available) then
-                    rows = rows + 1
+                    lineCount = lineCount + 1
                     x = 0
                 end
 
-                placements[#placements+1] = { control = control, row = rows, x = x }
+                placements[#placements+1] = { control = control, row = lineCount, x = x }
 
                 x = x + width + FILTER_GAP
             end
@@ -1231,14 +1228,14 @@ function buildWindow()
         for i = 1, #placements do
             local placement = placements[i]
             local control = placement.control
-            local y = (rows - placement.row) * FILTER_ROW
+            local y = (lineCount - placement.row) * FILTER_ROW
             local nudge = control == exactToggle and 3 or 0
 
             control:ClearAllPoints()
             control:SetPoint("BOTTOMLEFT", filterBar, "BOTTOMLEFT", placement.x, y + nudge)
         end
 
-        filterBar:SetHeight(FILTER_HEIGHT + (rows - 1) * FILTER_ROW)
+        filterBar:SetHeight(FILTER_HEIGHT + (lineCount - 1) * FILTER_ROW)
     end
 
     layoutFilters()
@@ -1473,10 +1470,7 @@ function showExportWindow()
         frame:EnableMouse(true)
         frame:SetClampedToScreen(true)
 
-        local shadow = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
-        shadow:SetPoint("TOPLEFT", -6, 6)
-        shadow:SetPoint("BOTTOMRIGHT", 6, -6)
-        shadow:SetColorTexture(0, 0, 0, 0.5)
+        UI:addShadow(frame, 6, 0.5)
 
         local bg = frame:CreateTexture(nil, "BACKGROUND", nil, -7)
         bg:SetAllPoints()

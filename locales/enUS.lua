@@ -37,6 +37,7 @@ L["C_Debug"] = "Debug"
 L["C_Statistics"] = "Statistics"
 L["C_FAQ"] = "FAQ"
 L["C_DetailedSettingsHeader"] = "Detailed settings"
+L["C_OpenSettings"] = "Open settings"
 
 L["C_ShowMinimapButton"] = "Show minimap button"
 L["C_ShowMinimapButton_Desc"] = "Show or hide the minimap button"

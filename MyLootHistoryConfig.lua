@@ -26,7 +26,7 @@ local mainOptions = {
     args = {
         openSettingsButton = {
             type = 'execute',
-            name = 'Open settings',
+            name = L["C_OpenSettings"],
             func = function ()
                 HideUIPanel(SettingsPanel)
                 ACFGDLG:Open("MyLootHistory_GeneralOptions")
@@ -60,7 +60,7 @@ local generalOptions = {
             order = 11,
             type = "toggle",
             name = L["C_ResizableWindow"],
-            desc = "Make the report window resizable",
+            desc = L["C_ResizableWindow_Desc"],
             get = function (_)
                 return MLH.db.char.config.resizableReportWindow
             end,

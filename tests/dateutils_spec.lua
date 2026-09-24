@@ -1,6 +1,6 @@
 local wow = require("tests.support.wow")
 
-wow.load("utils/DateUtils.lua")
+wow.loadThrough("utils/DateUtils.lua")
 
 local DU = LibStub("DateUtils-1.0")
 

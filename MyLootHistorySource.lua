@@ -193,10 +193,7 @@ function MLH:aggregateSources(entries)
         sources[#sources+1] = { name = name, quantity = quantity }
     end
 
-    table.sort(sources, function(l, r)
-        if (l.quantity == r.quantity) then return l.name < r.name end
-        return l.quantity > r.quantity
-    end)
+    table.sort(sources, MLH.byQuantityThenName)
 
     return sources
 end
