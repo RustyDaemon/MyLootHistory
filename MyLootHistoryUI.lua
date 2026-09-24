@@ -889,7 +889,7 @@ end
 function updateSession()
     if (not window or not window.cards) then return end
 
-    local viewing = MLH:getFilters().range == 1 and MLH:getSelectedSession() or nil
+    local viewing = MLH:getFilters().range == MLH.RANGE_SESSION and MLH:getSelectedSession() or nil
     local stats = MLH:getSessionStats(viewing)
     local cards = window.cards
 
@@ -1199,7 +1199,7 @@ function buildWindow()
             scopeDropdown, exactToggle,
         }
 
-        sessionDropdown:SetShown(MLH:getFilters().range == 1)
+        sessionDropdown:SetShown(MLH:getFilters().range == MLH.RANGE_SESSION)
         scopeDropdown:SetShown(MLH:getCharacterCount() > 1)
 
         qualityDropdown:SetShown(not isCurrencyView())

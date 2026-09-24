@@ -57,7 +57,7 @@ local defaults = {
             selectedView = "items", -- "items" or "currency", the two tabs of the report
             selectedScope = "char", -- "char" or "account"
             selectedSession = 0,    -- live, a session ID, or a legacy startedOn stamp
-            selectedRangeValue = 2,
+            selectedRangeValue = 2, -- MLH.RANGE_TODAY; defined in MyLootHistoryData.lua, which loads later
             selectedQualityValue = 0,
             selectedExactItemQuality = false,
             selectedZoneID = 0, -- 0 is "any zone"
@@ -347,6 +347,7 @@ function MLH:pruneHistory(days)
 
     if (removedEntries > 0) then
         resetIndexes()
+        self:bumpRevision()
     end
 
     return removedEntries, removedRecords

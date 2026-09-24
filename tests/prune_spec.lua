@@ -277,6 +277,34 @@ describe("MLH:getItemRecord after pruning", function()
     end)
 end)
 
+describe("MLH:pruneHistory and the history revision", function()
+    it("bumps the revision when it removes something, so an open report redraws", function()
+        withHistory({
+            retentionDays = 30,
+            foundItems = { record(1, { entry(90), entry(0) }) },
+        })
+
+        local before = MLH.historyRevision
+
+        MLH:pruneHistory()
+
+        assert.are_not.equal(before, MLH.historyRevision)
+    end)
+
+    it("leaves the revision alone when nothing is old enough to remove", function()
+        withHistory({
+            retentionDays = 30,
+            foundItems = { record(1, { entry(5), entry(0) }) },
+        })
+
+        local before = MLH.historyRevision
+
+        MLH:pruneHistory()
+
+        assert.are.equal(before, MLH.historyRevision)
+    end)
+end)
+
 describe("MLH:resetData", function()
     it("clears all three histories and the index with them", function()
         withHistory({
