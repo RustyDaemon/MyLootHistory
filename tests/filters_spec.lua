@@ -298,3 +298,33 @@ describe("the CSV export", function()
         assert.are.equal(1, count)
     end)
 end)
+
+describe("the date ranges", function()
+    before_each(seed)
+
+    it("offer every range once, in saved-id order, in both menus", function()
+        local long, short = MLH:getRangeList(), MLH:getShortRangeList()
+
+        assert.are.equal(6, #long)
+        assert.are.equal(6, #short)
+
+        for i = 1, 6 do
+            assert.are.equal(i, long[i].value)
+            assert.are.equal(i, short[i].value)
+        end
+    end)
+
+    it("keep the ids that saved settings already hold", function()
+        assert.are.equal(1, MLH.RANGE_SESSION)
+        assert.are.equal(2, MLH.RANGE_TODAY)
+        assert.are.equal(6, MLH.RANGE_ALL)
+    end)
+
+    it("treat an unknown saved range as matching nothing, but as all time for rates", function()
+        MLH:setFilter("range", 99)
+
+        assert.is_false(MLH:isInSelectedRange(os.time()))
+        assert.is_true(MLH:getRangeDuration() >= 1)
+        assert.is_nil(MLH:getRangeName(99))
+    end)
+end)

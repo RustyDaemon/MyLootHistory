@@ -6,72 +6,8 @@ See License file for details.
 --]]
 
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
-local DU = LibStub("DateUtils-1.0")
 
 local SECONDS_PER_HOUR = 3600
-local SECONDS_PER_DAY = 86400
-
-local function earliestFound(self)
-    local histories = self:getHistories()
-    local earliest = nil
-
-    local function consider(foundOn)
-        if (foundOn and (earliest == nil or foundOn < earliest)) then earliest = foundOn end
-    end
-
-    local function considerRecords(records)
-        for i = 1, #records do
-            local first = records[i].lootData and records[i].lootData[1]
-
-            consider(first and first.foundOn)
-        end
-    end
-
-    for h = 1, #histories do
-        local history = histories[h]
-
-        considerRecords(history.items)
-        considerRecords(history.currency)
-        consider(history.gold[1] and history.gold[1].foundOn)
-    end
-
-    return earliest
-end
-
-function MLH:getRangeDuration()
-    local range = self:getFilters().range
-    local now = time()
-    local duration
-
-    if (range == 1) then --the selected session, live or finished
-        duration = self:getSessionStats(self:getSelectedSession()).duration
-    elseif (range == 2) then --today
-        duration = now - time(DU:getDate(0, true))
-    elseif (range == 3) then --yesterday, the one window that is over
-        duration = SECONDS_PER_DAY
-    elseif (range == 4) then --since the weekly reset
-        local today = DU:getToday()
-
-        if (DU:isWed(today.wday)) then
-            duration = now - time(DU:getDate(0, true))
-        else
-            duration = now - time(DU:getLastWed(today.wday))
-        end
-    elseif (range == 5) then --this month
-        local monthStart = DU:getDate(0, true)
-
-        monthStart.day = 1
-        monthStart.isdst = nil
-
-        duration = now - time(monthStart)
-    else --all the time
-        local earliest = earliestFound(self)
-
-        duration = earliest and (now - earliest) or 0
-    end
-
-    return math.max(duration, 1)
-end
 
 local function capProgress(info)
     if (not info) then return nil end

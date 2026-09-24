@@ -11,23 +11,123 @@ local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
 local filters = nil
 
-local rangeKeys = {
-    [1] = "RR_ThisSesion",
-    [2] = "RR_Today",
-    [3] = "RR_Yesterday",
-    [4] = "RR_WedToWed",
-    [5] = "RR_ThisMonth",
-    [6] = "RR_AllTheTime",
+local SECONDS_PER_DAY = 86400
+
+MLH.RANGE_SESSION = 1
+MLH.RANGE_TODAY = 2
+MLH.RANGE_YESTERDAY = 3
+MLH.RANGE_RESET = 4
+MLH.RANGE_MONTH = 5
+MLH.RANGE_ALL = 6
+
+local function secondsSinceMidnight(now)
+    return now - time(DU:getDate(0, true))
+end
+
+local function earliestFound(self)
+    local histories = self:getHistories()
+    local earliest = nil
+
+    local function consider(foundOn)
+        if (foundOn and (earliest == nil or foundOn < earliest)) then earliest = foundOn end
+    end
+
+    local function considerRecords(records)
+        for i = 1, #records do
+            local first = records[i].lootData and records[i].lootData[1]
+
+            consider(first and first.foundOn)
+        end
+    end
+
+    for h = 1, #histories do
+        local history = histories[h]
+
+        considerRecords(history.items)
+        considerRecords(history.currency)
+        consider(history.gold[1] and history.gold[1].foundOn)
+    end
+
+    return earliest
+end
+
+-- The report's date ranges, in menu order. `id` is saved in params.selectedRangeValue, so ids never change.
+-- matches(self, foundOn, entry) says whether a dated entry falls in the range;
+-- duration(self, now) is the range's length in seconds so far, for the per-hour rates.
+local ranges = {
+    {
+        id = MLH.RANGE_SESSION, labelKey = "RR_ThisSesion", shortKey = "RS_Session",
+        -- the selected session, live or finished
+        matches = function(self, foundOn, entry)
+            local session = self:getSelectedSession()
+
+            if (entry) then return self:isEntryInSession(entry, session) end
+
+            if (session.startedOn == nil or foundOn < session.startedOn) then return false end
+
+            return session.endedOn == nil or foundOn <= session.endedOn
+        end,
+        duration = function(self)
+            return self:getSessionStats(self:getSelectedSession()).duration
+        end,
+    },
+    {
+        id = MLH.RANGE_TODAY, labelKey = "RR_Today", shortKey = "RS_Today",
+        matches = function(_, foundOn) return DU:dateIsToday(foundOn) end,
+        duration = function(_, now) return secondsSinceMidnight(now) end,
+    },
+    {
+        id = MLH.RANGE_YESTERDAY, labelKey = "RR_Yesterday", shortKey = "RS_Yesterday",
+        matches = function(_, foundOn) return DU:dateIsYesterday(foundOn, true) end,
+        -- the one window that is already over
+        duration = function() return SECONDS_PER_DAY end,
+    },
+    {
+        id = MLH.RANGE_RESET, labelKey = "RR_WedToWed", shortKey = "RS_Reset",
+        -- since the weekly reset
+        matches = function(_, foundOn)
+            local wday = DU:getToday().wday
+
+            if (DU:isWed(wday)) then
+                return DU:dateIsToday(foundOn)
+            end
+
+            return DU:dateInRangeTillToday(foundOn, DU:getLastWed(wday))
+        end,
+        duration = function(_, now)
+            local wday = DU:getToday().wday
+
+            if (DU:isWed(wday)) then return secondsSinceMidnight(now) end
+
+            return now - time(DU:getLastWed(wday))
+        end,
+    },
+    {
+        id = MLH.RANGE_MONTH, labelKey = "RR_ThisMonth", shortKey = "RS_Month",
+        matches = function(_, foundOn) return DU:dateIsInCurrentMonth(foundOn) end,
+        duration = function(_, now)
+            local monthStart = DU:getDate(0, true)
+
+            monthStart.day = 1
+            monthStart.isdst = nil
+
+            return now - time(monthStart)
+        end,
+    },
+    {
+        id = MLH.RANGE_ALL, labelKey = "RR_AllTheTime", shortKey = "RS_All",
+        matches = function() return true end,
+        duration = function(self, now)
+            local earliest = earliestFound(self)
+
+            return earliest and (now - earliest) or 0
+        end,
+    },
 }
 
-local rangeShortKeys = {
-    [1] = "RS_Session",
-    [2] = "RS_Today",
-    [3] = "RS_Yesterday",
-    [4] = "RS_Reset",
-    [5] = "RS_Month",
-    [6] = "RS_All",
-}
+local rangesById = {}
+
+for i = 1, #ranges do rangesById[ranges[i].id] = ranges[i] end
 
 -- Filter key -> saved param name in db.char.params.
 local paramKeys = {
@@ -59,7 +159,7 @@ function MLH:getFilters()
         view = params.selectedView or "items",
         scope = params.selectedScope or "char",
         session = params.selectedSession or 0,
-        range = params.selectedRangeValue or 2,
+        range = params.selectedRangeValue or MLH.RANGE_TODAY,
         quality = params.selectedQualityValue or 0,
         exactQuality = params.selectedExactItemQuality or false,
         zone = params.selectedZoneID or 0,
@@ -82,7 +182,7 @@ function MLH:setFilter(key, value)
 end
 
 function MLH:resetFilters()
-    self:setFilter("range", 6)
+    self:setFilter("range", MLH.RANGE_ALL)
     self:setFilter("quality", 0)
     self:setFilter("exactQuality", false)
     self:setFilter("zone", 0)
@@ -92,43 +192,26 @@ end
 function MLH:hasActiveFilters()
     local active = self:getFilters()
 
-    return active.range ~= 6 or active.quality ~= 0 or active.exactQuality
+    return active.range ~= MLH.RANGE_ALL or active.quality ~= 0 or active.exactQuality
         or active.zone ~= 0 or active.search ~= ""
 end
 
 function MLH:isInSelectedRange(foundOn, entry)
-    local range = self:getFilters().range
+    local id = self:getFilters().range
 
     -- Undated legacy entries belong only to the unbounded date range.
-    if (foundOn == nil) then return range == 6 end
+    if (foundOn == nil) then return id == MLH.RANGE_ALL end
 
-    if (range == 1) then --the selected session, live or finished
-        local session = self:getSelectedSession()
+    local range = rangesById[id]
 
-        if (entry) then return self:isEntryInSession(entry, session) end
+    return range ~= nil and range.matches(self, foundOn, entry)
+end
 
-        if (session.startedOn == nil or foundOn < session.startedOn) then return false end
+-- Seconds the selected range covers so far, at least 1 so it can divide. An unknown range counts as all time.
+function MLH:getRangeDuration()
+    local range = rangesById[self:getFilters().range] or rangesById[MLH.RANGE_ALL]
 
-        return session.endedOn == nil or foundOn <= session.endedOn
-    elseif (range == 2) then --today
-        return DU:dateIsToday(foundOn)
-    elseif (range == 3) then --yesterday
-        return DU:dateIsYesterday(foundOn, true)
-    elseif (range == 4) then --this reset
-        local wday = DU:getToday().wday
-
-        if (DU:isWed(wday)) then
-            return DU:dateIsToday(foundOn)
-        end
-
-        return DU:dateInRangeTillToday(foundOn, DU:getLastWed(wday))
-    elseif (range == 5) then --this month
-        return DU:dateIsInCurrentMonth(foundOn)
-    elseif (range == 6) then --all the time
-        return true
-    end
-
-    return false
+    return math.max(range.duration(self, time()), 1)
 end
 
 function MLH:isInSelectedZone(zoneID)
@@ -238,14 +321,26 @@ local function formatDateRange(firstFound, lastFound)
     return date(firstFormat, firstFound)..' - '..date(dateFormat..' %Y', lastFound)
 end
 
-function MLH:collectItems()
-    local active = self:getFilters()
-    local items = {}
-    local search = active.search ~= "" and active.search:lower() or nil
-    local priceKey = self:getPriceSource()
+-- The loot entries of one record that the zone and date filters select, and their total quantity.
+local function matchingLoot(self, lootData)
+    local matched, quantity = {}, 0
 
+    for i = 1, #lootData do
+        local entry = lootData[i]
+
+        if (self:isInSelectedZone(entry.zoneID) and self:isInSelectedRange(entry.foundOn, entry)) then
+            matched[#matched+1] = entry
+            quantity = quantity + (tonumber(entry.quantity) or 1)
+        end
+    end
+
+    return matched, quantity
+end
+
+-- One entry per item id across every character in scope, holding only the matching loot.
+local function mergeMatchingItems(self)
     local histories = self:getHistories()
-    local byItemId = {}
+    local items, byItemId = {}, {}
 
     for h = 1, #histories do
         local history = histories[h]
@@ -253,18 +348,7 @@ function MLH:collectItems()
 
         for i = 1, #itemsFound do
             local item = itemsFound[i]
-            local matched = {}
-            local matchedQuantity = 0
-
-            for j = 1, #item.lootData do
-                local lootData = item.lootData[j]
-
-                if (self:isInSelectedZone(lootData.zoneID)
-                    and self:isInSelectedRange(lootData.foundOn, lootData)) then
-                    matched[#matched+1] = lootData
-                    matchedQuantity = matchedQuantity + (tonumber(lootData.quantity) or 1)
-                end
-            end
+            local matched, matchedQuantity = matchingLoot(self, item.lootData)
 
             if (#matched > 0) then
                 local newItem = byItemId[item.itemId]
@@ -307,68 +391,85 @@ function MLH:collectItems()
         end
     end
 
+    return items
+end
+
+local function qualityMatches(quality, active)
+    if (active.exactQuality) then return quality == active.quality end
+
+    return quality >= active.quality
+end
+
+-- Prefers what the client's item cache knows over what was stored at loot time.
+local function applyItemCache(newItem, quality)
+    local cachedName, cachedLink, cachedQuality, _, _, _, _, _, _, cachedTexture, cachedSellPrice =
+        C_Item.GetItemInfo(newItem.itemId)
+
+    newItem.itemLink = cachedLink or newItem.itemLink
+    newItem.itemName = cachedName or newItem.itemName or ("#"..newItem.itemId)
+    newItem.itemTexture = cachedTexture or newItem.itemTexture
+    newItem.quality = cachedQuality or quality
+    newItem.sellPrice = cachedSellPrice
+end
+
+local function byFoundOn(l, r)
+    return (l.foundOn or 0) < (r.foundOn or 0)
+end
+
+-- Fills in the totals, zones, sources, prices and labels the report shows for a kept item.
+local function finalizeItem(self, newItem, priceKey)
+    table.sort(newItem.lootData, byFoundOn)
+
+    newItem.totalQuantity, newItem.zones, newItem.firstFound, newItem.lastFound =
+        self:aggregateLoot(newItem.lootData, L["R_UnknownZone"])
+
+    newItem.zoneName = newItem.zones[1] and newItem.zones[1].name or L["R_UnknownZone"]
+
+    newItem.sources = self:aggregateSources(newItem.lootData)
+    newItem.sourceName = newItem.sources[1] and newItem.sources[1].name or ""
+
+    if (newItem.sellPrice == nil) then
+        newItem.sellPrice = newItem.lootData[#newItem.lootData].sellPrice or 0
+    end
+
+    newItem.unitPrice, newItem.vendorPriced =
+        self:getItemPrice(newItem.itemId, newItem.sellPrice, newItem.itemLink)
+    newItem.totalValue = newItem.unitPrice * newItem.totalQuantity
+
+    newItem.vendorValue = newItem.sellPrice * newItem.totalQuantity
+    newItem.marketValue = (priceKey ~= "vendor" and not newItem.vendorPriced)
+        and newItem.totalValue or nil
+    newItem.dateRange = formatDateRange(newItem.firstFound, newItem.lastFound)
+
+    table.sort(newItem.characters, MLH.byQuantityThenName)
+
+    newItem.charName = #newItem.characters > 1
+        and L["R_SeveralCharacters"](#newItem.characters)
+        or (newItem.characters[1] and newItem.characters[1].name or "")
+end
+
+function MLH:collectItems()
+    local active = self:getFilters()
+    local search = active.search ~= "" and active.search:lower() or nil
+    local priceKey = self:getPriceSource()
+    local items = mergeMatchingItems(self)
     local kept = {}
 
     for i = 1, #items do
         local newItem = items[i]
+        local quality = newItem.quality or 0 -- records written before 1.1.0 can hold a nil quality
+        local keep = qualityMatches(quality, active)
 
-        do
-            local quality = newItem.quality or 0 -- records written before 1.1.0 can hold a nil quality
-            local canBeAdded
+        -- The search matches the cached name, so the cache is applied first.
+        applyItemCache(newItem, quality)
 
-            if (not active.exactQuality and quality >= active.quality) then
-                canBeAdded = true
-            elseif (active.exactQuality and quality == active.quality) then
-                canBeAdded = true
-            else
-                canBeAdded = false
-            end
+        if (keep and search and not newItem.itemName:lower():find(search, 1, true)) then
+            keep = false
+        end
 
-            local cachedName, cachedLink, cachedQuality, _, _, _, _, _, _, cachedTexture, cachedSellPrice =
-                C_Item.GetItemInfo(newItem.itemId)
-
-            newItem.itemLink = cachedLink or newItem.itemLink
-            newItem.itemName = cachedName or newItem.itemName or ("#"..newItem.itemId)
-            newItem.itemTexture = cachedTexture or newItem.itemTexture
-            newItem.quality = cachedQuality or quality
-            newItem.sellPrice = cachedSellPrice
-
-            if (canBeAdded and search and not newItem.itemName:lower():find(search, 1, true)) then
-                canBeAdded = false
-            end
-
-            if (canBeAdded) then
-                table.sort(newItem.lootData, function(l, r) return (l.foundOn or 0) < (r.foundOn or 0) end)
-
-                newItem.totalQuantity, newItem.zones, newItem.firstFound, newItem.lastFound =
-                    self:aggregateLoot(newItem.lootData, L["R_UnknownZone"])
-
-                newItem.zoneName = newItem.zones[1] and newItem.zones[1].name or L["R_UnknownZone"]
-
-                newItem.sources = self:aggregateSources(newItem.lootData)
-                newItem.sourceName = newItem.sources[1] and newItem.sources[1].name or ""
-
-                if (newItem.sellPrice == nil) then
-                    newItem.sellPrice = newItem.lootData[#newItem.lootData].sellPrice or 0
-                end
-
-                newItem.unitPrice, newItem.vendorPriced =
-                    self:getItemPrice(newItem.itemId, newItem.sellPrice, newItem.itemLink)
-                newItem.totalValue = newItem.unitPrice * newItem.totalQuantity
-
-                newItem.vendorValue = newItem.sellPrice * newItem.totalQuantity
-                newItem.marketValue = (priceKey ~= "vendor" and not newItem.vendorPriced)
-                    and newItem.totalValue or nil
-                newItem.dateRange = formatDateRange(newItem.firstFound, newItem.lastFound)
-
-                table.sort(newItem.characters, MLH.byQuantityThenName)
-
-                newItem.charName = #newItem.characters > 1
-                    and L["R_SeveralCharacters"](#newItem.characters)
-                    or (newItem.characters[1] and newItem.characters[1].name or "")
-
-                kept[#kept+1] = newItem
-            end
+        if (keep) then
+            finalizeItem(self, newItem, priceKey)
+            kept[#kept+1] = newItem
         end
     end
 
@@ -538,28 +639,28 @@ function MLH:getQualityName(quality)
     return '|c'..hex..desc..'|r'
 end
 
-function MLH:getRangeList()
+local function rangeList(textKey)
     local list = {}
 
-    for i = 1, 6 do
-        list[i] = { value = i, text = L[rangeKeys[i]] }
+    for i = 1, #ranges do
+        list[i] = { value = ranges[i].id, text = L[ranges[i][textKey]] }
     end
 
     return list
 end
 
-function MLH:getRangeName(index)
-    return L[rangeKeys[index or 2]]
+function MLH:getRangeList()
+    return rangeList("labelKey")
+end
+
+function MLH:getRangeName(id)
+    local range = rangesById[id or MLH.RANGE_TODAY]
+
+    return range and L[range.labelKey]
 end
 
 function MLH:getShortRangeList()
-    local list = {}
-
-    for i = 1, 6 do
-        list[i] = { value = i, text = L[rangeShortKeys[i]] }
-    end
-
-    return list
+    return rangeList("shortKey")
 end
 
 function MLH:getZoneList()
