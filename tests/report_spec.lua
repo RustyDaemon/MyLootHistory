@@ -198,6 +198,50 @@ describe("the list", function()
         assert.is_nil(frames.lastLink)
     end)
 
+    it("filters to a zone from the right-click menu, and back", function()
+        local function rowMenu()
+            for i = #frames.all, 1, -1 do
+                local frame = frames.all[i]
+
+                -- rawget: the mock answers any capitalised method, so only a real Open counts.
+                if (rawget(frame, "Open") and frame.parent == _G.UIParent and frame.shown) then
+                    return frame
+                end
+            end
+        end
+
+        local function pick(menu, value)
+            for i = 1, #menu.children do
+                local entry = menu.children[i]
+
+                if (entry.kind == "Button" and entry.shown and entry.value == value) then
+                    entry:Click()
+                    return true
+                end
+            end
+        end
+
+        local row = frames.rowsOfKind("item")[1]
+        local zoneID = row.entry.item.zones[1].id
+
+        assert.is_not_nil(zoneID)
+
+        row:Click("RightButton")
+
+        local menu = rowMenu()
+
+        assert.is_not_nil(menu)
+        assert.is_true(pick(menu, zoneID))
+        assert.are.equal(zoneID, MLH:getFilters().zone)
+        assert.is_false(menu:IsShown())
+
+        row = frames.rowsOfKind("item")[1]
+        row:Click("RightButton")
+
+        assert.is_true(pick(rowMenu(), 0))
+        assert.are.equal(0, MLH:getFilters().zone)
+    end)
+
     it("fades a row highlight in and out", function()
         local row = frames.rowsOfKind("item")[1]
 

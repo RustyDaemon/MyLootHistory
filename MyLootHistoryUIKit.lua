@@ -345,33 +345,13 @@ function UI:searchBox(parent, width, height, placeholder, onChange)
     return frame
 end
 
-function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
-    local frame = self:panel(parent, "raised", true)
-    frame:SetSize(width, height or 26)
-
-    local button = CreateFrame("Button", nil, frame)
-    button:SetAllPoints()
-    attachHover(button, "panelHover", 0.7, "BACKGROUND")
-
-    local caption = self:text(frame, 11, "textFaint")
-    caption:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 1, 4)
-    caption:SetText(label)
-
-    local value = self:text(frame, 12, "text")
-    value:SetPoint("LEFT", 8, 0)
-    value:SetPoint("RIGHT", -20, 0)
-    value:SetJustifyH("LEFT")
-    value:SetWordWrap(false)
-
-    local arrow = frame:CreateTexture(nil, "OVERLAY")
-    arrow:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
-    arrow:SetSize(14, 14)
-    arrow:SetPoint("RIGHT", -4, 0)
-    arrow:SetVertexColor(self:rgb("textFaint"))
-
+-- A floating list of choices, closed by picking one or clicking anywhere else. Position it, then
+-- Open it with { text, value } items; `selected` is the value to mark, if any.
+function UI:menu()
     -- Parent to UIParent so the menu can draw above the rows.
     local menu = self:panel(UIParent, "window", true)
     menu:SetFrameStrata("FULLSCREEN_DIALOG")
+    menu:SetClampedToScreen(true)
     menu:Hide()
     menu:EnableMouse(true)
 
@@ -379,15 +359,9 @@ function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
 
     local entries = {}
 
-    local function closeMenu()
-        menu:Hide()
-        arrow:SetVertexColor(UI:rgb("textFaint"))
-    end
-
-    local function buildMenu()
-        local items = getItems()
+    menu.Open = function(_, items, onSelect, selected, minWidth)
         local rowHeight = 22
-        local widest = width
+        local widest = minWidth or 0
 
         for i = 1, #items do
             local entry = entries[i]
@@ -417,12 +391,12 @@ function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
             entry:SetPoint("TOPLEFT", menu, "TOPLEFT", 1, -(4 + (i - 1) * rowHeight))
             entry.label:SetText(items[i].text)
             entry.value = items[i].value
-            entry.check:SetShown(items[i].value == getValue())
+            entry.check:SetShown(selected ~= nil and items[i].value == selected)
             entry:Show()
 
             entry:SetScript("OnClick", function(self)
                 PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
-                closeMenu()
+                menu:Hide()
                 onSelect(self.value)
             end)
 
@@ -435,7 +409,55 @@ function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
 
         menu:SetWidth(math.min(widest, 320))
         menu:SetHeight(#items * rowHeight + 8)
+        menu:Show()
     end
+
+    menu:SetScript("OnShow", function(self)
+        self.closer = self.closer or CreateFrame("Button", nil, UIParent)
+        self.closer:SetAllPoints(UIParent)
+        self.closer:SetFrameStrata("FULLSCREEN_DIALOG")
+        self.closer:SetFrameLevel(math.max(self:GetFrameLevel() - 1, 1))
+        self.closer:SetScript("OnClick", function() menu:Hide() end)
+        self.closer:Show()
+    end)
+
+    menu:SetScript("OnHide", function(self)
+        if (self.closer) then self.closer:Hide() end
+        if (self.onClose) then self.onClose() end
+    end)
+
+    return menu
+end
+
+function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
+    local frame = self:panel(parent, "raised", true)
+    frame:SetSize(width, height or 26)
+
+    local button = CreateFrame("Button", nil, frame)
+    button:SetAllPoints()
+    attachHover(button, "panelHover", 0.7, "BACKGROUND")
+
+    local caption = self:text(frame, 11, "textFaint")
+    caption:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 1, 4)
+    caption:SetText(label)
+
+    local value = self:text(frame, 12, "text")
+    value:SetPoint("LEFT", 8, 0)
+    value:SetPoint("RIGHT", -20, 0)
+    value:SetJustifyH("LEFT")
+    value:SetWordWrap(false)
+
+    local arrow = frame:CreateTexture(nil, "OVERLAY")
+    arrow:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
+    arrow:SetSize(14, 14)
+    arrow:SetPoint("RIGHT", -4, 0)
+    arrow:SetVertexColor(self:rgb("textFaint"))
+
+    local menu = self:menu()
+
+    local function closeMenu() menu:Hide() end
+
+    menu.onClose = function() arrow:SetVertexColor(UI:rgb("textFaint")) end
 
     button:SetScript("OnClick", function()
         if (menu:IsShown()) then
@@ -444,26 +466,12 @@ function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
         end
 
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
-        buildMenu()
 
         menu:ClearAllPoints()
         menu:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 0, -2)
-        menu:Show()
+        menu:Open(getItems(), onSelect, getValue(), width)
 
         arrow:SetVertexColor(UI:rgb("accent"))
-    end)
-
-    menu:SetScript("OnShow", function(self)
-        self.closer = self.closer or CreateFrame("Button", nil, UIParent)
-        self.closer:SetAllPoints(UIParent)
-        self.closer:SetFrameStrata("FULLSCREEN_DIALOG")
-        self.closer:SetFrameLevel(math.max(self:GetFrameLevel() - 1, 1))
-        self.closer:SetScript("OnClick", function() closeMenu() end)
-        self.closer:Show()
-    end)
-
-    menu:SetScript("OnHide", function(self)
-        if (self.closer) then self.closer:Hide() end
     end)
 
     frame.menu = menu

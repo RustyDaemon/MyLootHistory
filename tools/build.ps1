@@ -82,15 +82,31 @@ $AddonVersion = ($versionLine -replace '^##\s*Version:\s*', '').Trim()
 $ifaceLine = $toc | Where-Object { $_ -match '^##\s*Interface:' } | Select-Object -First 1
 if (-not $ifaceLine) { Fail 'No "## Interface:" line in the .toc' }
 $Interface = ($ifaceLine -replace '^##\s*Interface:\s*', '').Trim()
-# 120100 -> 12.1.0
-if ($Interface -match '^(\d+)(\d{2})(\d{2})$') {
-    $GameVersion = "$([int]$Matches[1]).$([int]$Matches[2]).$([int]$Matches[3])"
-} else {
-    $GameVersion = $Interface
-    Warn "Interface '$Interface' is not the expected 6-digit form"
-}
 
-Step "$AddonName $AddonVersion (Interface $Interface / WoW $GameVersion)"
+# One entry per client the .toc supports, e.g. "120100, 16001" ->
+# 12.1.0 (Retail) and 1.60.1 (Forever). Each is a game version to tick on the
+# CurseForge upload form.
+$GameVersions = @()
+foreach ($iface in ($Interface -split ',')) {
+    $iface = $iface.Trim()
+    if (-not $iface) { continue }
+    # 120100 -> 12.1.0, 16001 -> 1.60.1
+    if ($iface -match '^(\d+)(\d{2})(\d{2})$') {
+        $ver = "$([int]$Matches[1]).$([int]$Matches[2]).$([int]$Matches[3])"
+    } else {
+        $ver = $iface
+        Warn "Interface '$iface' is not the expected numeric form"
+    }
+    $flavor = switch -Regex ($iface) {
+        '^1[1-9]\d{4}$' { 'Retail'; break }
+        '^160\d{2}$'    { 'Forever'; break }
+        default         { 'unknown'; Warn "Interface '$iface' is not a known game flavor" }
+    }
+    $GameVersions += "$ver ($flavor)"
+}
+if (-not $GameVersions.Count) { Fail 'The "## Interface:" line is empty' }
+
+Step "$AddonName $AddonVersion (Interface $Interface / WoW $($GameVersions -join ', '))"
 
 # --- validate the file list --------------------------------------------------
 Step 'Checking files referenced by the .toc'
@@ -203,7 +219,7 @@ Write-Host ''
 Write-Host "Package:      $ZipPath ($sizeKb KB)" -ForegroundColor Green
 Write-Host "Display name: $AddonName-$AddonVersion"
 Write-Host "Release type: release"
-Write-Host "Game version: $GameVersion (Retail)"
+foreach ($gv in $GameVersions) { Write-Host "Game version: $gv" }
 if ($ChangelogBody) {
     Write-Host ''
     Write-Host '--- changelog for the upload form ---'

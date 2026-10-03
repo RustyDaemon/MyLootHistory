@@ -290,6 +290,52 @@ function updateActivity()
     end
 end
 
+local rowMenu = nil
+
+local MAX_ROW_MENU_ZONES = 5
+
+-- A zone filter in force is undone from any row; otherwise a row offers the zones it was looted in.
+local function rowMenuItems(entry)
+    if (MLH:getFilters().zone ~= 0) then
+        return { { text = L["R_ShowAllZones"], value = 0 } }
+    end
+
+    local zones = (entry.kind == "item" and entry.item.zones)
+        or ((entry.kind == "currency" or entry.kind == "budget") and entry.currency.zones)
+        or {}
+    local items = {}
+
+    for i = 1, #zones do
+        if (zones[i].id) then
+            items[#items+1] = { text = L["R_FilterToZone"](zones[i].name), value = zones[i].id }
+
+            if (#items == MAX_ROW_MENU_ZONES) then break end
+        end
+    end
+
+    return items
+end
+
+local function showRowMenu(entry)
+    local items = rowMenuItems(entry)
+
+    if (#items == 0) then return end
+
+    rowMenu = rowMenu or UI:menu()
+
+    local x, y = GetCursorPosition()
+    local scale = UIParent:GetEffectiveScale()
+
+    PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+
+    rowMenu:ClearAllPoints()
+    rowMenu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale, y / scale)
+    rowMenu:Open(items, function(zoneID)
+        MLH:setFilter("zone", zoneID)
+        refreshReport()
+    end)
+end
+
 local function createRow(parent)
     local row = CreateFrame("Button", nil, parent)
 
@@ -437,6 +483,7 @@ local function createRow(parent)
 
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine(L["R_ShiftClickToLink"], UI:rgb("textFaint"))
+            GameTooltip:AddLine(L["R_RightClickForZone"], UI:rgb("textFaint"))
             GameTooltip:Show()
         elseif (entry.kind == "currency" or entry.kind == "budget") then
             GameTooltip:SetOwner(self, "ANCHOR_NONE")
@@ -462,6 +509,9 @@ local function createRow(parent)
                     GameTooltip:AddLine(L["R_LootedIn"].." "..table.concat(zones, ", "),
                         dimR, dimG, dimB, true)
                 end
+
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(L["R_RightClickForZone"], UI:rgb("textFaint"))
             end
 
             GameTooltip:Show()
@@ -470,12 +520,14 @@ local function createRow(parent)
 
     row:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
-    row:SetScript("OnClick", function(self)
+    row:SetScript("OnClick", function(self, button)
         local entry = self.entry
 
         if (not entry) then return end
 
-        if (IsLeftShiftKeyDown() or IsRightShiftKeyDown()) then
+        if (button == "RightButton") then
+            showRowMenu(entry)
+        elseif (IsLeftShiftKeyDown() or IsRightShiftKeyDown()) then
             local link = entry.kind == "item" and entry.item.itemLink
                 or ((entry.kind == "currency" or entry.kind == "budget")
                     and C_CurrencyInfo.GetCurrencyLink(entry.currency.currencyId, entry.currency.quantity))
@@ -1430,6 +1482,8 @@ function buildWindow()
         self.zoneDropdown:Close()
         self.sessionDropdown:Close()
         self.scopeDropdown:Close()
+
+        if (rowMenu) then rowMenu:Hide() end
     end)
 
     local fade = frame:CreateAnimationGroup()

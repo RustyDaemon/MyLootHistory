@@ -83,15 +83,35 @@ ADDON_VERSION="$(toc_field Version)"
 INTERFACE="$(toc_field Interface)"
 [ -n "$INTERFACE" ] || fail 'No "## Interface:" line in the .toc'
 
-# 120100 -> 12.1.0
-if [[ "$INTERFACE" =~ ^([0-9]+)([0-9]{2})([0-9]{2})$ ]]; then
-    GAME_VERSION="$((10#${BASH_REMATCH[1]})).$((10#${BASH_REMATCH[2]})).$((10#${BASH_REMATCH[3]}))"
-else
-    GAME_VERSION="$INTERFACE"
-    warn "Interface '$INTERFACE' is not the expected 6-digit form"
-fi
+# One entry per client the .toc supports, e.g. "120100, 16001" ->
+# 12.1.0 (Retail) and 1.60.1 (Forever). Each is a game version to tick on the
+# CurseForge upload form.
+GAME_VERSIONS=()
+IFS=',' read -r -a ifaces <<< "$INTERFACE"
+for iface in "${ifaces[@]}"; do
+    iface="$(printf '%s' "$iface" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    [ -n "$iface" ] || continue
+    # 120100 -> 12.1.0, 16001 -> 1.60.1
+    if [[ "$iface" =~ ^([0-9]+)([0-9]{2})([0-9]{2})$ ]]; then
+        ver="$((10#${BASH_REMATCH[1]})).$((10#${BASH_REMATCH[2]})).$((10#${BASH_REMATCH[3]}))"
+    else
+        ver="$iface"
+        warn "Interface '$iface' is not the expected numeric form"
+    fi
+    if [[ "$iface" =~ ^1[1-9][0-9]{4}$ ]]; then
+        flavor='Retail'
+    elif [[ "$iface" =~ ^160[0-9]{2}$ ]]; then
+        flavor='Forever'
+    else
+        flavor='unknown'
+        warn "Interface '$iface' is not a known game flavor"
+    fi
+    GAME_VERSIONS+=("$ver ($flavor)")
+done
+[ ${#GAME_VERSIONS[@]} -gt 0 ] || fail 'The "## Interface:" line is empty'
 
-step "$ADDON_NAME $ADDON_VERSION (Interface $INTERFACE / WoW $GAME_VERSION)"
+joined="$(printf '%s, ' "${GAME_VERSIONS[@]}")"
+step "$ADDON_NAME $ADDON_VERSION (Interface $INTERFACE / WoW ${joined%, })"
 
 # --- validate the file list --------------------------------------------------
 step 'Checking files referenced by the .toc'
@@ -214,7 +234,7 @@ echo
 printf '%sPackage:      %s (%s KB)%s\n' "$GREEN" "$ZIP_PATH" "$size_kb" "$RESET"
 echo "Display name: $ADDON_NAME-$ADDON_VERSION"
 echo "Release type: release"
-echo "Game version: $GAME_VERSION (Retail)"
+for gv in "${GAME_VERSIONS[@]}"; do echo "Game version: $gv"; done
 if [ -n "$CHANGELOG_BODY" ]; then
     echo
     echo '--- changelog for the upload form ---'

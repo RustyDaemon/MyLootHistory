@@ -285,6 +285,12 @@ L["R_Close"] = "Close"
 L["R_Settings"] = "Settings"
 L["R_ResizeHint"] = "Drag to resize"
 L["R_ShiftClickToLink"] = "Shift+click to link it in chat"
+L["R_RightClickForZone"] = "Right-click to filter by zone"
+L["R_ShowAllZones"] = "Show all zones"
+
+L["R_FilterToZone"] = function (zoneName)
+  return 'Only show '..zoneName
+end
 L["R_Money"] = "Money"
 L["R_GoldEarnedShort"] = "Gold looted"
 

@@ -1,3 +1,9 @@
+## 2.1.3
+
+- Added WoW Forever support (Interface 16001). The same download works on Retail and Forever.
+- Right-click a row in the report to show only loot from one of the zones it dropped in. Right-click any row again to go back to all zones.
+- An open report now refreshes when old history is removed by the "keep history for" setting.
+
 ## 2.1.1
 
 - Fixed coin tracking when gold, silver or copper denominations are absent from a loot message.

@@ -12,6 +12,8 @@
 
 A World of Warcraft addon that tracks every item, coin and currency you loot — and turns it into a report you actually want to look at.
 
+Works on Retail and WoW Forever.
+
 ➡️ [Download on CurseForge](https://www.curseforge.com/wow/addons/my-loot-history) · 🌐 [Website](https://mlh.rustydaemon.com)
 
 ![The report window, showing looted items with value, source and zone](assets/screenshots/main.png)

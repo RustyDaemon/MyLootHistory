@@ -107,6 +107,15 @@ describe("MLH:aggregateLoot zones", function()
         assert.are.equal(0, #zones)
     end)
 
+    it("carries the id of each named zone, so a row can filter to it", function()
+        local _, zones = MLH:aggregateLoot({ entry(5, 60, 100), entry(1, 905, 200) }, UNKNOWN)
+
+        assert.are.equal("Zone 60", zones[1].name)
+        assert.are.equal(60, zones[1].id)
+        assert.are.equal(UNKNOWN, zones[2].name)
+        assert.is_nil(zones[2].id)
+    end)
+
     it("ignores an entry with no zone id", function()
         local quantity, zones = MLH:aggregateLoot({ entry(2, nil, 100), entry(1, 50, 200) }, nil)
 

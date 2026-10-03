@@ -280,18 +280,24 @@ end
 
 function MLH:aggregateLoot(entries, unknownZoneName)
     local quantity, firstFound, lastFound = 0, nil, nil
-    local zoneCounts, zones = {}, {}
+    local zoneCounts, zoneIds, zones = {}, {}, {}
 
     for i = 1, #entries do
         local entry = entries[i]
         local entryQuantity = tonumber(entry.quantity) or 1
-        local zoneName = self:getZoneName(entry.zoneID) or unknownZoneName
+        local knownName = self:getZoneName(entry.zoneID)
+        local zoneName = knownName or unknownZoneName
         local foundOn = entry.foundOn
 
         quantity = quantity + entryQuantity
 
         if (zoneName) then
             zoneCounts[zoneName] = (zoneCounts[zoneName] or 0) + entryQuantity
+        end
+
+        -- Only a nameable zone gets an id: the zone filter cannot select the unknown bucket.
+        if (knownName and not zoneIds[knownName]) then
+            zoneIds[knownName] = entry.zoneID
         end
 
         if (foundOn) then
@@ -301,7 +307,7 @@ function MLH:aggregateLoot(entries, unknownZoneName)
     end
 
     for zoneName, zoneQuantity in pairs(zoneCounts) do
-        zones[#zones+1] = { name = zoneName, quantity = zoneQuantity }
+        zones[#zones+1] = { name = zoneName, quantity = zoneQuantity, id = zoneIds[zoneName] }
     end
 
     table.sort(zones, MLH.byQuantityThenName)
