@@ -41,7 +41,9 @@ read_globals = {
     "C_Item",
     "C_Map",
     "C_Timer",
+    "C_ToyBox",
     "Enum",
+    "GetTime",
 
     -- tooltips
     "GameTooltip",
@@ -154,6 +156,9 @@ files["tests/**/*.lua"] = {
     globals = {
         "GetLootSourceInfo", "GetNumLootItems",
         "UnitExists", "UnitGUID", "UnitName", "strsplit", "issecretvalue",
+
+        -- alerts_spec fakes the toy box, the clock and the chat frame
+        "C_ToyBox", "GetTime", "print",
     },
 }
 

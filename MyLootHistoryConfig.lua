@@ -20,6 +20,10 @@ for i = 1, #retentionOrder do
     retentionValues[days] = (days == 0) and L["C_RetentionForever"] or L["C_RetentionValue"](days)
 end
 
+local function alertsDisabled()
+    return not MLH.db.char.config.alerts.enabled
+end
+
 local mainOptions = {
     name = 'My Loot History',
     type = 'group',
@@ -302,9 +306,123 @@ local generalOptions = {
                 }
             }
         },
-        groupData = {
+        groupAlerts = {
             type = 'group',
             order = 22,
+            name = L["C_Alerts"],
+            args = {
+                alertsEnabledCheckBox = {
+                    order = 1,
+                    width = "double",
+                    type = "toggle",
+                    name = L["C_AlertsEnabled"],
+                    desc = L["C_AlertsEnabled_Desc"],
+                    get = function (_)
+                        return MLH.db.char.config.alerts.enabled
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.alerts.enabled = value
+                    end
+                },
+                alertsCollectiblesCheckBox = {
+                    order = 2,
+                    width = "double",
+                    type = "toggle",
+                    name = L["C_AlertsCollectibles"],
+                    desc = L["C_AlertsCollectibles_Desc"],
+                    disabled = alertsDisabled,
+                    get = function (_)
+                        return MLH.db.char.config.alerts.collectibles
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.alerts.collectibles = value
+                    end
+                },
+                alertsMinQualitySelect = {
+                    order = 3,
+                    width = "double",
+                    type = "select",
+                    name = L["C_AlertsMinQuality"],
+                    desc = L["C_AlertsMinQuality_Desc"],
+                    disabled = alertsDisabled,
+                    values = function ()
+                        return {
+                            [0] = L["C_Off"],
+                            [3] = MLH:getQualityName(3),
+                            [4] = MLH:getQualityName(4),
+                            [5] = MLH:getQualityName(5),
+                        }
+                    end,
+                    sorting = { 0, 3, 4, 5 },
+                    get = function (_)
+                        return MLH.db.char.config.alerts.minQuality or 0
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.alerts.minQuality = value
+                    end
+                },
+                alertsMinValueRange = {
+                    order = 4,
+                    width = "double",
+                    type = "range",
+                    name = L["C_AlertsMinValue"],
+                    desc = L["C_AlertsMinValue_Desc"],
+                    disabled = alertsDisabled,
+                    min = 0,
+                    max = 1000000,
+                    softMax = 10000,
+                    step = 1,
+                    bigStep = 50,
+                    get = function (_)
+                        return MLH.db.char.config.alerts.minValue or 0
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.alerts.minValue = value
+                    end
+                },
+                alertsSoundCheckBox = {
+                    order = 5,
+                    width = "double",
+                    type = "toggle",
+                    name = L["C_AlertsSound"],
+                    desc = L["C_AlertsSound_Desc"],
+                    disabled = alertsDisabled,
+                    get = function (_)
+                        return MLH.db.char.config.alerts.sound
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.alerts.sound = value
+                    end
+                },
+                alertsChatCheckBox = {
+                    order = 6,
+                    width = "double",
+                    type = "toggle",
+                    name = L["C_AlertsChat"],
+                    desc = L["C_AlertsChat_Desc"],
+                    disabled = alertsDisabled,
+                    get = function (_)
+                        return MLH.db.char.config.alerts.chat
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.alerts.chat = value
+                    end
+                },
+                alertsPreviewButton = {
+                    order = 10,
+                    type = "execute",
+                    name = L["C_AlertsPreview"],
+                    desc = L["C_AlertsPreview_Desc"],
+                    disabled = alertsDisabled,
+                    func = function ()
+                        MLH:previewDropAlert()
+                    end
+                },
+            }
+        },
+        groupData = {
+            type = 'group',
+            order = 23,
             name = L["C_Data"],
             args = {
                 retentionSelect = {
@@ -375,7 +493,7 @@ local generalOptions = {
         },
         groupDebug = {
             type = 'group',
-            order = 23,
+            order = 24,
             name = L["C_Debug"],
             args = {
                 printDebugLootedInfo = {

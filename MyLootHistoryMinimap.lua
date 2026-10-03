@@ -11,8 +11,11 @@ local MLH_LDB = LibStub("LibDataBroker-1.1")
 local MLH_MMIcon = LibStub("LibDBIcon-1.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
+local BROKER_INTERVAL = 2 -- seconds; LibDataBroker skips the callbacks when the text is unchanged
+
 local minimapIcon = MLH_LDB:NewDataObject("MyLootHistory", {
     type = "data source",
+    label = L["MM_IconTitle"],
     text = L["MM_IconTitle"],
     icon = "Interface\\Icons\\inv_misc_map09",
     OnClick = function(_, button)
@@ -32,7 +35,16 @@ local minimapIcon = MLH_LDB:NewDataObject("MyLootHistory", {
     end,
 })
 
+-- Broker displays (Titan Panel, ElvUI, ChocolateBar...) show this text; the minimap button does not.
+function MLH:updateBrokerText()
+    local stats = self:getSessionStats()
+
+    minimapIcon.text = self:formatGoldCompact(stats.goldPerHour)..self.UI.GOLD_ICON..L["H_GoldPerHour"]
+end
+
 function MLH:initMinimap()
+    C_Timer.NewTicker(BROKER_INTERVAL, function() MLH:updateBrokerText() end)
+
     MLH_MMIcon:Register("MyLootHistory", minimapIcon, self.db.char.minimapData)
 
     if (self.db.char.minimapData.hide) then

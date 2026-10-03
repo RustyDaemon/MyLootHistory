@@ -196,6 +196,7 @@ wow.loadOrder = {
     "MyLootHistoryUIKit.lua",
     "MyLootHistoryUI.lua",
     "MyLootHistoryHUD.lua",
+    "MyLootHistoryAlerts.lua",
 }
 
 -- Loads every file in load order up to and including `last`, skipping any already loaded,

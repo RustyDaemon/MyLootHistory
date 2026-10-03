@@ -119,6 +119,7 @@ function MLH:OnEnable()
     self:initTooltip()
 
     self:applyHUD()
+    self:updateBrokerText()
 end
 
 function MLH:debugPrint(message)
@@ -160,13 +161,20 @@ function MLH:recordLoot(itemID, itemLink, quantity, zoneID, source)
     end
 
     sellPrice = sellPrice or 0
+    itemLink = itemLink or cachedLink
+
+    -- Alert before the zero-price check: mounts and pets often cannot be sold to a vendor.
+    local alert = self:getDropAlert(itemID, itemLink, itemQuality, quantity, sellPrice, classID, subClassID)
+
+    if (alert) then
+        self:alertDrop(itemLink, itemTexture, itemQuality, quantity, alert)
+    end
 
     if (sellPrice == 0 and self.db.char.config.ignoreItemsWithZeroPrice) then
         self:debugPrint(L["D_ZeroSellPrice"])
         return
     end
 
-    itemLink = itemLink or cachedLink
     local totalAmount = self:addItem(itemID, quantity, itemLink, itemTexture, itemQuality,
         itemName, zoneID, sellPrice, source)
 

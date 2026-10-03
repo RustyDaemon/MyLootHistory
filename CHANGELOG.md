@@ -1,3 +1,9 @@
+## 2.2.0
+
+- Added drop alerts: when you loot something worth noticing, a small toast pops up with the item, why it counts and what it is worth, so a good drop never gets lost in the chat. A mount, pet or toy always counts. So does anything of the quality you pick (Epic by default) and, if you set one, any drop whose whole stack is worth at least a gold amount you choose. Up to three toasts stack under the HUD, or near the top of the screen when the HUD is off. Hover a toast to keep it on screen, click to dismiss it, or Shift+click to link the item in chat. Sound and a chat line are optional. A Preview button in the new "Drop alerts" settings shows where toasts appear. Alerts are on by default.
+- Mounts and pets you cannot sell to a vendor still get an alert, even with "ignore items with zero price" on.
+- Broker displays such as Titan Panel, ElvUI and ChocolateBar now show your current session's gold per hour, updated every two seconds. The minimap button is unchanged.
+
 ## 2.1.3
 
 - Added WoW Forever support (Interface 16001). The same download works on Retail and Forever.

@@ -76,6 +76,22 @@ L["C_PrintLootedSummary"] = "Print looted summary"
 L["C_PrintLootedSummary_Desc"] = "Print looted summary in the chat window (for debug purposes). This is visible only to you"
 L["C_PrintOtherDebugInfo"] = "Print other debug info"
 L["C_PrintOtherDebugInfo_Desc"] = "Like 'not my item' or so"
+L["C_Alerts"] = "Drop alerts"
+L["C_AlertsEnabled"] = "Alert on notable drops"
+L["C_AlertsEnabled_Desc"] = "Pop up a small toast with the item and what it is worth when you loot something worth noticing, so a good drop never gets lost in the chat"
+L["C_AlertsCollectibles"] = "Mounts, pets and toys"
+L["C_AlertsCollectibles_Desc"] = "Always alert on a mount, a battle pet or a toy, whatever its quality or price"
+L["C_AlertsMinQuality"] = "Quality at least"
+L["C_AlertsMinQuality_Desc"] = "Alert on anything of this quality or better"
+L["C_AlertsMinValue"] = "Worth at least (gold)"
+L["C_AlertsMinValue_Desc"] = "Alert when a single drop - the whole stack - is worth this much or more, priced by the price source chosen in the Report settings. 0 turns it off"
+L["C_AlertsSound"] = "Play a sound"
+L["C_AlertsSound_Desc"] = "Play the loot toast sound with the alert"
+L["C_AlertsChat"] = "Also print to chat"
+L["C_AlertsChat_Desc"] = "Add a line with the item link to the chat, so the drop is still there after the toast fades"
+L["C_AlertsPreview"] = "Preview"
+L["C_AlertsPreview_Desc"] = "Show an example alert, to see where it appears. With the HUD on, alerts appear under it"
+L["C_Off"] = "Off"
 L["C_Data"] = "Data"
 L["C_RetentionDays"] = "Keep history for"
 L["C_RetentionDays_Desc"] = "Drop loot older than this on login, so the saved data stops growing forever. 'Forever' keeps everything, which is what the addon has always done"
@@ -328,6 +344,19 @@ L["H_Unlocked"] = "Drag it to move it"
 L["H_Tooltip"] = function (lockLine)
   return 'How long this session has run, items an hour and gold an hour.\n'
     ..'Left click opens the report, right click starts a new session.\n'..lockLine
+end
+
+-- drop alerts
+L["A_Mount"] = "Mount"
+L["A_Pet"] = "Pet"
+L["A_Toy"] = "Toy"
+L["A_Valuable"] = "Big drop"
+L["A_Preview"] = "This is what a drop alert looks like"
+L["A_ToastHint"] = "Click to dismiss, Shift+click to link it in chat"
+
+L["A_ChatLine"] = function (itemLink, quantity, reason, valueText)
+  return '|cFF00DD00My Loot History|r: '..itemLink..(quantity > 1 and (' x'..quantity) or '')
+    ..' - '..reason..(valueText and (', '..valueText) or '')
 end
 
 -- activity graph

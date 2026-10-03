@@ -45,6 +45,14 @@ local defaults = {
             reportIconSize = 24,
             ignoreItemsWithZeroPrice = true,
             resizableReportWindow = false,
+            alerts = {
+                enabled = true,
+                collectibles = true, -- mounts, pets and toys
+                minQuality = 4,      -- Epic; 0 is off
+                minValue = 0,        -- gold for the whole stack; 0 is off
+                sound = true,
+                chat = false,
+            },
             debug = {
                 printLootedSummary = false,
                 printOtherDebugInfo = false,
