@@ -44,6 +44,7 @@ local defaults = {
             retentionDays = 0, -- 0 is "keep everything", which is how every release before 1.4.0 behaved
             reportIconSize = 24,
             ignoreItemsWithZeroPrice = true,
+            questRewardsInRates = false, -- quest rewards stay in the history but out of gold per hour
             resizableReportWindow = false,
             alerts = {
                 enabled = true,
@@ -223,11 +224,38 @@ function MLH:getItemRecord(itemID)
     return index and foundItems[index] or nil
 end
 
-function MLH:addGold(quantity, zoneID)
-    self:bumpRevision()
-    table.insert(self.db.char.foundGold, newLootEntry(self, quantity, zoneID))
+-- What tells two links of one item apart: its bonuses and upgrades. The unique id, the looter's
+-- level and their spec (fields 8 to 10 of the item string) change from drop to drop and are blanked.
+function MLH:itemVariantKey(itemLink)
+    local itemString = type(itemLink) == "string" and itemLink:match("item:[%-%d:]*") or nil
+
+    if (not itemString) then return nil end
+
+    local fields = {}
+
+    for field in (itemString..":"):gmatch("([^:]*):") do
+        fields[#fields+1] = field
+    end
+
+    for i = 9, 11 do
+        if (fields[i] ~= nil) then fields[i] = "" end
+    end
+
+    return table.concat(fields, ":")
 end
 
+function MLH:addGold(quantity, zoneID, source)
+    self:bumpRevision()
+
+    local entry = newLootEntry(self, quantity, zoneID)
+    entry.source = source
+
+    table.insert(self.db.char.foundGold, entry)
+
+    return entry
+end
+
+-- Returns the item's total quantity and the entry just added.
 function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemName, zoneID, sellPrice, source)
     local foundItems = self.db.char.foundItems
     local index = getIndex(foundItems, "itemId")[itemID]
@@ -250,21 +278,35 @@ function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemN
         table.insert(foundItems, newItem)
         indexes.itemId[itemID] = #foundItems
 
-        return quantity
+        return quantity, newLootDataObj
     end
 
-    local lootData = foundItems[index].lootData
+    local record = foundItems[index]
+    local lootData = record.lootData
+
+    -- The record keeps the first link it saw; a drop that differs from it carries its own,
+    -- so an upgraded one keeps its item level, quality and price.
+    if (record.itemLink == nil) then
+        record.itemLink = itemLink
+    elseif (itemLink and self:itemVariantKey(itemLink) ~= self:itemVariantKey(record.itemLink)) then
+        newLootDataObj.itemLink = itemLink
+
+        if (itemQuality ~= record.quality) then newLootDataObj.quality = itemQuality end
+    end
+
     table.insert(lootData, newLootDataObj)
 
-    return totalQuantity(lootData)
+    return totalQuantity(lootData), newLootDataObj
 end
 
-function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, currencyQuality, zoneID)
+-- Returns the currency's total quantity and the entry just added.
+function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, currencyQuality, zoneID, source)
     local foundCurrency = self.db.char.foundCurrency
     local index = getIndex(foundCurrency, "currencyId")[currencyID]
 
     self:bumpRevision()
     local newLootDataObj = newLootEntry(self, quantity, zoneID)
+    newLootDataObj.source = source
 
     if (index == nil) then
         table.insert(foundCurrency, {
@@ -277,7 +319,7 @@ function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, curre
 
         indexes.currencyId[currencyID] = #foundCurrency
 
-        return quantity
+        return quantity, newLootDataObj
     end
 
     local record = foundCurrency[index]
@@ -289,7 +331,7 @@ function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, curre
 
     table.insert(lootData, newLootDataObj)
 
-    return totalQuantity(lootData)
+    return totalQuantity(lootData), newLootDataObj
 end
 
 -- Drops the elements failing keep(), in place, preserving order. keep() runs once per element,

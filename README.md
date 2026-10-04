@@ -35,6 +35,7 @@ Type `/mlh` and you get one clean window:
 - **A value bar on every row** — spot the three items paying for the whole session at a glance
 - **A Currencies tab** — earned, per hour, what you're holding, and how close you are to the cap
 - **Filters and sorting** — by character, date, session, zone, name or quality. Sort any column.
+- **Hide what you don't care about** — right-click a row to hide an item. Its history is kept, and one click in the settings brings it back.
 - **Export to CSV** — whatever you're looking at, exactly as you filtered it
 
 It remembers its size and position, closes on Escape, and stays fast even with thousands of items.
@@ -71,14 +72,15 @@ Vendor price by default. Install [Auctionator](https://www.curseforge.com/wow/ad
 | `/mlh config`        | Open settings                        |
 | `/mlh session`       | Print time, items/hour and gold/hour |
 | `/mlh session reset` | Start a new session now              |
+| `/mlh share [channel]` | Post the session line in chat      |
 | `/mlh hud`           | Show or hide the HUD                 |
 | `/mlh hud lock`      | Lock the HUD in place                |
 
 ## Good to know
 
-- Quest rewards are not tracked.
+- Quest rewards — gold, items and currencies — are kept in your history under the quest's name, but left out of gold per hour unless you switch that on in `/mlh config`.
 - Loot sources are recorded from the moment you install — older loot has no source to show.
-- Items upgraded the instant you loot them (302 → 323 ilvl) are not tracked correctly yet.
+- An upgraded drop (302 → 323 ilvl) is valued as what actually dropped. Loot recorded before 2.4.0 keeps the value it was first recorded at.
 - Nearly everything is optional: columns, tooltips, the minimap button, currency tracking, icon size and more live in `/mlh config`.
 
 ## For developers

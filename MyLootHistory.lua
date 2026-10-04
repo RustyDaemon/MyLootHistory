@@ -116,6 +116,7 @@ function MLH:OnEnable()
     self:RegisterEvent("CHAT_MSG_CURRENCY")
 
     self:applySourceTracking()
+    self:applyQuestTracking()
     self:initTooltip()
 
     self:applyHUD()
@@ -144,16 +145,28 @@ function MLH:CHAT_MSG_LOOT(_, message, ...)
 
     -- Capture zone and source before asynchronous item loading.
     local zoneID = self:getZoneID()
-    local source = self:getCurrentSource(messageKind)
+    local source = self:getQuestSource() or self:getCurrentSource(messageKind)
 
-    Item:CreateFromItemID(itemID):ContinueOnItemLoad(function()
-        self:recordLoot(itemID, itemLink, quantity, zoneID, source)
+    -- Load the link, not the id: an upgraded or bonus-rolled drop has its own quality and price.
+    Item:CreateFromItemLink(itemLink):ContinueOnItemLoad(function()
+        self:recordLoot(itemID, itemLink, quantity, zoneID, source, messageKind)
     end)
 end
 
-function MLH:recordLoot(itemID, itemLink, quantity, zoneID, source)
+-- Read from the link the chat message carried, so a 323 drop is not priced as the 302 base item.
+local function readItemInfo(itemID, itemLink)
+    if (itemLink) then
+        local info = { C_Item.GetItemInfo(itemLink) }
+
+        if (info[1]) then return unpack(info) end
+    end
+
+    return C_Item.GetItemInfo(itemID)
+end
+
+function MLH:recordLoot(itemID, itemLink, quantity, zoneID, source, messageKind)
     local itemName, cachedLink, itemQuality, _, _, _, _, _, _, itemTexture, sellPrice, classID, subClassID =
-        C_Item.GetItemInfo(itemID)
+        readItemInfo(itemID, itemLink)
 
     if (self:isQuestItem(classID, subClassID)) then
         self:debugPrint(L["D_QuestItem"])
@@ -164,7 +177,9 @@ function MLH:recordLoot(itemID, itemLink, quantity, zoneID, source)
     itemLink = itemLink or cachedLink
 
     -- Alert before the zero-price check: mounts and pets often cannot be sold to a vendor.
-    local alert = self:getDropAlert(itemID, itemLink, itemQuality, quantity, sellPrice, classID, subClassID)
+    -- A hidden item never alerts: the player said it does not matter.
+    local alert = not self:isItemHidden(itemID)
+        and self:getDropAlert(itemID, itemLink, itemQuality, quantity, sellPrice, classID, subClassID)
 
     if (alert) then
         self:alertDrop(itemLink, itemTexture, itemQuality, quantity, alert)
@@ -175,8 +190,10 @@ function MLH:recordLoot(itemID, itemLink, quantity, zoneID, source)
         return
     end
 
-    local totalAmount = self:addItem(itemID, quantity, itemLink, itemTexture, itemQuality,
+    local totalAmount, entry = self:addItem(itemID, quantity, itemLink, itemTexture, itemQuality,
         itemName, zoneID, sellPrice, source)
+
+    if (messageKind == "pushed") then self:noteQuestCandidate(entry) end
 
     self:debugSummary(L["D_AddedAndTotal"](itemLink, totalAmount))
 end
@@ -203,7 +220,12 @@ function MLH:CHAT_MSG_MONEY(_, message, ...)
         end
     end
     if (money > 0) then
-        self:addGold(money, self:getZoneID())
+        if (self:claimQuestMoney(money)) then
+            self:debugPrint(L["D_QuestMoneyCounted"])
+            return
+        end
+
+        self:noteQuestCandidate(self:addGold(money, self:getZoneID()), money)
     else
         self:debugPrint(L["D_NoMoneyMatched"])
     end
@@ -220,8 +242,10 @@ function MLH:CHAT_MSG_CURRENCY(_, message, ...)
     end
 
     local info = C_CurrencyInfo.GetCurrencyInfo(currencyID)
-    local totalAmount = self:addCurrency(currencyID, quantity, info and info.name,
-        info and info.iconFileID, info and info.quality, self:getZoneID())
+    local totalAmount, entry = self:addCurrency(currencyID, quantity, info and info.name,
+        info and info.iconFileID, info and info.quality, self:getZoneID(), self:getQuestSource())
+
+    self:noteQuestCandidate(entry)
 
     local link = C_CurrencyInfo.GetCurrencyLink(currencyID, quantity)
 
@@ -323,8 +347,27 @@ function MLH:aggregateLoot(entries, unknownZoneName)
     return quantity, zones, firstFound, lastFound
 end
 
+-- /mlh share [say|party|raid|instance|guild]: the group's channel when none is named, or just the
+-- player's own chat when there is no group to send it to.
+function MLH:shareCommand(word)
+    local channel, unknown = self:resolveShareChannel(word)
+
+    if (unknown) then
+        print(L["M_ShareUnknownChannel"](word))
+        return
+    end
+
+    self:shareSession(channel)
+
+    if (not channel) then print(L["M_ShareOnlyYou"]) end
+end
+
 function MLH:SlashCommandListener(input)
-    if (input == "config") then
+    local shareWord = type(input) == "string" and input:match("^share%s*(%S*)%s*$") or nil
+
+    if (shareWord) then
+        self:shareCommand(shareWord)
+    elseif (input == "config") then
         self:openSettings()
     elseif (input == "session") then
         print(self:getSessionLine())

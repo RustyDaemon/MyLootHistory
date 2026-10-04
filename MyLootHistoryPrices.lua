@@ -81,11 +81,13 @@ function MLH:getItemPrice(itemID, vendorPrice, itemLink)
         priceCacheSource = key
     end
 
-    local cached = priceCache[itemID]
+    -- Keyed by link: two item levels of one item are two prices.
+    local cacheKey = itemLink or itemID
+    local cached = priceCache[cacheKey]
 
     if (cached == nil) then
         cached = source.getPrice(itemID, itemLink) or false
-        priceCache[itemID] = cached
+        priceCache[cacheKey] = cached
     end
 
     if (cached and cached > 0) then return cached, false end

@@ -14,6 +14,7 @@ local KIND_CONTAINER = "container"
 local KIND_PLAYER = "player"
 local KIND_CRAFTED = "crafted"
 local KIND_PUSHED = "pushed"
+local KIND_QUEST = "quest"
 
 -- Reject secret client values before comparing, formatting, or saving them.
 local issecret = _G.issecretvalue
@@ -74,12 +75,14 @@ function MLH:getSourceName(source)
     if (not source or not source.kind) then return nil end
 
     if (source.id) then
-        local name = self:getSourceNames()[source.id]
+        local key = source.kind == KIND_QUEST and self:questNameKey(source.id) or source.id
+        local name = self:getSourceNames()[key]
 
         if (name) then return name end
     end
 
     local fallbacks = {
+        [KIND_QUEST] = L["R_SourceQuest"],
         [KIND_CREATURE] = L["R_SourceCreature"],
         [KIND_OBJECT] = L["R_SourceObject"],
         [KIND_CONTAINER] = L["R_SourceContainer"],

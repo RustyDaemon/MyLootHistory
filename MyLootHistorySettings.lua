@@ -227,6 +227,67 @@ function builders.input(parent, option, info, changed)
     return row
 end
 
+local LIST_LINE_HEIGHT = 30
+
+-- list is not an AceConfig type: lines that come and go, each with a button acting on its value.
+-- values() returns { text, value }; func(info, value) is what the button does.
+function builders.list(parent, option, info, changed)
+    local row = CreateFrame("Frame", nil, parent)
+    local lines = {}
+
+    local empty = UI:text(row, 12, "textFaint")
+    empty:SetPoint("TOPLEFT", 2, -6)
+
+    local function line(i)
+        if (lines[i]) then return lines[i] end
+
+        local frame = CreateFrame("Frame", nil, row)
+        frame:SetHeight(LIST_LINE_HEIGHT)
+        frame:SetPoint("LEFT", 0, 0)
+        frame:SetPoint("RIGHT", 0, 0)
+        frame:SetPoint("TOP", 0, -(i - 1) * LIST_LINE_HEIGHT)
+
+        frame.button = UI:button(frame, option.actionText, 90, 24, function()
+            option.func(info, frame.value)
+            changed()
+        end)
+        frame.button:SetPoint("RIGHT", -2, 0)
+
+        frame.label = UI:text(frame, 12, "text")
+        frame.label:SetPoint("LEFT", 2, 0)
+        frame.label:SetPoint("RIGHT", frame.button, "LEFT", -GAP, 0)
+        frame.label:SetJustifyH("LEFT")
+        frame.label:SetWordWrap(false)
+
+        lines[i] = frame
+
+        return frame
+    end
+
+    row.Refresh = function()
+        local values = resolve(option.values, info) or {}
+
+        for i = 1, #values do
+            local frame = line(i)
+
+            frame.value = values[i].value
+            frame.label:SetText(values[i].text)
+            frame:Show()
+        end
+
+        for i = #values + 1, #lines do
+            lines[i]:Hide()
+        end
+
+        empty:SetText(resolve(option.emptyText, info) or "")
+        empty:SetShown(#values == 0)
+
+        row:SetHeight(math.max(#values, 1) * LIST_LINE_HEIGHT)
+    end
+
+    return row
+end
+
 -- Dims a row and stops it taking clicks while its option is disabled.
 local function addDisabledCover(row, option, info)
     if (option.disabled == nil) then return end

@@ -40,10 +40,32 @@ read_globals = {
     "C_CurrencyInfo",
     "C_Item",
     "C_Map",
+    "C_QuestLog",
     "C_Timer",
     "C_ToyBox",
     "Enum",
     "GetTime",
+
+    -- chat and groups, for sharing a session
+    "C_ChatInfo",
+    "IsInGroup",
+    "IsInGuild",
+    "IsInRaid",
+    "LE_PARTY_CATEGORY_INSTANCE",
+    "SendChatMessage",
+
+    -- collections, for the drop alert's note
+    "C_MountJournal",
+    "C_PetJournal",
+    "C_TransmogCollection",
+    "PlayerHasToy",
+
+    -- quests
+    "GetQuestID",
+    "GetQuestReward",
+    "GetTitleText",
+    "QuestUtils_GetQuestName",
+    "hooksecurefunc",
 
     -- tooltips
     "GameTooltip",

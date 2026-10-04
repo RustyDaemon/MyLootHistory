@@ -199,29 +199,95 @@ describe("the list", function()
         assert.is_nil(frames.lastLink)
     end)
 
+    local function rowMenu()
+        for i = #frames.all, 1, -1 do
+            local frame = frames.all[i]
+
+            -- rawget: the mock answers any capitalised method, so only a real Open counts.
+            if (rawget(frame, "Open") and frame.parent == _G.UIParent and frame.shown) then
+                return frame
+            end
+        end
+    end
+
+    local function pick(menu, value)
+        for i = 1, #menu.children do
+            local entry = menu.children[i]
+
+            if (entry.kind == "Button" and entry.shown and entry.value == value) then
+                entry:Click()
+                return true
+            end
+        end
+    end
+
+    it("shares the session from the title bar", function()
+        local share = nil
+
+        for _, child in ipairs(window.titleBar.children) do
+            if (tostring(child.tooltipTitle) == "R_Share") then share = child end
+        end
+
+        assert.is_not_nil(share)
+
+        local said = nil
+        local print = _G.print
+
+        _G.print = function(message) said = message end
+
+        share:Click()
+        assert.is_true(pick(rowMenu(), "self"))
+
+        _G.print = print
+
+        assert.is_not_nil(said)
+    end)
+
+    it("hides an item from the right-click menu", function()
+        local row = frames.rowsOfKind("item")[1]
+        local itemId = row.entry.item.itemId
+
+        local said = nil
+        local print = _G.print
+
+        _G.print = function(message) said = message end
+
+        row:Click("RightButton")
+        assert.is_true(pick(rowMenu(), "hide"))
+
+        _G.print = print
+
+        assert.is_true(MLH:isItemHidden(itemId))
+        assert.are.equal("M_ItemHidden", tostring(said))
+
+        for _, shown in ipairs(frames.rowsOfKind("item")) do
+            if (shown:IsShown()) then assert.are_not.equal(itemId, shown.entry.item.itemId) end
+        end
+
+        assert.is_truthy(window.footerText.text:find("R_HiddenCount", 1, true))
+
+        MLH:setItemHidden(itemId, false)
+        MLH:refreshReport()
+
+        assert.is_falsy(window.footerText.text:find("R_HiddenCount", 1, true))
+    end)
+
+    it("offers no hiding on a currency row", function()
+        MLH:setFilter("view", "currency")
+        MLH:refreshReport()
+
+        local row = frames.rowsOfKind("budget")[1]
+
+        row:Click("RightButton")
+
+        assert.is_nil(pick(rowMenu(), "hide"))
+
+        rowMenu():Hide()
+        MLH:setFilter("view", "items")
+        MLH:refreshReport()
+    end)
+
     it("filters to a zone from the right-click menu, and back", function()
-        local function rowMenu()
-            for i = #frames.all, 1, -1 do
-                local frame = frames.all[i]
-
-                -- rawget: the mock answers any capitalised method, so only a real Open counts.
-                if (rawget(frame, "Open") and frame.parent == _G.UIParent and frame.shown) then
-                    return frame
-                end
-            end
-        end
-
-        local function pick(menu, value)
-            for i = 1, #menu.children do
-                local entry = menu.children[i]
-
-                if (entry.kind == "Button" and entry.shown and entry.value == value) then
-                    entry:Click()
-                    return true
-                end
-            end
-        end
-
         local row = frames.rowsOfKind("item")[1]
         local zoneID = row.entry.item.zones[1].id
 

@@ -189,6 +189,7 @@ wow.loadOrder = {
     "MyLootHistoryDB.lua",
     "MyLootHistoryScope.lua",
     "MyLootHistorySource.lua",
+    "MyLootHistoryQuest.lua",
     "MyLootHistoryPrices.lua",
     "MyLootHistorySession.lua",
     "MyLootHistoryData.lua",

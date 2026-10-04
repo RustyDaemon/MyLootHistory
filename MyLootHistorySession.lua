@@ -29,9 +29,17 @@ function MLH:beginSession()
     self:bumpRevision()
 end
 
+-- Quest rewards are history, but not farming: they count toward the rates only when asked to.
+function MLH:countsTowardRates(entry)
+    if (entry.source == nil or entry.source.kind ~= "quest") then return true end
+
+    return self.db.char.config.questRewardsInRates == true
+end
+
 -- History is chronological; scan backwards. Missing quantity counts as one, or zero for gold.
-local function inWindow(entries, startedOn, missingQuantity, session)
-    local quantity = 0
+-- unitValue(entry), when given, prices one of the entry's units; the second return is their sum.
+local function inWindow(entries, startedOn, missingQuantity, session, unitValue)
+    local quantity, value = 0, 0
 
     for i = #entries, 1, -1 do
         local entry = entries[i]
@@ -39,12 +47,16 @@ local function inWindow(entries, startedOn, missingQuantity, session)
 
         if (foundOn == nil or foundOn < startedOn) then break end
 
-        if (MLH:isEntryInSession(entry, session)) then
-            quantity = quantity + (tonumber(entry.quantity) or missingQuantity)
+        if (MLH:isEntryInSession(entry, session) and MLH:countsTowardRates(entry)) then
+            local entryQuantity = tonumber(entry.quantity) or missingQuantity
+
+            quantity = quantity + entryQuantity
+
+            if (unitValue) then value = value + unitValue(entry) * entryQuantity end
         end
     end
 
-    return quantity
+    return quantity, value
 end
 
 function MLH:getSessionStats(session)
@@ -71,15 +83,29 @@ function MLH:getSessionStats(session)
 
     for i = 1, #foundItems do
         local item = foundItems[i]
-        local lootData = item.lootData
-        local sessionQuantity = inWindow(lootData, sessionStart, 1, session)
+
+        -- A hidden item is one the player said does not matter, so it does not count toward the rates.
+        -- Each drop is priced by the link it dropped as, so an upgraded one counts at its own value.
+        local lootData = self:isItemHidden(item.itemId) and {} or item.lootData
+        local sessionQuantity, sessionValue = inWindow(lootData, sessionStart, 1, session, function(entry)
+            return (self:getItemPrice(item.itemId, entry.sellPrice or 0, entry.itemLink or item.itemLink))
+        end)
 
         if (sessionQuantity > 0) then
-            local unitPrice = self:getItemPrice(item.itemId, lootData[#lootData].sellPrice or 0, item.itemLink)
-
             stats.itemTypes = stats.itemTypes + 1
             stats.quantity = stats.quantity + sessionQuantity
-            stats.itemValue = stats.itemValue + unitPrice * sessionQuantity
+            stats.itemValue = stats.itemValue + sessionValue
+
+            -- The item paying most for the session; ties go to the larger pile.
+            local top = stats.topItem
+
+            if (not top or sessionValue > top.value
+                or (sessionValue == top.value and sessionQuantity > top.quantity)) then
+                stats.topItem = {
+                    itemId = item.itemId, link = item.itemLink, name = item.itemName,
+                    quantity = sessionQuantity, value = sessionValue,
+                }
+            end
         end
     end
 
@@ -127,6 +153,85 @@ function MLH:getSessionLine()
         GetMoneyString(stats.goldPerHour),
         stats.currencyQuantity
     )
+end
+
+-- One chat line for the session: time, items, gold and the item that paid most. Plain text and an
+-- item link only, since chat refuses the coin textures the report uses.
+function MLH:getShareLine(session)
+    local stats = self:getSessionStats(session)
+    local top = stats.topItem
+    local topText = top and L["S_ShareTop"](top.link or top.name or ("#"..top.itemId), top.quantity) or ""
+
+    return L["S_ShareLine"](
+        self:formatDuration(stats.duration),
+        stats.quantity,
+        self:formatGoldCompact(stats.totalValue),
+        self:formatGoldCompact(stats.goldPerHour),
+        topText
+    )
+end
+
+local SHARE_CHANNELS = {
+    { channel = "INSTANCE_CHAT", label = "S_ShareInstance",
+      available = function() return IsInGroup and IsInGroup(LE_PARTY_CATEGORY_INSTANCE) end },
+    { channel = "RAID", label = "S_ShareRaid", available = function() return IsInRaid and IsInRaid() end },
+    { channel = "PARTY", label = "S_ShareParty", available = function() return IsInGroup and IsInGroup() end },
+    { channel = "GUILD", label = "S_ShareGuild", available = function() return IsInGuild and IsInGuild() end },
+    { channel = "SAY", label = "S_ShareSay", available = function() return true end },
+}
+
+local SHARE_ALIASES = {
+    instance = "INSTANCE_CHAT", i = "INSTANCE_CHAT",
+    raid = "RAID", r = "RAID",
+    party = "PARTY", p = "PARTY",
+    guild = "GUILD", g = "GUILD",
+    say = "SAY", s = "SAY",
+}
+
+-- The channels the player can share to right now, the group they are in first: { channel, text }.
+function MLH:getShareChannels()
+    local list = {}
+
+    for i = 1, #SHARE_CHANNELS do
+        local entry = SHARE_CHANNELS[i]
+
+        if (entry.available()) then
+            list[#list+1] = { channel = entry.channel, text = L[entry.label] }
+        end
+    end
+
+    return list
+end
+
+-- The channel a word from the slash command names, or the group's channel when it names none.
+-- nil when it names none and there is no group: the line is then only shown to the player.
+function MLH:resolveShareChannel(word)
+    word = word and word:lower() or ""
+
+    if (word ~= "") then return SHARE_ALIASES[word], SHARE_ALIASES[word] == nil end
+
+    local channels = self:getShareChannels()
+    local first = channels[1]
+
+    if (first and first.channel ~= "GUILD" and first.channel ~= "SAY") then return first.channel end
+
+    return nil
+end
+
+-- Sends the session line to a chat channel, or prints it for the player alone when channel is nil.
+function MLH:shareSession(channel, session)
+    local line = self:getShareLine(session)
+
+    if (not channel) then
+        print(line)
+        return line
+    end
+
+    local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
+
+    send(line, channel)
+
+    return line
 end
 
 function MLH:getLiveSession()

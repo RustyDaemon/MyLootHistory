@@ -294,26 +294,67 @@ local rowMenu = nil
 
 local MAX_ROW_MENU_ZONES = 5
 
--- A zone filter in force is undone from any row; otherwise a row offers the zones it was looted in.
-local function rowMenuItems(entry)
-    if (MLH:getFilters().zone ~= 0) then
-        return { { text = L["R_ShowAllZones"], value = 0 } }
-    end
+-- Menu values are zone ids, so the one action that is not a zone gets a value no zone can have.
+local HIDE_ITEM = "hide"
 
-    local zones = (entry.kind == "item" and entry.item.zones)
-        or ((entry.kind == "currency" or entry.kind == "budget") and entry.currency.zones)
-        or {}
+-- A zone filter in force is undone from any row; otherwise a row offers the zones it was looted in.
+-- An item row can also be hidden.
+local function rowMenuItems(entry)
     local items = {}
 
-    for i = 1, #zones do
-        if (zones[i].id) then
-            items[#items+1] = { text = L["R_FilterToZone"](zones[i].name), value = zones[i].id }
+    if (MLH:getFilters().zone ~= 0) then
+        items[1] = { text = L["R_ShowAllZones"], value = 0 }
+    else
+        local zones = (entry.kind == "item" and entry.item.zones)
+            or ((entry.kind == "currency" or entry.kind == "budget") and entry.currency.zones)
+            or {}
 
-            if (#items == MAX_ROW_MENU_ZONES) then break end
+        for i = 1, #zones do
+            if (zones[i].id) then
+                items[#items+1] = { text = L["R_FilterToZone"](zones[i].name), value = zones[i].id }
+
+                if (#items == MAX_ROW_MENU_ZONES) then break end
+            end
         end
     end
 
+    if (entry.kind == "item") then
+        items[#items+1] = { text = L["R_HideItem"], value = HIDE_ITEM }
+    end
+
     return items
+end
+
+local shareMenu = nil
+
+-- Menu values are channels, so printing for the player alone gets a value no channel can have.
+local SHARE_TO_SELF = "self"
+
+-- Shares the session the stat cards show: the picked one while the range is a session, else the live one.
+local function showShareMenu(anchor)
+    local items = {}
+
+    for _, entry in ipairs(MLH:getShareChannels()) do
+        items[#items+1] = { text = entry.text, value = entry.channel }
+    end
+
+    items[#items+1] = { text = L["S_ShareSelf"], value = SHARE_TO_SELF }
+
+    shareMenu = shareMenu or UI:menu()
+
+    shareMenu:ClearAllPoints()
+    shareMenu:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2)
+    shareMenu:Open(items, function(channel)
+        local viewing = MLH:getFilters().range == MLH.RANGE_SESSION and MLH:getSelectedSession() or nil
+
+        MLH:shareSession(channel ~= SHARE_TO_SELF and channel or nil, viewing)
+    end, nil, 140)
+end
+
+local function hideItem(item)
+    MLH:setItemHidden(item.itemId, true, item.itemName)
+
+    print(L["M_ItemHidden"](item.itemLink or item.itemName))
 end
 
 local function showRowMenu(entry)
@@ -330,8 +371,15 @@ local function showRowMenu(entry)
 
     rowMenu:ClearAllPoints()
     rowMenu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale, y / scale)
-    rowMenu:Open(items, function(zoneID)
-        MLH:setFilter("zone", zoneID)
+    rowMenu:Open(items, function(value)
+        if (value == HIDE_ITEM) then
+            hideItem(entry.item)
+            refreshReport(true)
+            updateActivity()
+            return
+        end
+
+        MLH:setFilter("zone", value)
         refreshReport()
     end)
 end
@@ -456,6 +504,19 @@ local function createRow(parent)
                 if (#zones > 0) then
                     GameTooltip:AddLine("|cFFDDDDDD"..L["R_LootedIn"].."|r |cFF00BB00"
                         ..table.concat(zones, ", ").."|r", 1, 1, 1, true)
+                end
+
+                local levels = MLH:getItemLevelBreakdown(item)
+
+                if (#levels > 1) then
+                    local parts = {}
+
+                    for i = 1, #levels do
+                        parts[i] = levels[i].level.." ("..levels[i].quantity..")"
+                    end
+
+                    GameTooltip:AddLine("|cFFDDDDDD"..L["R_ItemLevels"].."|r |cFF00BB00"
+                        ..table.concat(parts, ", ").."|r", 1, 1, 1, true)
                 end
 
                 if (item.sources and #item.sources > 0) then
@@ -992,6 +1053,10 @@ function updateFooter()
         parts[#parts+1] = L["R_MarketPrice"]..GetMoneyString(report.totalMarketValue)
     end
 
+    if ((report.hiddenCount or 0) > 0) then
+        parts[#parts+1] = L["R_HiddenCount"](report.hiddenCount)
+    end
+
     window.footerText:SetText(table.concat(parts, "   |cFF4A4A55|||r   "))
 
     local topZone = report.zones[1]
@@ -1149,6 +1214,14 @@ function buildWindow()
         function() showExportWindow() end)
     export:SetPoint("RIGHT", settings, "LEFT", -2, 0)
     UI:tooltip(export, L["R_Export"], L["R_ExportTooltip"])
+
+    local share = nil
+
+    share = UI:iconButton(titleBar, 28, "Interface\\ChatFrame\\UI-ChatIcon-Chat-Up", function()
+        showShareMenu(share)
+    end)
+    share:SetPoint("RIGHT", export, "LEFT", -2, 0)
+    UI:tooltip(share, L["R_Share"], L["R_ShareTooltip"])
 
     local statsRow = CreateFrame("Frame", nil, frame)
     statsRow:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", PAD, -PAD)
@@ -1484,6 +1557,7 @@ function buildWindow()
         self.scopeDropdown:Close()
 
         if (rowMenu) then rowMenu:Hide() end
+        if (shareMenu) then shareMenu:Hide() end
     end)
 
     local fade = frame:CreateAnimationGroup()

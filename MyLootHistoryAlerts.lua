@@ -42,8 +42,51 @@ local function collectibleKind(itemID, classID, subClassID)
     return nil
 end
 
--- Returns { kind, value } when the drop deserves an alert, nil otherwise. value is in copper,
--- priced by the chosen price source, for the whole stack.
+-- Whether a mount, pet or toy is one the player already has: a duplicate is not the moment a new one is.
+-- nil when the client cannot say.
+local function alreadyOwned(itemID, kind)
+    if (kind == "mount" and C_MountJournal and C_MountJournal.GetMountFromItem) then
+        local mountID = C_MountJournal.GetMountFromItem(itemID)
+
+        if (mountID) then return (select(11, C_MountJournal.GetMountInfoByID(mountID))) == true end
+    elseif (kind == "pet" and C_PetJournal and C_PetJournal.GetPetInfoByItemID) then
+        local speciesID = select(13, C_PetJournal.GetPetInfoByItemID(itemID))
+
+        if (speciesID) then return (C_PetJournal.GetNumCollectedInfo(speciesID) or 0) > 0 end
+    elseif (kind == "toy" and PlayerHasToy) then
+        return PlayerHasToy(itemID) == true
+    end
+
+    return nil
+end
+
+-- Whether a piece of gear shows an appearance the player has not collected. nil when it has none.
+local function isNewAppearance(itemLink)
+    if (not itemLink or not C_TransmogCollection or not C_TransmogCollection.GetItemInfo) then return nil end
+
+    local _, sourceID = C_TransmogCollection.GetItemInfo(itemLink)
+
+    if (not sourceID) then return nil end
+
+    local info = C_TransmogCollection.GetAppearanceInfoBySource
+        and C_TransmogCollection.GetAppearanceInfoBySource(sourceID)
+
+    if (not info) then return nil end
+
+    return not info.appearanceIsCollected
+end
+
+-- A word on the toast about the player's collection: "New appearance" or "Already owned", or nil.
+local function collectionNote(itemID, itemLink, kind)
+    if (kind == "mount" or kind == "pet" or kind == "toy") then
+        return alreadyOwned(itemID, kind) and "owned" or nil
+    end
+
+    return isNewAppearance(itemLink) and "appearance" or nil
+end
+
+-- Returns { kind, value, note } when the drop deserves an alert, nil otherwise. value is in copper,
+-- priced by the chosen price source, for the whole stack; note is collectionNote's.
 function MLH:getDropAlert(itemID, itemLink, quality, quantity, vendorPrice, classID, subClassID)
     local alerts = self.db.char.config.alerts
 
@@ -62,8 +105,13 @@ function MLH:getDropAlert(itemID, itemLink, quality, quantity, vendorPrice, clas
 
     if (not kind) then return nil end
 
-    return { kind = kind, value = value }
+    return { kind = kind, value = value, note = collectionNote(itemID, itemLink, kind) }
 end
+
+local noteTexts = {
+    appearance = function() return "|cFF1EFF00"..L["A_NewAppearance"].."|r" end,
+    owned = function() return "|cFF8A8A95"..L["A_AlreadyOwned"].."|r" end,
+}
 
 local reasonKeys = {
     mount = "A_Mount",
@@ -73,10 +121,16 @@ local reasonKeys = {
     preview = "A_Preview",
 }
 
+-- Why the drop counts, followed by what it means for the player's collection when that is known.
 function MLH:getDropAlertReason(alert, quality)
-    if (alert.kind == "quality") then return self:getQualityName(quality or 0) end
+    local reason = alert.kind == "quality" and self:getQualityName(quality or 0)
+        or L[reasonKeys[alert.kind] or "A_Valuable"]
 
-    return L[reasonKeys[alert.kind] or "A_Valuable"]
+    local note = alert.note and noteTexts[alert.note]
+
+    if (note) then return reason.."  |cFF656A76·|r  "..note() end
+
+    return reason
 end
 
 function MLH:formatDropValue(copper)

@@ -180,6 +180,21 @@ local generalOptions = {
                         MLH.db.char.config.ignoreItemsWithZeroPrice = value
                     end
                 },
+                questRewardsInRatesCheckBox = {
+                    order = 3.5,
+                    width = "double",
+                    type = "toggle",
+                    name = L["C_QuestRewardsInRates"],
+                    desc = L["C_QuestRewardsInRates_Desc"],
+                    get = function (_)
+                        return MLH.db.char.config.questRewardsInRates
+                    end,
+                    set = function (_, value)
+                        MLH.db.char.config.questRewardsInRates = value
+                        MLH:updateHUD()
+                        MLH:refreshReport()
+                    end
+                },
 
                 showSessionBarCheckBox = {
                     order = 4,
@@ -416,6 +431,42 @@ local generalOptions = {
                     disabled = alertsDisabled,
                     func = function ()
                         MLH:previewDropAlert()
+                    end
+                },
+            }
+        },
+        groupHidden = {
+            type = 'group',
+            order = 22.5,
+            name = L["C_HiddenItems"],
+            args = {
+                hiddenItemsText = {
+                    order = 1,
+                    type = 'description',
+                    name = L["C_HiddenItems_Desc"],
+                },
+                hiddenItemsList = {
+                    order = 2,
+                    type = "list",
+                    actionText = L["C_Unhide"],
+                    emptyText = L["C_NoHiddenItems"],
+                    values = function ()
+                        local values = {}
+
+                        for _, item in ipairs(MLH:getHiddenItemList()) do
+                            local icon = C_Item.GetItemIconByID and C_Item.GetItemIconByID(item.itemId)
+
+                            values[#values+1] = {
+                                text = (icon and ("|T"..icon..":16:16:0:0|t ") or "")..item.name,
+                                value = item.itemId,
+                            }
+                        end
+
+                        return values
+                    end,
+                    func = function (_, itemID)
+                        MLH:setItemHidden(itemID, false)
+                        MLH:refreshReport()
                     end
                 },
             }

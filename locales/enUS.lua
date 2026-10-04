@@ -23,6 +23,7 @@ L["D_NotMyCurrency"] = "not my currency"
 L["D_QuestItem"] = "quest item"
 L["D_ZeroSellPrice"] = "sell price is 0"
 L["D_NoMoneyMatched"] = "money pattern matched nothing"
+L["D_QuestMoneyCounted"] = "quest reward money, already counted"
 
 -- minimap
 L["MM_IconTitle"] = "My Loot History"
@@ -58,6 +59,8 @@ L["C_ShowSourceColumn"] = "Show source column"
 L["C_ShowSourceColumn_Desc"] = "Show what an item mostly came from. The full breakdown is always in the item tooltip"
 L["C_IgnoreZeroPriceItems"] = "Ignore items with 0 sell price"
 L["C_IgnoreZeroPriceItems_Desc"] = "Ignore items with zero (0) sell price in the report"
+L["C_QuestRewardsInRates"] = "Count quest rewards in gold per hour"
+L["C_QuestRewardsInRates_Desc"] = "Quest gold, items and currencies are always kept in your history and shown in the report. With this off they are left out of the session's gold per hour, items per hour and value, so a round of world quests does not make a farming spot look better than it is"
 L["C_ShowItemID"] = "Show Item ID"
 L["C_ShowItemID_Desc"] = "Show or hide the Item ID value"
 L["C_ShowItemTooltip"] = "Show item tooltip"
@@ -94,6 +97,10 @@ L["C_AlertsPreview"] = "Preview"
 L["C_AlertsPreview_Desc"] = "Show an example alert, to see where it appears. With the HUD on, alerts appear under it"
 L["C_Off"] = "Off"
 L["C_Data"] = "Data"
+L["C_HiddenItems"] = "Hidden items"
+L["C_HiddenItems_Desc"] = "Items you hid from the report, on every character. Their loot is still recorded, but they stay out of the report, the CSV, the activity graph, gold per hour and drop alerts. Unhide one to bring its whole history back.\n\nTo hide an item, right-click its row in the report."
+L["C_NoHiddenItems"] = "Nothing is hidden."
+L["C_Unhide"] = "Unhide"
 L["C_RetentionDays"] = "Keep history for"
 L["C_RetentionDays_Desc"] = "Drop loot older than this on login, so the saved data stops growing forever. 'Forever' keeps everything, which is what the addon has always done"
 L["C_RetentionForever"] = "Forever"
@@ -129,13 +136,16 @@ L["F_Session_Desc"] = "It is the live half of the addon: how long you have been 
 L["F_CanILinkToChat"] = "Can I link the item from the report?"
 L["F_CanILinkToChat_Desc"] = "Yes, you can. Just Shift+click on the item icon and it will be linked to the chat. The chat should be opened."
 L["F_Restrinctions"] = "Any known restrictions?"
-L["F_Restrinctions_Desc"] = "As for now, the addon can't track upgraded items (the items that has been upgraded during the looting)."
+L["F_Restrinctions_Desc"] = "Loot picked up before you installed the addon, or before a feature arrived, can't be filled in afterwards: it has no source, and an upgraded drop from before 2.4.0 is valued as the item it was first recorded as."
 L["F_Website"] = "Where can I read more?"
 L["F_Website_Desc"] = "The site has the full guide, the FAQ and the changelog. The address is in the box below - click it and press Ctrl+C to copy it."
 L["F_WebsiteLabel"] = "Website"
 
 -- messages
 L["M_DataWasCleared"] = "Loot data and gold have been erased"
+L["M_ItemHidden"] = function (item)
+  return "|cFFFFD100My Loot History:|r "..item.." is hidden from the report. Unhide it under /mlh config, Hidden items."
+end
 L["M_HistoryPruned"] = function (entries, records, days)
   return 'Removed '..entries..' loot entries older than '..days..' days'
     ..(records > 0 and (', and '..records..' items that had nothing left') or '')
@@ -150,9 +160,15 @@ L["M_Help"] = function (website)
     ..'|cFFFFD100/mlh config|r - open the settings\n'
     ..'|cFFFFD100/mlh session|r - print the current session line\n'
     ..'|cFFFFD100/mlh session reset|r - start a new session from now\n'
+    ..'|cFFFFD100/mlh share|r [party, raid, instance, guild, say] - post the session in chat\n'
     ..'|cFFFFD100/mlh hud|r - show or hide the session HUD\n'
     ..'|cFFFFD100/mlh hud lock|r - lock the HUD where it is\n'
     ..'|cFFFFD100/mlh web|r - the addon site: '..website
+end
+
+L["M_ShareOnlyYou"] = "|cFF00DD00My Loot History|r: only you can see this. Add a channel to post it: /mlh share party, raid, instance, guild or say"
+L["M_ShareUnknownChannel"] = function (word)
+  return "|cFF00DD00My Loot History|r: there is no '"..word.."' channel. Try party, raid, instance, guild or say"
 end
 
 L["M_HudShown"] = "|cFF00DD00My Loot History|r: session HUD shown"
@@ -183,6 +199,7 @@ L["R_Search"] = "Search"
 L["R_Zone"] = "Zone"
 L["R_UnknownZone"] = "Unknown zone"
 L["R_LootedIn"] = "Looted in:"
+L["R_ItemLevels"] = "Item levels:"
 L["R_Currencies"] = "Currencies"
 L["R_CurrenciesCount"] = "Currencies: "
 
@@ -191,6 +208,19 @@ L["S_SessionBar"] = function (duration, quantity, itemsPerHour, total, goldPerHo
   return '|cFFFFD100Session|r '..duration..'  |cFFAAAAAA·|r  '..quantity..' items ('..itemsPerHour..'/h)'
     ..'  |cFFAAAAAA·|r  '..total..' ('..goldPerHour..'/h)'
 end
+
+L["S_ShareLine"] = function (duration, quantity, total, goldPerHour, topText)
+  return 'My Loot History: '..duration..' farmed, '..quantity..' items, '..total..'g ('..goldPerHour..'g/h)'..topText
+end
+L["S_ShareTop"] = function (item, quantity)
+  return ', best: '..item..' x'..quantity
+end
+L["S_ShareInstance"] = "Instance"
+L["S_ShareRaid"] = "Raid"
+L["S_ShareParty"] = "Party"
+L["S_ShareGuild"] = "Guild"
+L["S_ShareSay"] = "Say"
+L["S_ShareSelf"] = "Only me"
 
 L["S_SessionLine"] = function (duration, quantity, itemsPerHour, total, goldPerHour, currencyQuantity)
   return 'Session '..duration..': '..quantity..' items ('..itemsPerHour..'/h), '..total
@@ -295,6 +325,7 @@ L["R_SourceContainer"] = "A container"
 L["R_SourcePlayer"] = "Traded"
 L["R_SourceCrafted"] = "Crafted or gathered"
 L["R_SourcePushed"] = "Quest or container"
+L["R_SourceQuest"] = "A quest"
 
 L["R_SortBy"] = function (columnName)
   return 'Click to sort by "'..columnName..'". Click again to reverse the order'
@@ -309,6 +340,11 @@ L["R_ResizeHint"] = "Drag to resize"
 L["R_ShiftClickToLink"] = "Shift+click to link it in chat"
 L["R_RightClickForZone"] = "Right-click to filter by zone"
 L["R_ShowAllZones"] = "Show all zones"
+L["R_HideItem"] = "Hide this item"
+
+L["R_HiddenCount"] = function (count)
+  return '|cFF8A8A95'..count..' hidden|r'
+end
 
 L["R_FilterToZone"] = function (zoneName)
   return 'Only show '..zoneName
@@ -321,6 +357,8 @@ L["R_MostlyFrom"] = function (zoneName)
 end
 
 L["R_ExportTooltip"] = "Copy everything the filters are showing as CSV"
+L["R_Share"] = "Share session"
+L["R_ShareTooltip"] = "Post the session in the stat cards to chat: time, items, gold, gold per hour and the item that paid most"
 
 -- stat cards
 L["G_Session"] = "SESSION"
@@ -357,6 +395,8 @@ L["A_Mount"] = "Mount"
 L["A_Pet"] = "Pet"
 L["A_Toy"] = "Toy"
 L["A_Valuable"] = "Big drop"
+L["A_NewAppearance"] = "New appearance"
+L["A_AlreadyOwned"] = "Already owned"
 L["A_Preview"] = "This is what a drop alert looks like"
 L["A_ToastHint"] = "Click to dismiss, Shift+click to link it in chat"
 

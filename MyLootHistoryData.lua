@@ -337,10 +337,66 @@ local function matchingLoot(self, lootData)
     return matched, quantity
 end
 
+-- Items hidden from the report, shared by every character: item id -> the name it was hidden under.
+-- Their loot is still recorded, so unhiding one brings its whole history back.
+function MLH:getHiddenItems()
+    self.db.global = self.db.global or {}
+    self.db.global.hiddenItems = self.db.global.hiddenItems or {}
+
+    return self.db.global.hiddenItems
+end
+
+function MLH:isItemHidden(itemID)
+    return itemID ~= nil and self:getHiddenItems()[itemID] ~= nil
+end
+
+function MLH:setItemHidden(itemID, hidden, itemName)
+    if (not itemID) then return end
+
+    self:getHiddenItems()[itemID] = hidden and (itemName or C_Item.GetItemInfo(itemID) or ("#"..itemID)) or nil
+    self:bumpRevision()
+end
+
+-- The hidden items by name, for the settings page: { itemId, name }.
+function MLH:getHiddenItemList()
+    local list = {}
+
+    for itemID, name in pairs(self:getHiddenItems()) do
+        list[#list+1] = { itemId = itemID, name = C_Item.GetItemInfo(itemID) or name }
+    end
+
+    table.sort(list, function(l, r) return l.name < r.name end)
+
+    return list
+end
+
+-- Groups an item's loot by the link it dropped as: one variant per item level, quality and bonus roll.
+-- An entry without a link of its own dropped as its record's link.
+local function addVariant(self, newItem, entry, record)
+    local link = entry.itemLink or record.itemLink
+    local key = self:itemVariantKey(link) or ""
+    local variant = newItem.variantsByKey[key]
+
+    if (not variant) then
+        variant = { link = link, quantity = 0, quality = entry.quality or record.quality }
+        newItem.variantsByKey[key] = variant
+        newItem.variants[#newItem.variants+1] = variant
+    end
+
+    variant.quantity = variant.quantity + (tonumber(entry.quantity) or 1)
+    variant.sellPrice = entry.sellPrice or variant.sellPrice
+
+    if (variant.quality and (newItem.quality == nil or variant.quality > newItem.quality)) then
+        newItem.quality = variant.quality
+    end
+end
+
 -- One entry per item id across every character in scope, holding only the matching loot.
+-- Hidden items are left out; the second return value counts those with loot in the date and zone.
 local function mergeMatchingItems(self)
     local histories = self:getHistories()
-    local items, byItemId = {}, {}
+    local hiddenItems = self:getHiddenItems()
+    local items, byItemId, hiddenSeen, hiddenCount = {}, {}, {}, 0
 
     for h = 1, #histories do
         local history = histories[h]
@@ -350,7 +406,12 @@ local function mergeMatchingItems(self)
             local item = itemsFound[i]
             local matched, matchedQuantity = matchingLoot(self, item.lootData)
 
-            if (#matched > 0) then
+            if (#matched > 0 and hiddenItems[item.itemId] ~= nil) then
+                if (not hiddenSeen[item.itemId]) then
+                    hiddenSeen[item.itemId] = true
+                    hiddenCount = hiddenCount + 1
+                end
+            elseif (#matched > 0) then
                 local newItem = byItemId[item.itemId]
 
                 if (not newItem) then
@@ -361,6 +422,8 @@ local function mergeMatchingItems(self)
                         itemTexture = item.itemTexture,
                         quality = item.quality,
                         lootData = {},
+                        variants = {},
+                        variantsByKey = {},
                         zones = {},
                         characters = {},
                         totalQuantity = 0,
@@ -378,7 +441,10 @@ local function mergeMatchingItems(self)
                 end
 
                 for k = 1, #matched do
-                    newItem.lootData[#newItem.lootData+1] = matched[k]
+                    local entry = matched[k]
+
+                    newItem.lootData[#newItem.lootData+1] = entry
+                    addVariant(self, newItem, entry, item)
                 end
 
                 newItem.characters[#newItem.characters+1] = {
@@ -391,7 +457,7 @@ local function mergeMatchingItems(self)
         end
     end
 
-    return items
+    return items, hiddenCount
 end
 
 local function qualityMatches(quality, active)
@@ -400,16 +466,42 @@ local function qualityMatches(quality, active)
     return quality >= active.quality
 end
 
--- Prefers what the client's item cache knows over what was stored at loot time.
+-- The variant a row stands for: the best quality, then the most looted.
+local function bestVariant(variants)
+    local best = nil
+
+    for i = 1, #variants do
+        local variant = variants[i]
+
+        if (not best or (variant.quality or 0) > (best.quality or 0)
+            or ((variant.quality or 0) == (best.quality or 0) and variant.quantity > best.quantity)) then
+            best = variant
+        end
+    end
+
+    return best
+end
+
+-- Name and icon come from the client's item cache. Link, quality and vendor price come from the links
+-- the item dropped as, since the cache only knows the base item, never an upgraded drop.
 local function applyItemCache(newItem, quality)
     local cachedName, cachedLink, cachedQuality, _, _, _, _, _, _, cachedTexture, cachedSellPrice =
         C_Item.GetItemInfo(newItem.itemId)
 
-    newItem.itemLink = cachedLink or newItem.itemLink
+    local best = bestVariant(newItem.variants)
+
+    newItem.itemLink = (best and best.link) or cachedLink or newItem.itemLink
     newItem.itemName = cachedName or newItem.itemName or ("#"..newItem.itemId)
     newItem.itemTexture = cachedTexture or newItem.itemTexture
-    newItem.quality = cachedQuality or quality
-    newItem.sellPrice = cachedSellPrice
+    newItem.quality = newItem.quality or cachedQuality or quality
+
+    for i = 1, #newItem.variants do
+        local variant = newItem.variants[i]
+        local linkSellPrice = variant.link and select(11, C_Item.GetItemInfo(variant.link)) or nil
+
+        variant.vendorPrice = linkSellPrice or (not variant.link and cachedSellPrice)
+            or variant.sellPrice or cachedSellPrice or 0
+    end
 end
 
 local function byFoundOn(l, r)
@@ -428,15 +520,25 @@ local function finalizeItem(self, newItem, priceKey)
     newItem.sources = self:aggregateSources(newItem.lootData)
     newItem.sourceName = newItem.sources[1] and newItem.sources[1].name or ""
 
-    if (newItem.sellPrice == nil) then
-        newItem.sellPrice = newItem.lootData[#newItem.lootData].sellPrice or 0
+    -- Each variant is priced by its own link: a 323 drop is worth more than the 302 one.
+    local totalValue, vendorValue, vendorPriced = 0, 0, false
+
+    for i = 1, #newItem.variants do
+        local variant = newItem.variants[i]
+        local price, fellBack = self:getItemPrice(newItem.itemId, variant.vendorPrice, variant.link)
+
+        totalValue = totalValue + price * variant.quantity
+        vendorValue = vendorValue + variant.vendorPrice * variant.quantity
+        vendorPriced = vendorPriced or fellBack
     end
 
-    newItem.unitPrice, newItem.vendorPriced =
-        self:getItemPrice(newItem.itemId, newItem.sellPrice, newItem.itemLink)
-    newItem.totalValue = newItem.unitPrice * newItem.totalQuantity
+    local quantity = math.max(newItem.totalQuantity, 1)
 
-    newItem.vendorValue = newItem.sellPrice * newItem.totalQuantity
+    newItem.totalValue = totalValue
+    newItem.vendorValue = vendorValue
+    newItem.vendorPriced = vendorPriced
+    newItem.unitPrice = totalValue / quantity
+    newItem.sellPrice = vendorValue / quantity
     newItem.marketValue = (priceKey ~= "vendor" and not newItem.vendorPriced)
         and newItem.totalValue or nil
     newItem.dateRange = formatDateRange(newItem.firstFound, newItem.lastFound)
@@ -448,11 +550,37 @@ local function finalizeItem(self, newItem, priceKey)
         or (newItem.characters[1] and newItem.characters[1].name or "")
 end
 
+-- How much of a report item dropped at each item level, lowest first. Empty when the client cannot say.
+function MLH:getItemLevelBreakdown(item)
+    local byLevel, levels = {}, {}
+    local getLevel = C_Item.GetDetailedItemLevelInfo
+
+    if (not getLevel or not item.variants) then return levels end
+
+    for i = 1, #item.variants do
+        local variant = item.variants[i]
+        local level = variant.link and getLevel(variant.link)
+
+        if (level) then
+            if (not byLevel[level]) then
+                byLevel[level] = { level = level, quantity = 0 }
+                levels[#levels+1] = byLevel[level]
+            end
+
+            byLevel[level].quantity = byLevel[level].quantity + variant.quantity
+        end
+    end
+
+    table.sort(levels, function(l, r) return l.level < r.level end)
+
+    return levels
+end
+
 function MLH:collectItems()
     local active = self:getFilters()
     local search = active.search ~= "" and active.search:lower() or nil
     local priceKey = self:getPriceSource()
-    local items = mergeMatchingItems(self)
+    local items, hiddenCount = mergeMatchingItems(self)
     local kept = {}
 
     for i = 1, #items do
@@ -475,7 +603,7 @@ function MLH:collectItems()
 
     self:sortItems(kept)
 
-    return kept
+    return kept, hiddenCount
 end
 
 function MLH:sortItems(items)
@@ -510,7 +638,7 @@ function MLH:sortItems(items)
 end
 
 function MLH:buildReport()
-    local items = self:collectItems()
+    local items, hiddenCount = self:collectItems()
     local report = {
         items = items,
         currencies = {},
@@ -522,6 +650,7 @@ function MLH:buildReport()
         currencyQuantity = 0,
         topValue = 0,
         zones = {},
+        hiddenCount = hiddenCount or 0,
     }
 
     local zoneTotals = {}
@@ -577,7 +706,7 @@ function MLH:getActivityBuckets(hours)
         local foundItems = history.items
 
         for i = 1, #foundItems do
-            local lootData = foundItems[i].lootData
+            local lootData = self:isItemHidden(foundItems[i].itemId) and {} or foundItems[i].lootData
 
             for j = #lootData, 1, -1 do
                 local entry = lootData[j]

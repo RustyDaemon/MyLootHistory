@@ -100,6 +100,85 @@ describe("getDropAlert", function()
     end)
 end)
 
+describe("the collection note", function()
+    local GEAR = "|cffa335ee|Hitem:500|h[Shiny Helm]|h|r"
+
+    after_each(function()
+        _G.C_MountJournal, _G.C_PetJournal, _G.C_TransmogCollection, _G.PlayerHasToy = nil, nil, nil, nil
+    end)
+
+    it("calls a mount the player already has owned, and a new one nothing", function()
+        local collected = true
+
+        _G.C_MountJournal = {
+            GetMountFromItem = function() return 77 end,
+            GetMountInfoByID = function()
+                return "Swift Thing", 1, 1, false, true, 0, false, false, nil, false, collected
+            end,
+        }
+
+        assert.are.equal("owned", MLH:getDropAlert(1, nil, 4, 1, 0, MISC, MOUNT).note)
+
+        collected = false
+
+        assert.is_nil(MLH:getDropAlert(1, nil, 4, 1, 0, MISC, MOUNT).note)
+    end)
+
+    it("calls a pet owned once one of its species is caught", function()
+        local caught = 0
+
+        _G.C_PetJournal = {
+            GetPetInfoByItemID = function()
+                return "Pup", 1, 1, 1, "", "", false, true, true, false, true, 1, 1234
+            end,
+            GetNumCollectedInfo = function() return caught, 3 end,
+        }
+
+        assert.is_nil(MLH:getDropAlert(1, nil, 1, 1, 0, MISC, 2).note)
+
+        caught = 1
+
+        assert.are.equal("owned", MLH:getDropAlert(1, nil, 1, 1, 0, MISC, 2).note)
+    end)
+
+    it("calls a toy owned once it is in the toy box", function()
+        toys[42] = true
+        _G.PlayerHasToy = function(itemID) return itemID == 42 end
+
+        assert.are.equal("owned", MLH:getDropAlert(42, nil, 1, 1, 0, MISC, 0).note)
+    end)
+
+    it("calls gear with an uncollected look a new appearance", function()
+        local known = false
+
+        _G.C_TransmogCollection = {
+            GetItemInfo = function(link) return link == GEAR and 10 or nil, link == GEAR and 20 or nil end,
+            GetAppearanceInfoBySource = function() return { appearanceIsCollected = known } end,
+        }
+
+        assert.are.equal("appearance", MLH:getDropAlert(500, GEAR, 4, 1, 0, ARMOR, 0).note)
+
+        known = true
+
+        assert.is_nil(MLH:getDropAlert(500, GEAR, 4, 1, 0, ARMOR, 0).note)
+    end)
+
+    it("says nothing when the client cannot tell", function()
+        assert.is_nil(MLH:getDropAlert(1, nil, 4, 1, 0, MISC, MOUNT).note)
+        assert.is_nil(MLH:getDropAlert(500, GEAR, 4, 1, 0, ARMOR, 0).note)
+    end)
+
+    it("is shown after the reason, on the toast and in chat", function()
+        MLH.db.char.config.alerts.chat = true
+
+        MLH:alertDrop(GEAR, 1, 4, 1, { kind = "mount", value = 0, note = "owned" })
+
+        assert.is_truthy(printed[1]:find("Already owned", 1, true))
+        assert.is_truthy(MLH:getDropAlertReason({ kind = "quality", note = "appearance" }, 4)
+            :find("New appearance", 1, true))
+    end)
+end)
+
 describe("recordLoot", function()
     it("alerts on a zero-price mount even though it is not recorded", function()
         MLH.db.char.config.alerts.chat = true

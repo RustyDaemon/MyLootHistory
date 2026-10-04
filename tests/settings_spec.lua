@@ -69,7 +69,8 @@ describe("pages", function()
 
         for i, p in ipairs(window().pages) do names[i] = tostring(p.name) end
 
-        assert.same({ "C_General", "C_Report", "C_Alerts", "C_Data", "C_Debug", "C_Statistics", "C_FAQ" }, names)
+        assert.same({ "C_General", "C_Report", "C_Alerts", "C_HiddenItems", "C_Data", "C_Debug",
+            "C_Statistics", "C_FAQ" }, names)
     end)
 
     it("drops the heading that only introduced the groups", function()
@@ -250,6 +251,48 @@ describe("confirmations", function()
         _G.MLHConfirmDialog.accept:Click()
 
         assert.equal(0, #MLH.db.char.foundGold)
+    end)
+end)
+
+describe("hidden items", function()
+    it("lists each one with a button that unhides it", function()
+        MLH:setItemHidden(100, true, "Copper Ore")
+        MLH:setItemHidden(200, true, "Broken Fang")
+
+        local row = rowFor(pageIndex("C_HiddenItems"), "hiddenItemsList")
+
+        row.Refresh()
+
+        local lines = {}
+
+        for _, child in ipairs(row.children) do
+            if (child.kind == "Frame" and child.shown) then lines[#lines+1] = child end
+        end
+
+        assert.equal(2, #lines)
+        assert.equal("Broken Fang", lines[1].label:GetText())
+
+        frames.firstButton(lines[1]):Click()
+
+        assert.is_false(MLH:isItemHidden(200))
+        assert.is_true(MLH:isItemHidden(100))
+
+        MLH:setItemHidden(100, false)
+    end)
+
+    it("says so when nothing is hidden", function()
+        local row = rowFor(pageIndex("C_HiddenItems"), "hiddenItemsList")
+
+        row.Refresh()
+
+        local said = false
+
+        for _, child in ipairs(row.children) do
+            if (child.kind == "Frame") then assert.is_false(child.shown) end
+            if (child.shown and tostring(child.text) == "C_NoHiddenItems") then said = true end
+        end
+
+        assert.is_true(said)
     end)
 end)
 

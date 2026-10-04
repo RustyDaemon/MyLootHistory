@@ -1,3 +1,12 @@
+## 2.4.0
+
+- Quest rewards are tracked. The gold a quest pays is recorded, and the items and currencies that arrive with it are put down to the quest, with its name in the From column and the tooltip. World quests and bonus objectives count too. They are part of your history and the report, but are left out of the session's gold per hour, items per hour and value, so a round of world quests does not make a farming spot look better than it is. "Count quest rewards in gold per hour" in the Report settings puts them back in.
+- Fixed upgraded drops: an item that drops above its base item level (302 → 323) or at a better quality is now recorded with its own link, quality and price instead of the base item's. Each drop of one item is valued at what it actually was, in the report, the CSV, the HUD and gold per hour, and auction house prices are looked up for that exact drop. The row shows its best drop, and with "Show additional tooltip data" on, the tooltip breaks the quantity down by item level.
+- Loot recorded before this version keeps the value of the link it was first recorded with, rather than the base item's.
+- Items can be hidden. Right-click a row in the report and choose "Hide this item" to keep junk you do not care about out of the way. A hidden item stays out of the report, the CSV, the activity graph, gold per hour and drop alerts, and the footer says how many are hidden. Its loot is still recorded, so nothing is lost: the new Hidden items page in the settings lists them, and Unhide brings the whole history back. The list is shared by all your characters.
+- Share a session in chat. The new chat button in the report's title bar, or `/mlh share`, posts one line: how long you farmed, how many items, the gold and gold per hour, and the item that paid most, linked. The button lets you pick the channel; the command goes to your group, or only to you when you are solo, unless you name one: `/mlh share guild`, `say`, `party`, `raid` or `instance`.
+- Drop alerts say what a drop means for your collection: "New appearance" on gear whose look you have not collected, and "Already owned" on a mount, pet or toy you already have, so a duplicate no longer looks like a big moment.
+
 ## 2.3.0
 
 - The settings have a window of their own, drawn the same way as the report rather than with the default option widgets: the same dark panel and gold accent, a sidebar with General, Report, Drop alerts, Data, Debug, Statistics and FAQ, and a page that scrolls. It remembers where you left it and which page you were on, and closes on Escape.
