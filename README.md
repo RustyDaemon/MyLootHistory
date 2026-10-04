@@ -56,6 +56,14 @@ Three numbers on your screen, no window needed:
 
 Drag it anywhere and lock it. Left click opens the report, right click starts a fresh session when you move to a new spot. Turn it on with `/mlh hud`.
 
+## Drop alerts
+
+Loot a mount, pet, toy, an Epic, or anything worth more than the gold you set, and a small toast pops up with the item and what it's worth. It tells you when gear is a **new appearance**, and when a mount, pet or toy is one you **already own**.
+
+## Share your farm
+
+`/mlh share`, or the chat button in the report, posts one line to your group: time farmed, items, gold, gold per hour and the best drop, linked.
+
 ## Tooltips everywhere
 
 Hover any item — in your bags, at a vendor, in the auction house, in chat — and see how many you've looted before and when the last one dropped. No report needed.
@@ -66,15 +74,15 @@ Vendor price by default. Install [Auctionator](https://www.curseforge.com/wow/ad
 
 ## Slash commands
 
-| Command              | What it does                         |
-| -------------------- | ------------------------------------ |
-| `/mlh`               | Open the report                      |
-| `/mlh config`        | Open settings                        |
-| `/mlh session`       | Print time, items/hour and gold/hour |
-| `/mlh session reset` | Start a new session now              |
-| `/mlh share [channel]` | Post the session line in chat      |
-| `/mlh hud`           | Show or hide the HUD                 |
-| `/mlh hud lock`      | Lock the HUD in place                |
+| Command                | What it does                         |
+| ---------------------- | ------------------------------------ |
+| `/mlh`                 | Open the report                      |
+| `/mlh config`          | Open settings                        |
+| `/mlh session`         | Print time, items/hour and gold/hour |
+| `/mlh session reset`   | Start a new session now              |
+| `/mlh share [channel]` | Post the session line in chat        |
+| `/mlh hud`             | Show or hide the HUD                 |
+| `/mlh hud lock`        | Lock the HUD in place                |
 
 ## Good to know
 
