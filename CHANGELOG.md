@@ -1,3 +1,11 @@
+## 2.3.0
+
+- The settings have a window of their own, drawn the same way as the report rather than with the default option widgets: the same dark panel and gold accent, a sidebar with General, Report, Drop alerts, Data, Debug, Statistics and FAQ, and a page that scrolls. It remembers where you left it and which page you were on, and closes on Escape.
+- Sliders come with a box beside them, so you can type an exact value. "Worth at least (gold)" takes a typed value past the end of its slider, up to 1,000,000.
+- A setting that depends on another one is greyed out until that one is on, such as Lock the HUD while the HUD is off.
+- Asking before removing old history or clearing your data is a dialog in the same style, with buttons that say what they do. Enter never confirms it, and cancelling or pressing Escape puts the previous setting back.
+- The gear in the report, right clicking the minimap button, `/mlh config` and the addon's entry in the game's AddOns options all open the new window.
+
 ## 2.2.0
 
 - Added drop alerts: when you loot something worth noticing, a small toast pops up with the item, why it counts and what it is worth, so a good drop never gets lost in the chat. A mount, pet or toy always counts. So does anything of the quality you pick (Epic by default) and, if you set one, any drop whose whole stack is worth at least a gold amount you choose. Up to three toasts stack under the HUD, or near the top of the screen when the HUD is off. Hover a toast to keep it on screen, click to dismiss it, or Shift+click to link the item in chat. Sound and a chat line are optional. A Preview button in the new "Drop alerts" settings shows where toasts appear. Alerts are on by default.

@@ -33,7 +33,7 @@ local mainOptions = {
             name = L["C_OpenSettings"],
             func = function ()
                 HideUIPanel(SettingsPanel)
-                ACFGDLG:Open("MyLootHistory_GeneralOptions")
+                MLH:openSettings()
             end
         }
     }
@@ -443,27 +443,26 @@ local generalOptions = {
 
                         if (value <= 0) then return end
 
-                        StaticPopupDialogs["PROMPT_PRUNE_HISTORY"] = {
+                        MLH.UI:confirm({
+                            title = L["C_RetentionPromptTitle"],
                             text = L["C_RetentionPrompt"](value),
-                            button1 = YES,
-                            button2 = NO,
-                            OnAccept = function ()
+                            acceptText = L["C_RetentionPromptAccept"],
+                            cancelText = L["C_Cancel"],
+                            danger = true,
+                            onAccept = function ()
                                 local entries, records = MLH:pruneHistory()
 
                                 if (entries > 0) then
                                     print(L["M_HistoryPruned"](entries, records, value))
                                 end
-                            end,
-                            OnCancel = function ()
-                                MLH.db.char.config.retentionDays = previous
-                            end,
-                            whileDead = true,
-                            hideOnEscape = true,
-                            showAlert = true,
-                            enterClicksFirstButton = false,
-                        }
 
-                        StaticPopup_Show("PROMPT_PRUNE_HISTORY")
+                                MLH:refreshSettings()
+                            end,
+                            onCancel = function ()
+                                MLH.db.char.config.retentionDays = previous
+                                MLH:refreshSettings()
+                            end,
+                        })
                     end
                 },
                 clearData = {
@@ -472,21 +471,17 @@ local generalOptions = {
                     name = L["C_ClearData"],
                     desc = L["C_ClearData_Desc"],
                     func = function ()
-                        StaticPopupDialogs["PROMPT_CLEAR_DATA"] = {
+                        MLH.UI:confirm({
+                            title = L["M_ClearDataPromptTitle"],
                             text = L["M_ClearDataPrompt"],
-                            button1 = YES,
-                            button2 = NO,
-                            OnAccept = function()
+                            acceptText = L["M_ClearDataAccept"],
+                            cancelText = L["C_Cancel"],
+                            danger = true,
+                            onAccept = function ()
                                 MLH:resetData()
+                                MLH:refreshSettings()
                             end,
-                            OnCancel = function (_,_, reason) end,
-                            whileDead = true,
-                            hideOnEscape = true,
-                            showAlert = true,
-                            enterClicksFirstButton = false,
-                          }
-
-                          StaticPopup_Show("PROMPT_CLEAR_DATA")
+                        })
                     end
                 }
             }
@@ -529,9 +524,11 @@ local generalOptions = {
     }
 }
 
+-- Drawn by MyLootHistorySettings.lua, not by AceConfigDialog, so it is not registered.
+MLH.settingsOptions = generalOptions
+
 function MLH:initConfig()
     ACFG:RegisterOptionsTable("MyLootHistory_MainOptions", mainOptions)
-    ACFG:RegisterOptionsTable("MyLootHistory_GeneralOptions", generalOptions)
 
     ACFGDLG:AddToBlizOptions("MyLootHistory_MainOptions", "My Loot History")
 end

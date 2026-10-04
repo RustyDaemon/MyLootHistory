@@ -32,6 +32,7 @@ L["MM_LeftClickForReport"] = "|cFF00FF00Left click|r to open the report"
 L["MM_RightClickForSettings"] = "|cFF00FF00Right click|r to open settings"
 
 -- configuration
+L["C_General"] = "General"
 L["C_Report"] = "Report"
 L["C_Debug"] = "Debug"
 L["C_Statistics"] = "Statistics"
@@ -99,6 +100,11 @@ L["C_RetentionForever"] = "Forever"
 L["C_RetentionValue"] = function (days)
   return days < 365 and (days..' days') or (days == 365 and '1 year' or (days / 365)..' years')
 end
+L["C_Cancel"] = "Cancel"
+L["C_RetentionPromptTitle"] = "Remove older loot?"
+L["C_RetentionPromptAccept"] = "Remove older loot"
+L["M_ClearDataPromptTitle"] = "Clear all history?"
+L["M_ClearDataAccept"] = "Clear everything"
 L["C_RetentionPrompt"] = function (days)
   return 'Keep only the last '..days..' days? Everything older is removed from this character\'s history and cannot be recovered.'
 end

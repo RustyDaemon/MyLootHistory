@@ -78,6 +78,7 @@ MLH.groupFaq = {
             order = 52,
             width = 'double',
             name = L["F_WebsiteLabel"],
+            readOnly = true, -- the settings window's own key: a box to copy from
             get = function () return MLH.website end,
             set = function () end,
         },

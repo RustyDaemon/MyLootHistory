@@ -325,7 +325,7 @@ end
 
 function MLH:SlashCommandListener(input)
     if (input == "config") then
-        LibStub("AceConfigDialog-3.0"):Open("MyLootHistory_GeneralOptions")
+        self:openSettings()
     elseif (input == "session") then
         print(self:getSessionLine())
     elseif (input == "session reset") then

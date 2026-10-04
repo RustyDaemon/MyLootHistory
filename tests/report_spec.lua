@@ -24,6 +24,7 @@ wow.loadThrough("MyLootHistoryCurrency.lua")
 local MLH = wow.addon
 
 function MLH:setTooltipSuppressed() end
+function MLH:toggleSettings() end
 
 wow.loadThrough("MyLootHistoryHUD.lua")
 

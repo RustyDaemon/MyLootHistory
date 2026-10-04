@@ -22,7 +22,7 @@ local minimapIcon = MLH_LDB:NewDataObject("MyLootHistory", {
         if (button == "LeftButton") then
             MLH:gui()
         elseif (button == "RightButton") then
-            LibStub("AceConfigDialog-3.0"):Open("MyLootHistory_GeneralOptions")
+            MLH:toggleSettings()
         end
     end,
     OnTooltipShow = function(tooltip)

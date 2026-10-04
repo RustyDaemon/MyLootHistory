@@ -706,3 +706,311 @@ function UI:sectionHeading(parent, text)
 
     return frame
 end
+
+local CONFIRM_WIDTH = 400
+local CONFIRM_PAD = 20
+
+local confirmDialog = nil
+
+local function buildConfirm()
+    -- A full-screen shade that swallows clicks, so the question is answered before anything else.
+    local shade = CreateFrame("Button", "MLHConfirmDialog", UIParent)
+    shade:SetAllPoints(UIParent)
+    shade:SetFrameStrata("FULLSCREEN_DIALOG")
+    shade:EnableMouse(true)
+    shade:Hide()
+
+    local dim = shade:CreateTexture(nil, "BACKGROUND")
+    dim:SetAllPoints()
+    dim:SetColorTexture(0, 0, 0, 0.45)
+
+    local box = CreateFrame("Frame", nil, shade)
+    box:SetWidth(CONFIRM_WIDTH)
+    box:SetPoint("CENTER", 0, 80)
+    box:EnableMouse(true)
+
+    UI:addShadow(box, 6, 0.5)
+
+    local bg = box:CreateTexture(nil, "BACKGROUND", nil, -7)
+    bg:SetAllPoints()
+    bg:SetColorTexture(UI:rgb("window", 0.98))
+
+    addBorder(box, UI:rgb("borderLight"))
+
+    local stripe = box:CreateTexture(nil, "ARTWORK")
+    stripe:SetPoint("TOPLEFT", 1, -1)
+    stripe:SetPoint("TOPRIGHT", -1, -1)
+    stripe:SetHeight(2)
+
+    local title = UI:text(box, 14, "text")
+    title:SetPoint("TOPLEFT", CONFIRM_PAD, -CONFIRM_PAD)
+    title:SetPoint("RIGHT", -CONFIRM_PAD, 0)
+    title:SetJustifyH("LEFT")
+
+    local body = UI:text(box, 12, "textDim")
+    body:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -10)
+    body:SetWidth(CONFIRM_WIDTH - CONFIRM_PAD * 2)
+    body:SetJustifyH("LEFT")
+    body:SetSpacing(3)
+
+    local function answer(accepted)
+        local options = shade.options
+
+        shade.answered = true
+        shade:Hide()
+
+        if (accepted and options.onAccept) then options.onAccept() end
+        if (not accepted and options.onCancel) then options.onCancel() end
+    end
+
+    local accept = UI:button(box, "", 120, 26, function() answer(true) end)
+    accept:SetPoint("BOTTOMRIGHT", -CONFIRM_PAD, CONFIRM_PAD - 4)
+
+    local cancel = UI:button(box, "", 100, 26, function() answer(false) end)
+    cancel:SetPoint("RIGHT", accept, "LEFT", -8, 0)
+
+    shade:SetScript("OnClick", function() end)
+
+    -- Escape, or anything else that hides it unanswered, counts as No.
+    shade:SetScript("OnHide", function(self)
+        if (not self.answered) then answer(false) end
+    end)
+
+    if (not tContains(UISpecialFrames, "MLHConfirmDialog")) then
+        tinsert(UISpecialFrames, "MLHConfirmDialog")
+    end
+
+    shade.box = box
+    shade.stripe = stripe
+    shade.title = title
+    shade.body = body
+    shade.accept = accept
+    shade.cancel = cancel
+
+    return shade
+end
+
+-- Asks before something that cannot be undone. options: title, text, acceptText, cancelText,
+-- danger (paints the accept button red), onAccept, onCancel. Escape is the same as cancel.
+function UI:confirm(options)
+    confirmDialog = confirmDialog or buildConfirm()
+
+    local dialog = confirmDialog
+
+    -- A question still open is dismissed, not silently replaced.
+    if (dialog:IsShown()) then dialog:Hide() end
+
+    dialog.options = options
+    dialog.answered = false
+
+    dialog.title:SetText(options.title or "")
+    dialog.body:SetText(options.text or "")
+
+    dialog.accept:SetLabel(options.acceptText or YES)
+    dialog.accept:SetWidth(math.max(dialog.accept.label:GetStringWidth() + 32, 100))
+    dialog.cancel:SetLabel(options.cancelText or NO)
+    dialog.cancel:SetWidth(math.max(dialog.cancel.label:GetStringWidth() + 32, 90))
+
+    local tone = options.danger and "bad" or "accent"
+
+    dialog.stripe:SetColorTexture(self:rgb(tone))
+    dialog.accept:SetAccent(not options.danger)
+
+    if (options.danger) then
+        dialog.accept:SetBorderColor(self:rgb("bad"))
+        dialog.accept.label:SetTextColor(self:rgb("bad"))
+    end
+
+    dialog.box:SetHeight(CONFIRM_PAD + dialog.title:GetStringHeight() + 10
+        + dialog.body:GetStringHeight() + 24 + 26 + CONFIRM_PAD - 4)
+
+    PlaySound(SOUNDKIT.IG_MAINMENU_OPEN)
+    dialog:Show()
+
+    return dialog
+end
+
+local function formatStep(value, step)
+    if (step >= 1) then return tostring(math.floor(value + 0.5)) end
+
+    return string.format("%.2f", value)
+end
+
+-- A single-line text field with a caption above it, like the dropdown's. A read-only field keeps
+-- its text but can still be selected and copied.
+function UI:inputBox(parent, width, height, label, getValue, onCommit, readOnly)
+    local frame = self:panel(parent, "window", true)
+    frame:SetSize(width, height or 26)
+
+    local caption = self:text(frame, 11, "textFaint")
+    caption:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 1, 4)
+    caption:SetText(label or "")
+
+    local editBox = CreateFrame("EditBox", nil, frame)
+    editBox:SetPoint("LEFT", 8, 0)
+    editBox:SetPoint("RIGHT", -8, 0)
+    editBox:SetHeight(height or 26)
+    editBox:SetAutoFocus(false)
+    editBox:SetFont(FONT, 12, "")
+    editBox:SetTextColor(self:rgb("text"))
+
+    local focused = false
+
+    local function show()
+        editBox:SetText(tostring(getValue() or ""))
+        editBox:SetCursorPosition(0)
+    end
+
+    editBox:SetScript("OnEditFocusGained", function()
+        focused = true
+        frame:SetBorderColor(UI:rgb("accentDim"))
+
+        if (readOnly) then editBox:HighlightText() end
+    end)
+
+    editBox:SetScript("OnEditFocusLost", function()
+        focused = false
+        frame:SetBorderColor(UI:rgb("border"))
+        editBox:HighlightText(0, 0)
+        show()
+    end)
+
+    editBox:SetScript("OnTextChanged", function(_, userInput)
+        if (readOnly and userInput) then show() end
+    end)
+
+    editBox:SetScript("OnEnterPressed", function()
+        if (not readOnly and onCommit) then onCommit(editBox:GetText()) end
+
+        editBox:ClearFocus()
+    end)
+
+    editBox:SetScript("OnEscapePressed", function() editBox:ClearFocus() end)
+
+    frame:EnableMouse(true)
+    frame:SetScript("OnMouseDown", function() editBox:SetFocus() end)
+
+    frame.editBox = editBox
+
+    frame.Refresh = function()
+        if (not focused) then show() end
+    end
+
+    frame:Refresh()
+
+    return frame
+end
+
+-- A horizontal slider over min..max in steps of `step`, with a box to type an exact value.
+-- Typed values may go as far as hardMin..hardMax, past the slider's own range.
+function UI:slider(parent, width, label, min, max, step, getValue, onChange, hardMin, hardMax)
+    local BOX_WIDTH = 64
+    local trackWidth = width - BOX_WIDTH - 14
+
+    hardMin, hardMax = hardMin or min, hardMax or max
+
+    local frame = CreateFrame("Frame", nil, parent)
+    frame:SetSize(width, 26)
+
+    local caption = self:text(frame, 11, "textFaint")
+    caption:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 1, 4)
+    caption:SetText(label or "")
+
+    local track = CreateFrame("Button", nil, frame)
+    track:SetSize(trackWidth, 20)
+    track:SetPoint("LEFT", 0, 0)
+
+    local rail = self:panel(track, "window", true)
+    rail:SetPoint("LEFT", 0, 0)
+    rail:SetPoint("RIGHT", 0, 0)
+    rail:SetHeight(6)
+
+    local fill = rail:CreateTexture(nil, "ARTWORK")
+    fill:SetPoint("TOPLEFT", 1, -1)
+    fill:SetPoint("BOTTOMLEFT", 1, 1)
+    fill:SetColorTexture(self:rgb("accentDim"))
+
+    local thumb = self:panel(track, "raised", true)
+    thumb:SetSize(10, 16)
+
+    local box = self:inputBox(frame, BOX_WIDTH, 22, nil,
+        function() return formatStep(getValue() or min, step) end,
+        function(text)
+            local value = tonumber(text)
+
+            if (value) then
+                value = math.min(math.max(value, hardMin), hardMax)
+                onChange(value)
+            end
+
+            frame:Refresh()
+        end)
+    box:SetPoint("RIGHT", 0, 0)
+    box.editBox:SetJustifyH("RIGHT")
+
+    local function snap(value)
+        value = min + math.floor((value - min) / step + 0.5) * step
+
+        return math.min(math.max(value, min), max)
+    end
+
+    local function place(value)
+        local ratio = max > min and (math.min(math.max(value, min), max) - min) / (max - min) or 0
+        local x = ratio * (trackWidth - 10)
+
+        thumb:ClearAllPoints()
+        thumb:SetPoint("LEFT", track, "LEFT", x, 0)
+        fill:SetWidth(math.max(x + 4, 1))
+    end
+
+    local dragging = false
+
+    local function setFromCursor()
+        local cursorX = GetCursorPosition()
+        local left = track:GetLeft()
+
+        if (not left) then return end
+
+        local ratio = (cursorX / track:GetEffectiveScale() - left - 5) / (trackWidth - 10)
+        local value = snap(min + math.min(math.max(ratio, 0), 1) * (max - min))
+
+        if (value ~= getValue()) then onChange(value) end
+
+        frame:Refresh()
+    end
+
+    track:SetScript("OnMouseDown", function()
+        dragging = true
+        thumb:SetBorderColor(UI:rgb("accent"))
+        setFromCursor()
+    end)
+
+    track:SetScript("OnMouseUp", function()
+        dragging = false
+        thumb:SetBorderColor(UI:rgb("border"))
+    end)
+
+    track:SetScript("OnUpdate", function()
+        if (dragging) then setFromCursor() end
+    end)
+
+    track:HookScript("OnEnter", function()
+        if (not dragging) then thumb:SetBorderColor(UI:rgb("borderLight")) end
+    end)
+
+    track:HookScript("OnLeave", function()
+        if (not dragging) then thumb:SetBorderColor(UI:rgb("border")) end
+    end)
+
+    frame.track = track
+    frame.box = box
+
+    frame.Refresh = function()
+        place(getValue() or min)
+        box:Refresh()
+    end
+
+    frame:Refresh()
+
+    return frame
+end

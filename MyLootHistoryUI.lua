@@ -1140,7 +1140,7 @@ function buildWindow()
     UI:tooltip(close, L["R_Close"])
 
     local settings = UI:iconButton(titleBar, 28, "Interface\\Buttons\\UI-OptionsButton", function()
-        LibStub("AceConfigDialog-3.0"):Open("MyLootHistory_GeneralOptions")
+        MLH:toggleSettings()
     end)
     settings:SetPoint("RIGHT", close, "LEFT", -2, 0)
     UI:tooltip(settings, L["R_Settings"])
