@@ -5,211 +5,12 @@ Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 See License file for details.
 --]]
 
+-- Interactive controls built from the primitives: buttons, menus, dropdowns, inputs, sliders.
+
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
+local UI = MLH.UI
 
-local UI = {}
-MLH.UI = UI
-
-local FONT = GameFontNormal:GetFont()
-local FONT_NUMBER = (NumberFontNormal and NumberFontNormal:GetFont()) or FONT
-
-UI.font = FONT
-UI.fontNumber = FONT_NUMBER
-
-UI.GOLD_ICON = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:0:-1|t"
-
-local C = {
-    shadow      = { 0.00, 0.00, 0.00 },
-    window      = { 0.043, 0.047, 0.055 },
-    panel       = { 0.082, 0.086, 0.098 },
-    panelHover  = { 0.114, 0.122, 0.141 },
-    raised      = { 0.129, 0.137, 0.157 },
-    border      = { 0.176, 0.188, 0.216 },
-    borderLight = { 0.239, 0.255, 0.290 },
-
-    text        = { 0.918, 0.925, 0.945 },
-    textDim     = { 0.596, 0.620, 0.678 },
-    textFaint   = { 0.396, 0.416, 0.463 },
-
-    accent      = { 1.000, 0.820, 0.300 },
-    accentDim   = { 0.600, 0.480, 0.160 },
-    money       = { 1.000, 0.839, 0.286 },
-    good        = { 0.400, 0.851, 0.482 },
-    bad         = { 0.925, 0.373, 0.373 },
-}
-
-UI.color = C
-
-function UI:rgb(name, alpha)
-    local c = C[name]
-
-    return c[1], c[2], c[3], alpha or 1
-end
-
--- Choose the color name first: and/or truncates multiple return values.
-function UI:rgbIf(condition, nameTrue, nameFalse, alpha)
-    return self:rgb(condition and nameTrue or nameFalse, alpha)
-end
-
-local function addBorder(frame, r, g, b, a)
-    local edges = {}
-
-    for i = 1, 4 do
-        local line = frame:CreateTexture(nil, "BORDER")
-        line:SetColorTexture(r, g, b, a)
-        edges[i] = line
-    end
-
-    edges[1]:SetPoint("TOPLEFT")
-    edges[1]:SetPoint("TOPRIGHT")
-    edges[1]:SetHeight(1)
-
-    edges[2]:SetPoint("BOTTOMLEFT")
-    edges[2]:SetPoint("BOTTOMRIGHT")
-    edges[2]:SetHeight(1)
-
-    edges[3]:SetPoint("TOPLEFT")
-    edges[3]:SetPoint("BOTTOMLEFT")
-    edges[3]:SetWidth(1)
-
-    edges[4]:SetPoint("TOPRIGHT")
-    edges[4]:SetPoint("BOTTOMRIGHT")
-    edges[4]:SetWidth(1)
-
-    frame.borderTextures = edges
-
-    frame.SetBorderColor = function(_, br, bg, bb, ba)
-        for i = 1, 4 do
-            edges[i]:SetColorTexture(br, bg, bb, ba or 1)
-        end
-    end
-
-    return frame
-end
-
-UI.addBorder = function(_, frame, ...) return addBorder(frame, ...) end
-
--- Black drop shadow extending `inset` pixels past each edge of the frame.
-function UI:addShadow(frame, inset, alpha, subLevel)
-    local shadow = frame:CreateTexture(nil, "BACKGROUND", nil, subLevel or -8)
-    shadow:SetPoint("TOPLEFT", -inset, inset)
-    shadow:SetPoint("BOTTOMRIGHT", inset, -inset)
-    shadow:SetColorTexture(0, 0, 0, alpha)
-
-    return shadow
-end
-
-function UI:panel(parent, colorName, bordered, alpha)
-    local frame = CreateFrame("Frame", nil, parent)
-    local bg = frame:CreateTexture(nil, "BACKGROUND")
-
-    bg:SetAllPoints()
-    bg:SetColorTexture(self:rgb(colorName or "panel", alpha))
-
-    frame.bg = bg
-
-    frame.SetPanelColor = function(_, name, a)
-        bg:SetColorTexture(UI:rgb(name, a))
-    end
-
-    if (bordered) then
-        addBorder(frame, self:rgb("border"))
-    end
-
-    return frame
-end
-
-function UI:text(parent, size, colorName, flags)
-    local fs = parent:CreateFontString(nil, "OVERLAY")
-
-    fs:SetFont(FONT, size or 12, flags or "")
-    fs:SetTextColor(self:rgb(colorName or "text"))
-    fs:SetShadowColor(0, 0, 0, 0.9)
-    fs:SetShadowOffset(1, -1)
-
-    return fs
-end
-
-function UI:number(parent, size, colorName)
-    local fs = parent:CreateFontString(nil, "OVERLAY")
-
-    fs:SetFont(FONT_NUMBER, size or 16, "OUTLINE")
-    fs:SetTextColor(self:rgb(colorName or "text"))
-
-    return fs
-end
-
-function UI:gradient(parent, layer, orientation, r1, g1, b1, a1, r2, g2, b2, a2)
-    local tex = parent:CreateTexture(nil, layer or "ARTWORK")
-
-    tex:SetColorTexture(1, 1, 1, 1)
-    tex:SetGradient(orientation,
-        CreateColor(r1, g1, b1, a1),
-        CreateColor(r2, g2, b2, a2))
-
-    return tex
-end
-
-function UI:tooltip(frame, title, body, anchor)
-    frame.tooltipTitle = title
-    frame.tooltipBody = body
-
-    frame:HookScript("OnEnter", function(self)
-        if (not self.tooltipTitle) then return end
-
-        local titleText = type(self.tooltipTitle) == "function" and self.tooltipTitle() or self.tooltipTitle
-
-        if (not titleText) then return end
-
-        GameTooltip:SetOwner(self, anchor or "ANCHOR_TOP")
-        GameTooltip:SetText(titleText, 1, 1, 1)
-
-        local bodyText = type(self.tooltipBody) == "function" and self.tooltipBody() or self.tooltipBody
-
-        if (bodyText) then
-            local r, g, b = UI:rgb("textDim")
-
-            GameTooltip:AddLine(bodyText, r, g, b, true)
-        end
-
-        GameTooltip:Show()
-    end)
-
-    frame:HookScript("OnLeave", function() GameTooltip:Hide() end)
-
-    return frame
-end
-
-local function attachHover(frame, colorName, maxAlpha, layer)
-    local hl = frame:CreateTexture(nil, layer or "ARTWORK")
-
-    hl:SetAllPoints()
-    hl:SetColorTexture(UI:rgb(colorName or "panelHover"))
-    hl:SetAlpha(0)
-
-    frame.hover = hl
-    frame.hoverTarget = 0
-    frame.hoverMax = maxAlpha or 1
-
-    frame:HookScript("OnEnter", function(self) self.hoverTarget = self.hoverMax end)
-    frame:HookScript("OnLeave", function(self) self.hoverTarget = 0 end)
-
-    frame:HookScript("OnUpdate", function(self, elapsed)
-        local current = hl:GetAlpha()
-        local target = self.hoverTarget or 0
-
-        if (math.abs(current - target) < 0.01) then
-            if (current ~= target) then hl:SetAlpha(target) end
-            return
-        end
-
-        hl:SetAlpha(current + (target - current) * math.min(elapsed * 12, 1))
-    end)
-
-    return hl
-end
-
-UI.attachHover = function(_, frame, ...) return attachHover(frame, ...) end
+local FONT = UI.font
 
 function UI:button(parent, text, width, height, onClick)
     local button = CreateFrame("Button", nil, parent)
@@ -220,8 +21,8 @@ function UI:button(parent, text, width, height, onClick)
     bg:SetAllPoints()
     bg:SetColorTexture(self:rgb("raised"))
 
-    addBorder(button, self:rgb("border"))
-    attachHover(button, "borderLight", 0.55)
+    UI:addBorder(button, self:rgb("border"))
+    UI:attachHover(button, "borderLight", 0.55)
 
     local label = self:text(button, 12, "text")
     label:SetPoint("CENTER", 0, 0)
@@ -260,7 +61,7 @@ function UI:iconButton(parent, size, texture, onClick, texCoord)
     local button = CreateFrame("Button", nil, parent)
 
     button:SetSize(size, size)
-    attachHover(button, "raised", 0.9, "BACKGROUND")
+    UI:attachHover(button, "raised", 0.9, "BACKGROUND")
 
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("CENTER")
@@ -371,7 +172,7 @@ function UI:menu()
                 entry:SetHeight(rowHeight)
                 entry:SetPoint("LEFT", 1, 0)
                 entry:SetPoint("RIGHT", -1, 0)
-                attachHover(entry, "raised", 1, "BACKGROUND")
+                UI:attachHover(entry, "raised", 1, "BACKGROUND")
 
                 -- Parent markers to entries so hiding spare entries also hides their markers.
                 entry.check = entry:CreateTexture(nil, "OVERLAY")
@@ -435,7 +236,7 @@ function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
 
     local button = CreateFrame("Button", nil, frame)
     button:SetAllPoints()
-    attachHover(button, "panelHover", 0.7, "BACKGROUND")
+    UI:attachHover(button, "panelHover", 0.7, "BACKGROUND")
 
     local caption = self:text(frame, 11, "textFaint")
     caption:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 1, 4)
@@ -494,7 +295,7 @@ function UI:segmented(parent, height, options, getValue, onSelect)
         local button = CreateFrame("Button", nil, frame)
 
         button:SetHeight((height or 26) - 2)
-        attachHover(button, "raised", 1, "BACKGROUND")
+        UI:attachHover(button, "raised", 1, "BACKGROUND")
 
         local label = self:text(button, 12, "textDim")
         label:SetPoint("CENTER")
@@ -686,148 +487,6 @@ function UI:scrollbar(parent, onScroll)
     end
 
     return bar
-end
-
-function UI:sectionHeading(parent, text)
-    local frame = CreateFrame("Frame", nil, parent)
-    frame:SetHeight(20)
-
-    local label = self:text(frame, 11, "textFaint")
-    label:SetPoint("LEFT", 2, 0)
-    label:SetText(text)
-
-    local rule = frame:CreateTexture(nil, "ARTWORK")
-    rule:SetPoint("LEFT", label, "RIGHT", 8, 0)
-    rule:SetPoint("RIGHT", -2, 0)
-    rule:SetHeight(1)
-    rule:SetColorTexture(UI:rgb("border"))
-
-    frame.label = label
-
-    return frame
-end
-
-local CONFIRM_WIDTH = 400
-local CONFIRM_PAD = 20
-
-local confirmDialog = nil
-
-local function buildConfirm()
-    -- A full-screen shade that swallows clicks, so the question is answered before anything else.
-    local shade = CreateFrame("Button", "MLHConfirmDialog", UIParent)
-    shade:SetAllPoints(UIParent)
-    shade:SetFrameStrata("FULLSCREEN_DIALOG")
-    shade:EnableMouse(true)
-    shade:Hide()
-
-    local dim = shade:CreateTexture(nil, "BACKGROUND")
-    dim:SetAllPoints()
-    dim:SetColorTexture(0, 0, 0, 0.45)
-
-    local box = CreateFrame("Frame", nil, shade)
-    box:SetWidth(CONFIRM_WIDTH)
-    box:SetPoint("CENTER", 0, 80)
-    box:EnableMouse(true)
-
-    UI:addShadow(box, 6, 0.5)
-
-    local bg = box:CreateTexture(nil, "BACKGROUND", nil, -7)
-    bg:SetAllPoints()
-    bg:SetColorTexture(UI:rgb("window", 0.98))
-
-    addBorder(box, UI:rgb("borderLight"))
-
-    local stripe = box:CreateTexture(nil, "ARTWORK")
-    stripe:SetPoint("TOPLEFT", 1, -1)
-    stripe:SetPoint("TOPRIGHT", -1, -1)
-    stripe:SetHeight(2)
-
-    local title = UI:text(box, 14, "text")
-    title:SetPoint("TOPLEFT", CONFIRM_PAD, -CONFIRM_PAD)
-    title:SetPoint("RIGHT", -CONFIRM_PAD, 0)
-    title:SetJustifyH("LEFT")
-
-    local body = UI:text(box, 12, "textDim")
-    body:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -10)
-    body:SetWidth(CONFIRM_WIDTH - CONFIRM_PAD * 2)
-    body:SetJustifyH("LEFT")
-    body:SetSpacing(3)
-
-    local function answer(accepted)
-        local options = shade.options
-
-        shade.answered = true
-        shade:Hide()
-
-        if (accepted and options.onAccept) then options.onAccept() end
-        if (not accepted and options.onCancel) then options.onCancel() end
-    end
-
-    local accept = UI:button(box, "", 120, 26, function() answer(true) end)
-    accept:SetPoint("BOTTOMRIGHT", -CONFIRM_PAD, CONFIRM_PAD - 4)
-
-    local cancel = UI:button(box, "", 100, 26, function() answer(false) end)
-    cancel:SetPoint("RIGHT", accept, "LEFT", -8, 0)
-
-    shade:SetScript("OnClick", function() end)
-
-    -- Escape, or anything else that hides it unanswered, counts as No.
-    shade:SetScript("OnHide", function(self)
-        if (not self.answered) then answer(false) end
-    end)
-
-    if (not tContains(UISpecialFrames, "MLHConfirmDialog")) then
-        tinsert(UISpecialFrames, "MLHConfirmDialog")
-    end
-
-    shade.box = box
-    shade.stripe = stripe
-    shade.title = title
-    shade.body = body
-    shade.accept = accept
-    shade.cancel = cancel
-
-    return shade
-end
-
--- Asks before something that cannot be undone. options: title, text, acceptText, cancelText,
--- danger (paints the accept button red), onAccept, onCancel. Escape is the same as cancel.
-function UI:confirm(options)
-    confirmDialog = confirmDialog or buildConfirm()
-
-    local dialog = confirmDialog
-
-    -- A question still open is dismissed, not silently replaced.
-    if (dialog:IsShown()) then dialog:Hide() end
-
-    dialog.options = options
-    dialog.answered = false
-
-    dialog.title:SetText(options.title or "")
-    dialog.body:SetText(options.text or "")
-
-    dialog.accept:SetLabel(options.acceptText or YES)
-    dialog.accept:SetWidth(math.max(dialog.accept.label:GetStringWidth() + 32, 100))
-    dialog.cancel:SetLabel(options.cancelText or NO)
-    dialog.cancel:SetWidth(math.max(dialog.cancel.label:GetStringWidth() + 32, 90))
-
-    local tone = options.danger and "bad" or "accent"
-
-    dialog.stripe:SetColorTexture(self:rgb(tone))
-    dialog.accept:SetAccent(not options.danger)
-
-    if (options.danger) then
-        dialog.accept:SetBorderColor(self:rgb("bad"))
-        dialog.accept.label:SetTextColor(self:rgb("bad"))
-    end
-
-    dialog.box:SetHeight(CONFIRM_PAD + dialog.title:GetStringHeight() + 10
-        + dialog.body:GetStringHeight() + 24 + 26 + CONFIRM_PAD - 4)
-
-    PlaySound(SOUNDKIT.IG_MAINMENU_OPEN)
-    dialog:Show()
-
-    return dialog
 end
 
 local function formatStep(value, step)

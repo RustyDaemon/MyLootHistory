@@ -5,7 +5,7 @@ Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 See License file for details.
 --]]
 
--- The settings window: the AceConfig options table from MyLootHistoryConfig.lua, drawn with the
+-- The settings window: the AceConfig options table from settings/Options.lua, drawn with the
 -- same kit as the report. The table stays the one place a setting is defined; this file only reads
 -- it, so a new option there shows up here without any change.
 

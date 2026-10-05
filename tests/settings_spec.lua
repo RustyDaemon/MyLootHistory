@@ -1,4 +1,4 @@
--- The settings window draws the real options table from MyLootHistoryConfig.lua.
+-- The settings window draws the real options table from settings/Options.lua.
 
 local wow = require("tests.support.wow")
 local frames = require("tests.support.frames")
@@ -17,17 +17,17 @@ wow.provide("AceConfig-3.0", { RegisterOptionsTable = function() end })
 wow.provide("AceConfigDialog-3.0", { AddToBlizOptions = function() end, Open = function() end })
 wow.provide("LibDBIcon-1.0", { Show = function() end, Hide = function() end })
 
-wow.loadThrough("MyLootHistoryCurrency.lua")
+wow.loadThrough("data/Currency.lua")
 
 local MLH = wow.addon
 
 function MLH:setTooltipSuppressed() end
 
-wow.load("config/statisticsConfig.lua")
-wow.load("config/faqConfig.lua")
-wow.loadThrough("MyLootHistoryAlerts.lua")
-wow.load("MyLootHistoryConfig.lua")
-wow.load("MyLootHistorySettings.lua")
+wow.load("settings/Statistics.lua")
+wow.load("settings/Faq.lua")
+wow.loadThrough("ui/Alerts.lua")
+wow.load("settings/Options.lua")
+wow.load("settings/Window.lua")
 
 MLH:initDatabase()
 

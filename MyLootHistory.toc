@@ -14,23 +14,39 @@ locales\locales.xml
 
 utils\DateUtils.lua
 
-MyLootHistory.lua
-MyLootHistoryDB.lua
-MyLootHistoryScope.lua
-MyLootHistorySource.lua
-MyLootHistoryQuest.lua
-MyLootHistoryPrices.lua
-MyLootHistorySession.lua
-MyLootHistoryTooltip.lua
-MyLootHistoryData.lua
-MyLootHistoryCurrency.lua
+Core.lua
 
-config\config.xml
+data\Database.lua
+data\Scope.lua
+data\Source.lua
+data\Quest.lua
+data\Prices.lua
+data\Session.lua
+data\Filters.lua
+data\Hidden.lua
+data\Report.lua
+data\Money.lua
+data\Export.lua
+data\Currency.lua
 
-MyLootHistoryUIKit.lua
-MyLootHistoryUI.lua
-MyLootHistoryHUD.lua
-MyLootHistoryAlerts.lua
-MyLootHistoryMinimap.lua
-MyLootHistoryConfig.lua
-MyLootHistorySettings.lua
+kit\Palette.lua
+kit\Primitives.lua
+kit\Controls.lua
+kit\Confirm.lua
+
+ui\report\Layout.lua
+ui\report\Cards.lua
+ui\report\Rows.lua
+ui\report\List.lua
+ui\report\Export.lua
+ui\report\Window.lua
+
+ui\HUD.lua
+ui\Alerts.lua
+ui\Tooltip.lua
+ui\Minimap.lua
+
+settings\Statistics.lua
+settings\Faq.lua
+settings\Options.lua
+settings\Window.lua

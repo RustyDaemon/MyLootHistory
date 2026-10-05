@@ -6,7 +6,7 @@ for i = 0, 5 do
     _G["ITEM_QUALITY"..i.."_DESC"] = "Quality"..i
 end
 
-wow.loadThrough("MyLootHistoryData.lua")
+wow.loadThrough("data/Export.lua")
 
 local MLH = wow.addon
 

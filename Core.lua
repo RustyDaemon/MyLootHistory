@@ -155,10 +155,10 @@ end
 
 -- Read from the link the chat message carried, so a 323 drop is not priced as the 302 base item.
 local function readItemInfo(itemID, itemLink)
-    if (itemLink) then
-        local info = { C_Item.GetItemInfo(itemLink) }
-
-        if (info[1]) then return unpack(info) end
+    -- Called again rather than packed into a table: the returns have nils in the middle,
+    -- and unpack() on a table with holes may drop everything after the first one.
+    if (itemLink and C_Item.GetItemInfo(itemLink)) then
+        return C_Item.GetItemInfo(itemLink)
     end
 
     return C_Item.GetItemInfo(itemID)

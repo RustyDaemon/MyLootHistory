@@ -575,7 +575,7 @@ local generalOptions = {
     }
 }
 
--- Drawn by MyLootHistorySettings.lua, not by AceConfigDialog, so it is not registered.
+-- Drawn by settings/Window.lua, not by AceConfigDialog, so it is not registered.
 MLH.settingsOptions = generalOptions
 
 function MLH:initConfig()

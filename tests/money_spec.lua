@@ -1,5 +1,5 @@
 local wow = require("tests.support.wow")
-wow.loadThrough("MyLootHistoryQuest.lua")
+wow.loadThrough("data/Quest.lua")
 wow.load("locales/enUS.lua")
 local MLH = wow.addon
 

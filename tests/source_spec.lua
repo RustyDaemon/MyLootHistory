@@ -52,7 +52,7 @@ end
 
 _G.issecretvalue = function(value) return secrets[value] == true end
 
-wow.loadThrough("MyLootHistorySource.lua")
+wow.loadThrough("data/Source.lua")
 
 local MLH = wow.addon
 

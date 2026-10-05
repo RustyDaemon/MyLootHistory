@@ -182,22 +182,34 @@ function wow.load(path)
 end
 
 -- The addon files the stubs can run, in MyLootHistory.toc order (loadorder_spec keeps the two in sync).
--- Left out: MyLootHistoryTooltip/Minimap/Config and config/, which need more of the client than is faked.
+-- Left out: ui/Tooltip.lua, ui/Minimap.lua and settings/, which need more of the client than is faked.
 wow.loadOrder = {
     "utils/DateUtils.lua",
-    "MyLootHistory.lua",
-    "MyLootHistoryDB.lua",
-    "MyLootHistoryScope.lua",
-    "MyLootHistorySource.lua",
-    "MyLootHistoryQuest.lua",
-    "MyLootHistoryPrices.lua",
-    "MyLootHistorySession.lua",
-    "MyLootHistoryData.lua",
-    "MyLootHistoryCurrency.lua",
-    "MyLootHistoryUIKit.lua",
-    "MyLootHistoryUI.lua",
-    "MyLootHistoryHUD.lua",
-    "MyLootHistoryAlerts.lua",
+    "Core.lua",
+    "data/Database.lua",
+    "data/Scope.lua",
+    "data/Source.lua",
+    "data/Quest.lua",
+    "data/Prices.lua",
+    "data/Session.lua",
+    "data/Filters.lua",
+    "data/Hidden.lua",
+    "data/Report.lua",
+    "data/Money.lua",
+    "data/Export.lua",
+    "data/Currency.lua",
+    "kit/Palette.lua",
+    "kit/Primitives.lua",
+    "kit/Controls.lua",
+    "kit/Confirm.lua",
+    "ui/report/Layout.lua",
+    "ui/report/Cards.lua",
+    "ui/report/Rows.lua",
+    "ui/report/List.lua",
+    "ui/report/Export.lua",
+    "ui/report/Window.lua",
+    "ui/HUD.lua",
+    "ui/Alerts.lua",
 }
 
 -- Loads every file in load order up to and including `last`, skipping any already loaded,

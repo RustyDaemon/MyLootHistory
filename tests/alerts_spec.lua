@@ -19,7 +19,7 @@ _G.GetTime = function() return clock end
 local toys = {}
 _G.C_ToyBox = { GetToyInfo = function(itemID) return toys[itemID] and itemID or nil end }
 
-wow.loadThrough("MyLootHistoryAlerts.lua")
+wow.loadThrough("ui/Alerts.lua")
 wow.load("locales/enUS.lua")
 
 local MLH = wow.addon

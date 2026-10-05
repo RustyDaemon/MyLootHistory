@@ -148,10 +148,10 @@ read_globals = {
     "Auctionator",
 }
 
--- The report window is one file of cooperating helpers that are forward-declared
--- at the top, so `function name()` there assigns to a local rather than creating
--- a global. Nothing extra is needed for that - it is noted here only because it
--- is the pattern a future split has to preserve in each new file.
+-- The report window is split over ui/report/, whose files share their state and
+-- helpers through MLH.reportView (created in ui/report/Layout.lua) rather than
+-- globals. A helper one file needs from another goes on that table; a bare
+-- `function name()` there would create a global, which luacheck reports.
 
 -- Locale strings are single long sentences shown to the player; wrapping them in
 -- Lua would only make them harder to read and translate.

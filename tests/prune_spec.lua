@@ -1,6 +1,6 @@
 local wow = require("tests.support.wow")
 
-wow.loadThrough("MyLootHistoryDB.lua")
+wow.loadThrough("data/Database.lua")
 
 local MLH = wow.addon
 
