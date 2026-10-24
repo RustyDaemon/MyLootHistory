@@ -1,4 +1,4 @@
-## Interface: 120100, 16001
+## Interface: 120105, 16001
 ## Title: My Loot History
 ## Author: RustyDaemon
 ## Version: 2.4.0
