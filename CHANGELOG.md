@@ -1,3 +1,10 @@
+## 2.5.0
+
+- My Loot History has a page of its own in the game's options (AddOns tab), drawn in the same style as the report: your current session at a glance, buttons to open the settings or the report, and the slash commands.
+- A smaller download: two bundled libraries that were only there to put a button in the game's options are gone.
+- Gold per hour in the report, the HUD and broker displays is no longer worked out from your whole history every second, so a long history costs less while you play.
+- The CSV export window scrolls with the addon's own scrollbar, like the rest of its windows.
+
 ## 2.4.1
 
 - The addon's own pixel font is available as an option: "Pixel font" in the General settings draws the report, the HUD and the settings in it. The game's font stays the default, since the pixel font only has English letters and item names in other alphabets or with accents would not show correctly. Changing it offers to reload the UI, which is when it takes effect.
