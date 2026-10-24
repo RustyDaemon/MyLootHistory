@@ -76,9 +76,11 @@ read_globals = {
     "AddonCompartmentFrame",
     "ChatEdit_TryInsertChatLink",
     "CreateColor",
+    "CreateFont",
     "CreateFrame",
     "GetCursorPosition",
     "PlaySound",
+    "ReloadUI",
     "SOUNDKIT",
 
     -- fonts the UI kit reads its font file out of, so every locale keeps its own alphabet
@@ -191,7 +193,7 @@ files["tests/support/*.lua"] = {
     std = "max+busted",
     globals = {
         "LibStub",
-        "ChatEdit_TryInsertChatLink", "CreateColor", "CreateFrame", "C_Timer",
+        "ChatEdit_TryInsertChatLink", "CreateColor", "CreateFont", "CreateFrame", "C_Timer",
         "BreakUpLargeNumbers", "GameFontNormal", "GameTooltip", "GetCursorPosition", "GetRealmName",
         "IsLeftShiftKeyDown", "IsRightShiftKeyDown", "NumberFontNormal", "PlaySound",
         "SOUNDKIT", "UIParent", "UISpecialFrames", "UnitName", "tContains", "tinsert",

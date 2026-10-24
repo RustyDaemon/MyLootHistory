@@ -12,11 +12,29 @@ local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local UI = {}
 MLH.UI = UI
 
+-- The game's own fonts by default, so every locale keeps its own alphabet.
 local FONT = GameFontNormal:GetFont()
 local FONT_NUMBER = (NumberFontNormal and NumberFontNormal:GetFont()) or FONT
 
+-- The addon's own pixel font, built by tools/font/build_font.py, offered as an option. Its digits
+-- share one width, so it serves numbers too. It only has ASCII glyphs.
+local PIXEL_FONT = "Interface\\AddOns\\MyLootHistory\\media\\RustyPixel.ttf"
+
 UI.font = FONT
 UI.fontNumber = FONT_NUMBER
+
+-- Picks the font for everything built from here on; windows already built keep theirs until a
+-- reload. Called once the saved settings are loaded, before any window exists.
+function UI:applyFont(pixel)
+    if (pixel) then
+        -- A font file is loaded on first use, and until then GetStringWidth() measures 0. Touch it
+        -- now so it is ready before any window sizes itself around its text.
+        CreateFont("MyLootHistoryFontPreload"):SetFont(PIXEL_FONT, 12, "")
+    end
+
+    self.font = pixel and PIXEL_FONT or FONT
+    self.fontNumber = pixel and PIXEL_FONT or FONT_NUMBER
+end
 
 UI.GOLD_ICON = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:0:-1|t"
 

@@ -211,6 +211,7 @@ function frames.install()
 
     _G.GameFontNormal = fontObject()
     _G.NumberFontNormal = fontObject()
+    _G.CreateFont = function(name) return newWidget("Font", name) end
 
     _G.PlaySound = function() end
     _G.SOUNDKIT = setmetatable({}, { __index = function() return 1 end })

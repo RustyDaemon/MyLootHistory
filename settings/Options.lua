@@ -99,6 +99,27 @@ local generalOptions = {
                 MLH.db.char.config.hudLocked = value
             end
         },
+        pixelFontCheckBox = {
+            order = 14,
+            type = "toggle",
+            name = L["C_PixelFont"],
+            desc = L["C_PixelFont_Desc"],
+            get = function (_)
+                return MLH.db.char.config.pixelFont
+            end,
+            set = function (_, value)
+                MLH.db.char.config.pixelFont = value
+
+                -- windows already built keep their font, so it only fully applies after a reload
+                MLH.UI:confirm({
+                    title = L["C_ReloadPromptTitle"],
+                    text = L["C_ReloadPrompt"],
+                    acceptText = L["C_ReloadPromptAccept"],
+                    cancelText = L["C_ReloadPromptLater"],
+                    onAccept = ReloadUI,
+                })
+            end
+        },
         detailedHeader = {
             type = 'header',
             name = L["C_DetailedSettingsHeader"],

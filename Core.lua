@@ -93,6 +93,7 @@ end
 
 function MLH:OnInitialize()
     self:initDatabase()
+    self.UI:applyFont(self.db.char.config.pixelFont)
 
     local removedEntries, removedRecords = self:pruneHistory()
 

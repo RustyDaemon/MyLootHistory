@@ -10,8 +10,6 @@ See License file for details.
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local UI = MLH.UI
 
-local FONT = UI.font
-
 function UI:button(parent, text, width, height, onClick)
     local button = CreateFrame("Button", nil, parent)
 
@@ -98,7 +96,7 @@ function UI:searchBox(parent, width, height, placeholder, onChange)
     editBox:SetPoint("RIGHT", -22, 0)
     editBox:SetHeight(height or 26)
     editBox:SetAutoFocus(false)
-    editBox:SetFont(FONT, 12, "")
+    editBox:SetFont(UI.font, 12, "")
     editBox:SetTextColor(self:rgb("text"))
 
     local hint = self:text(frame, 12, "textFaint")
@@ -288,7 +286,6 @@ function UI:segmented(parent, height, options, getValue, onSelect)
     frame:SetHeight(height or 26)
 
     local buttons = {}
-    local totalWidth = 2
 
     for i = 1, #options do
         local option = options[i]
@@ -313,11 +310,6 @@ function UI:segmented(parent, height, options, getValue, onSelect)
         underline:SetColorTexture(self:rgb("accent"))
         underline:Hide()
 
-        local width = math.max(label:GetStringWidth() + 22, 44)
-
-        button:SetWidth(width)
-        button:SetPoint("TOPLEFT", frame, "TOPLEFT", totalWidth - 1, -1)
-
         button.value = option.value
         button.label = label
         button.lit = lit
@@ -336,11 +328,27 @@ function UI:segmented(parent, height, options, getValue, onSelect)
             divider:SetColorTexture(self:rgb("border"))
         end
 
-        totalWidth = totalWidth + width
         buttons[i] = button
     end
 
-    frame:SetWidth(totalWidth)
+    -- Sized from the labels, and again on show: a font that was still loading measured 0 wide.
+    local function layout()
+        local totalWidth = 2
+
+        for i = 1, #buttons do
+            local button = buttons[i]
+            local width = math.max(button.label:GetStringWidth() + 22, 44)
+
+            button:SetWidth(width)
+            button:SetPoint("TOPLEFT", frame, "TOPLEFT", totalWidth - 1, -1)
+            totalWidth = totalWidth + width
+        end
+
+        frame:SetWidth(totalWidth)
+    end
+
+    layout()
+    frame:HookScript("OnShow", layout)
 
     frame.Refresh = function()
         local current = getValue()
@@ -510,7 +518,7 @@ function UI:inputBox(parent, width, height, label, getValue, onCommit, readOnly)
     editBox:SetPoint("RIGHT", -8, 0)
     editBox:SetHeight(height or 26)
     editBox:SetAutoFocus(false)
-    editBox:SetFont(FONT, 12, "")
+    editBox:SetFont(UI.font, 12, "")
     editBox:SetTextColor(self:rgb("text"))
 
     local focused = false

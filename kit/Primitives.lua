@@ -10,9 +10,6 @@ See License file for details.
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local UI = MLH.UI
 
-local FONT = UI.font
-local FONT_NUMBER = UI.fontNumber
-
 local function addBorder(frame, r, g, b, a)
     local edges = {}
 
@@ -84,7 +81,7 @@ end
 function UI:text(parent, size, colorName, flags)
     local fs = parent:CreateFontString(nil, "OVERLAY")
 
-    fs:SetFont(FONT, size or 12, flags or "")
+    fs:SetFont(self.font, size or 12, flags or "")
     fs:SetTextColor(self:rgb(colorName or "text"))
     fs:SetShadowColor(0, 0, 0, 0.9)
     fs:SetShadowOffset(1, -1)
@@ -95,7 +92,7 @@ end
 function UI:number(parent, size, colorName)
     local fs = parent:CreateFontString(nil, "OVERLAY")
 
-    fs:SetFont(FONT_NUMBER, size or 16, "OUTLINE")
+    fs:SetFont(self.fontNumber, size or 16, "OUTLINE")
     fs:SetTextColor(self:rgb(colorName or "text"))
 
     return fs
