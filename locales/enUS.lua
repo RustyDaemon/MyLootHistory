@@ -40,6 +40,18 @@ L["C_Statistics"] = "Statistics"
 L["C_FAQ"] = "FAQ"
 L["C_DetailedSettingsHeader"] = "Detailed settings"
 L["C_OpenSettings"] = "Open settings"
+L["C_OpenReport"] = "Open the report"
+
+-- the addon's page in the game's own options
+L["C_GameOptionsTagline"] = "Know exactly what your farming is worth"
+L["C_GameOptionsBlurb"] = "Every item, coin and currency you loot, with what it is worth, where it came from and when. The settings have a window of their own, drawn in the same style as the report."
+L["C_GameOptionsSession"] = "This session"
+L["C_GameOptionsCommands"] = "Slash commands"
+L["C_CmdReport"] = "open the report"
+L["C_CmdConfig"] = "open the settings"
+L["C_CmdHud"] = "show or hide the session HUD"
+L["C_CmdShare"] = "post the session in chat"
+L["C_CmdHelp"] = "list every command"
 
 L["C_ShowMinimapButton"] = "Show minimap button"
 L["C_ShowMinimapButton_Desc"] = "Show or hide the minimap button"

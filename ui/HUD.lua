@@ -25,10 +25,8 @@ end
 local function savePosition()
     if (not hud) then return end
 
-    local point, _, relativePoint, x, y = hud:GetPoint()
-
     MLH.db.char.ui = MLH.db.char.ui or {}
-    MLH.db.char.ui.hud = { point = point, relativePoint = relativePoint, x = x, y = y }
+    MLH.db.char.ui.hud = UI:savePoint(hud)
 end
 
 local function buildHud()
@@ -147,15 +145,7 @@ end
 function MLH:showHUD()
     if (not hud) then hud = buildHud() end
 
-    local saved = (self.db.char.ui or {}).hud or {}
-
-    hud:ClearAllPoints()
-
-    if (saved.point) then
-        hud:SetPoint(saved.point, UIParent, saved.relativePoint or saved.point, saved.x or 0, saved.y or 0)
-    else
-        hud:SetPoint("TOP", UIParent, "TOP", 0, -180)
-    end
+    UI:restorePoint(hud, (self.db.char.ui or {}).hud, "TOP", 0, -180)
 
     hud:Show()
     hud:LayoutCells()

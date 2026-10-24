@@ -63,9 +63,11 @@ function MLH:getPriceSource()
     return key, source
 end
 
+-- priceRevision tells caches built on prices, such as the session totals, that they are out of date.
 function MLH:clearPriceCache()
     priceCache = {}
     priceCacheSource = nil
+    self.priceRevision = (self.priceRevision or 0) + 1
 end
 
 -- The second return value indicates fallback to the vendor price.

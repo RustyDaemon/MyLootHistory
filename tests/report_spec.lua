@@ -17,8 +17,6 @@ _G.C_Item.GetItemQualityColor = function(quality)
     return 0.5, 0.6, 0.7, "ff8899aa"
 end
 
-wow.provide("AceConfigDialog-3.0", { Open = function() end })
-
 wow.loadThrough("data/Currency.lua")
 
 local MLH = wow.addon
@@ -164,6 +162,34 @@ describe("the list", function()
             row:Fire("OnEnter")
             row:Fire("OnLeave")
         end)
+    end)
+
+    it("adds the totals, zones and sources to the tooltip when asked to", function()
+        local lines = {}
+        local tooltip = _G.GameTooltip
+        local addLine = tooltip.AddLine
+
+        tooltip.AddLine = function(self, text, ...)
+            lines[#lines+1] = tostring(text)
+            return addLine(self, text, ...)
+        end
+
+        char.config.showAdditionalTooltipData = true
+
+        local row = frames.rowsOfKind("item")[1]
+        local item = row.entry.item
+
+        item.sources = { { name = "Kobold", quantity = 3 }, { name = "Crate", quantity = 1 } }
+        row:Fire("OnEnter")
+
+        char.config.showAdditionalTooltipData = false
+        tooltip.AddLine = addLine
+
+        local text = table.concat(lines, "\n")
+
+        assert.is_truthy(text:find("R_TotalQuantityGathered|r |cFF00BB00"..item.totalQuantity.."|r", 1, true))
+        assert.is_truthy(text:find(item.zones[1].name.." ("..item.zones[1].quantity..")", 1, true))
+        assert.is_truthy(text:find("R_DroppedBy|r |cFF00BB00Kobold (3), Crate (1)|r", 1, true))
     end)
 
     it("falls back to the item id when a record carries no link", function()
@@ -617,6 +643,21 @@ describe("the export window", function()
         assert.is_not_nil(editBox.text:find("type,name,id"))
 
         _G.MLHExportFrame:Hide()
+    end)
+
+    it("scrolls a long CSV with the kit's own scrollbar", function()
+        local frame = _G.MLHExportFrame
+        local scroll = frame.editBox:GetParent()
+
+        scroll.verticalScrollRange = 500
+        scroll:Fire("OnScrollRangeChanged")
+        scroll:Fire("OnMouseWheel", -1)
+
+        assert.are.equal(48, frame.offset)
+
+        scroll:Fire("OnMouseWheel", 5)
+
+        assert.are.equal(0, frame.offset)
     end)
 end)
 

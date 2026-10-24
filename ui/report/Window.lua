@@ -16,7 +16,6 @@ local PAD = View.PAD
 local HEADER_HEIGHT = View.HEADER_HEIGHT
 local ROW_HEIGHT = View.ROW_HEIGHT
 
-local TITLE_HEIGHT = 44
 local STATS_HEIGHT = 86
 local FILTER_HEIGHT = 58
 local FILTER_ROW = 48
@@ -105,84 +104,37 @@ function MLH:refreshReport()
     View.refreshReport(true)
 end
 
+-- Saved flat in db.char.ui, next to the window's size, as it always has been.
 local function saveWindowPosition()
     if (not View.window) then return end
 
-    local point, _, relativePoint, x, y = View.window:GetPoint()
+    local ui = MLH.db.char.ui or {}
 
-    MLH.db.char.ui = MLH.db.char.ui or {}
-    MLH.db.char.ui.point = point
-    MLH.db.char.ui.relativePoint = relativePoint
-    MLH.db.char.ui.x = x
-    MLH.db.char.ui.y = y
-    MLH.db.char.ui.width = View.window:GetWidth()
-    MLH.db.char.ui.height = View.window:GetHeight()
+    for key, value in pairs(UI:savePoint(View.window)) do ui[key] = value end
+
+    ui.width = View.window:GetWidth()
+    ui.height = View.window:GetHeight()
+
+    MLH.db.char.ui = ui
 end
 
 local function buildWindow()
-    local frame = CreateFrame("Frame", "MLHReportFrame", UIParent)
+    local frame = UI:window({
+        name = "MLHReportFrame",
+        title = L["MM_IconTitle"],
+        subtitle = UnitName("player").." · "..(GetRealmName() or ""),
+        closeTooltip = L["R_Close"],
+        onMoved = saveWindowPosition,
+    })
 
-    frame:SetFrameStrata("HIGH")
-    frame:SetToplevel(true)
-    frame:SetClampedToScreen(true)
-    frame:SetMovable(true)
     frame:SetResizable(true)
-    frame:EnableMouse(true)
-    frame:Hide()
 
     if (frame.SetResizeBounds) then
         frame:SetResizeBounds(MIN_WIDTH, MIN_HEIGHT)
     end
 
-    UI:addShadow(frame, 6, 0.45)
-
-    local bg = frame:CreateTexture(nil, "BACKGROUND", nil, -7)
-    bg:SetAllPoints()
-    bg:SetColorTexture(UI:rgb("window", 0.97))
-
-    UI:addBorder(frame, UI:rgb("borderLight"))
-
-    local titleBar = CreateFrame("Frame", nil, frame)
-    titleBar:SetPoint("TOPLEFT", 1, -1)
-    titleBar:SetPoint("TOPRIGHT", -1, -1)
-    titleBar:SetHeight(TITLE_HEIGHT)
-    titleBar:EnableMouse(true)
-    titleBar:RegisterForDrag("LeftButton")
-
-    local titleFill = UI:gradient(titleBar, "BACKGROUND", "VERTICAL",
-        0.055, 0.059, 0.070, 1, 0.114, 0.106, 0.075, 1)
-    titleFill:SetAllPoints()
-
-    local titleLine = titleBar:CreateTexture(nil, "ARTWORK")
-    titleLine:SetPoint("BOTTOMLEFT")
-    titleLine:SetPoint("BOTTOMRIGHT")
-    titleLine:SetHeight(1)
-    titleLine:SetColorTexture(UI:rgb("accentDim", 0.6))
-
-    titleBar:SetScript("OnDragStart", function() frame:StartMoving() end)
-    titleBar:SetScript("OnDragStop", function()
-        frame:StopMovingOrSizing()
-        saveWindowPosition()
-    end)
-
-    local logo = titleBar:CreateTexture(nil, "ARTWORK")
-    logo:SetSize(24, 24)
-    logo:SetPoint("LEFT", PAD, 0)
-    logo:SetTexture("Interface\\Icons\\inv_misc_map09")
-    logo:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-    local logoBorder = titleBar:CreateTexture(nil, "BACKGROUND")
-    logoBorder:SetPoint("TOPLEFT", logo, "TOPLEFT", -1, 1)
-    logoBorder:SetPoint("BOTTOMRIGHT", logo, "BOTTOMRIGHT", 1, -1)
-    logoBorder:SetColorTexture(UI:rgb("accentDim"))
-
-    local title = UI:text(titleBar, 15, "text")
-    title:SetPoint("LEFT", logo, "RIGHT", 10, 1)
-    title:SetText(L["MM_IconTitle"])
-
-    local subtitle = UI:text(titleBar, 11, "textFaint")
-    subtitle:SetPoint("LEFT", title, "RIGHT", 10, 0)
-    subtitle:SetText(UnitName("player").." · "..(GetRealmName() or ""))
+    local titleBar = frame.titleBar
+    local close = frame.close
 
     local viewControl = UI:segmented(titleBar, 26, {
         { value = "items", text = L["R_ViewItems"] },
@@ -193,12 +145,7 @@ local function buildWindow()
             MLH:setFilter("view", value)
             View.refreshReport()
         end)
-    viewControl:SetPoint("LEFT", subtitle, "RIGHT", 20, 0)
-
-    local close = UI:iconButton(titleBar, 28, "Interface\\Buttons\\UI-StopButton",
-        function() frame:Hide() end)
-    close:SetPoint("RIGHT", -6, 0)
-    UI:tooltip(close, L["R_Close"])
+    viewControl:SetPoint("LEFT", frame.subtitle, "RIGHT", 20, 0)
 
     local settings = UI:iconButton(titleBar, 28, "Interface\\Buttons\\UI-OptionsButton", function()
         MLH:toggleSettings()
@@ -225,10 +172,10 @@ local function buildWindow()
     statsRow:SetHeight(STATS_HEIGHT)
 
     local cards = {
-        time = View.createCard(statsRow, L["G_Session"], "accent"),
-        items = View.createCard(statsRow, L["G_ItemsPerHour"], "borderLight"),
-        gold = View.createCard(statsRow, L["G_GoldPerHour"], "money"),
-        filtered = View.createCard(statsRow, L["G_InView"], "borderLight"),
+        time = UI:statCard(statsRow, L["G_Session"], "accent"),
+        items = UI:statCard(statsRow, L["G_ItemsPerHour"], "borderLight"),
+        gold = UI:statCard(statsRow, L["G_GoldPerHour"], "money"),
+        filtered = UI:statCard(statsRow, L["G_InView"], "borderLight"),
     }
 
     cards.time:EnableMouse(true)
@@ -565,10 +512,6 @@ local function buildWindow()
 
     frame.fade = fade
 
-    if (not tContains(UISpecialFrames, "MLHReportFrame")) then
-        tinsert(UISpecialFrames, "MLHReportFrame")
-    end
-
     return frame
 end
 
@@ -585,13 +528,7 @@ function MLH:gui()
     local saved = self.db.char.ui or {}
 
     View.window:SetSize(saved.width or DEFAULT_WIDTH, saved.height or DEFAULT_HEIGHT)
-    View.window:ClearAllPoints()
-
-    if (saved.point) then
-        View.window:SetPoint(saved.point, UIParent, saved.relativePoint or saved.point, saved.x or 0, saved.y or 0)
-    else
-        View.window:SetPoint("CENTER")
-    end
+    UI:restorePoint(View.window, saved)
 
     View.window.search:SetValue(self:getFilters().search)
     View.window:Show()

@@ -10,21 +10,40 @@ See License file for details.
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
+-- The zone and date filters as one test of a loot entry. Built once per pass over the history.
+local function entryFilter(self)
+    local inRange = self:getRangeFilter()
+
+    return function(entry)
+        return self:isInSelectedZone(entry.zoneID) and inRange(entry.foundOn, entry)
+    end
+end
+
+-- The loot entries the filter selects, appended to `into` when given, and their total quantity.
+local function matchingLoot(lootData, matches, into)
+    local matched, quantity = into or {}, 0
+
+    for i = 1, #lootData do
+        local entry = lootData[i]
+
+        if (matches(entry)) then
+            matched[#matched+1] = entry
+            quantity = quantity + (tonumber(entry.quantity) or 1)
+        end
+    end
+
+    return matched, quantity
+end
+
 function MLH:calculateGoldFound()
     local histories = self:getHistories()
+    local matches = entryFilter(self)
     local total = 0
 
     for h = 1, #histories do
-        local history = histories[h]
-        local gold = history.gold
+        local _, quantity = matchingLoot(histories[h].gold, matches)
 
-        for i = 1, #gold do
-            local entry = gold[i]
-
-            if (self:isInSelectedZone(entry.zoneID) and self:isInSelectedRange(entry.foundOn, entry)) then
-                total = total + entry.quantity
-            end
-        end
+        total = total + quantity
     end
 
     return total
@@ -34,6 +53,7 @@ function MLH:collectCurrencies()
     local search = self:getFilters().search
     local currencies = {}
     local histories = self:getHistories()
+    local matches = entryFilter(self)
     local matchedById = {}
     local recordById = {}
     local order = {}
@@ -46,7 +66,6 @@ function MLH:collectCurrencies()
         for i = 1, #foundCurrency do
             local record = foundCurrency[i]
             local id = record.currencyId
-            local lootData = record.lootData
 
             if (not matchedById[id]) then
                 matchedById[id] = {}
@@ -54,15 +73,7 @@ function MLH:collectCurrencies()
                 order[#order+1] = id
             end
 
-            local matched = matchedById[id]
-
-            for j = 1, #lootData do
-                local entry = lootData[j]
-
-                if (self:isInSelectedZone(entry.zoneID) and self:isInSelectedRange(entry.foundOn, entry)) then
-                    matched[#matched+1] = entry
-                end
-            end
+            matchingLoot(record.lootData, matches, matchedById[id])
         end
     end
 
@@ -111,22 +122,6 @@ local function formatDateRange(firstFound, lastFound)
     return date(firstFormat, firstFound)..' - '..date(dateFormat..' %Y', lastFound)
 end
 
--- The loot entries of one record that the zone and date filters select, and their total quantity.
-local function matchingLoot(self, lootData)
-    local matched, quantity = {}, 0
-
-    for i = 1, #lootData do
-        local entry = lootData[i]
-
-        if (self:isInSelectedZone(entry.zoneID) and self:isInSelectedRange(entry.foundOn, entry)) then
-            matched[#matched+1] = entry
-            quantity = quantity + (tonumber(entry.quantity) or 1)
-        end
-    end
-
-    return matched, quantity
-end
-
 -- Groups an item's loot by the link it dropped as: one variant per item level, quality and bonus roll.
 -- An entry without a link of its own dropped as its record's link.
 local function addVariant(self, newItem, entry, record)
@@ -153,6 +148,7 @@ end
 local function mergeMatchingItems(self)
     local histories = self:getHistories()
     local hiddenItems = self:getHiddenItems()
+    local matches = entryFilter(self)
     local items, byItemId, hiddenSeen, hiddenCount = {}, {}, {}, 0
 
     for h = 1, #histories do
@@ -161,7 +157,7 @@ local function mergeMatchingItems(self)
 
         for i = 1, #itemsFound do
             local item = itemsFound[i]
-            local matched, matchedQuantity = matchingLoot(self, item.lootData)
+            local matched, matchedQuantity = matchingLoot(item.lootData, matches)
 
             if (#matched > 0 and hiddenItems[item.itemId] ~= nil) then
                 if (not hiddenSeen[item.itemId]) then
@@ -363,10 +359,13 @@ function MLH:collectItems()
     return kept, hiddenCount
 end
 
+local function itemName(item)
+    return item.itemName
+end
+
 function MLH:sortItems(items)
     local active = self:getFilters()
     local key = active.sortKey
-    local descending = active.sortDescending
 
     local value = function(item)
         if (key == "quantity") then return item.totalQuantity end
@@ -381,17 +380,7 @@ function MLH:sortItems(items)
         return item.itemName
     end
 
-    table.sort(items, function(l, r)
-        local lv, rv = value(l), value(r)
-
-        if (lv == rv) then
-            return l.itemName < r.itemName
-        end
-
-        if (descending) then return lv > rv end
-
-        return lv < rv
-    end)
+    MLH.sortRows(items, value, active.sortDescending, itemName)
 end
 
 function MLH:buildReport()

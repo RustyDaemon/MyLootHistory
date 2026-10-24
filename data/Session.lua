@@ -59,18 +59,9 @@ local function inWindow(entries, startedOn, missingQuantity, session, unitValue)
     return quantity, value
 end
 
-function MLH:getSessionStats(session)
-    session = session or self:getLiveSession()
-
-    local sessionStart = session.startedOn or time()
-    local endedOn = session.endedOn
-    local duration = math.max((endedOn or time()) - sessionStart, 1)
-
+-- What a session holds: everything getSessionStats reports except the clock.
+local function sessionTotals(self, session, sessionStart)
     local stats = {
-        sessionStart = sessionStart,
-        endedOn = endedOn,
-        isLive = endedOn == nil,
-        duration = duration,
         itemTypes = 0,
         quantity = 0,
         itemValue = 0,
@@ -123,8 +114,57 @@ function MLH:getSessionStats(session)
     end
 
     stats.totalValue = stats.itemValue + stats.rawGold
-    stats.goldPerHour = math.floor(stats.totalValue / duration * SECONDS_PER_HOUR)
-    stats.itemsPerHour = stats.quantity / duration * SECONDS_PER_HOUR
+
+    return stats
+end
+
+-- The report, the HUD and the broker each ask every second or two, and only the clock moves between
+-- most of those asks: the totals are worked out again only once the history, the prices or the quest
+-- setting has changed.
+local totalsCache = { key = nil, bySession = {} }
+
+local function totalsCacheKey(self)
+    return tostring(self.historyRevision or 0)..":"..tostring(self.priceRevision or 0)..":"
+        ..tostring(self.db.char.config.questRewardsInRates == true)
+end
+
+local function cachedTotals(self, session, sessionStart)
+    local key = totalsCacheKey(self)
+
+    if (totalsCache.key ~= key) then
+        totalsCache.key = key
+        totalsCache.bySession = {}
+    end
+
+    local sessionKey = tostring(session.id)..":"..sessionStart..":"..tostring(session.endedOn)
+    local totals = totalsCache.bySession[sessionKey]
+
+    if (not totals) then
+        totals = sessionTotals(self, session, sessionStart)
+        totalsCache.bySession[sessionKey] = totals
+    end
+
+    return totals
+end
+
+function MLH:getSessionStats(session)
+    session = session or self:getLiveSession()
+
+    local sessionStart = session.startedOn or time()
+    local endedOn = session.endedOn
+    local duration = math.max((endedOn or time()) - sessionStart, 1)
+    local totals = cachedTotals(self, session, sessionStart)
+
+    local stats = {
+        sessionStart = sessionStart,
+        endedOn = endedOn,
+        isLive = endedOn == nil,
+        duration = duration,
+        goldPerHour = math.floor(totals.totalValue / duration * SECONDS_PER_HOUR),
+        itemsPerHour = totals.quantity / duration * SECONDS_PER_HOUR,
+    }
+
+    for key, value in pairs(totals) do stats[key] = value end
 
     return stats
 end

@@ -202,6 +202,7 @@ wow.loadOrder = {
     "kit/Primitives.lua",
     "kit/Controls.lua",
     "kit/Confirm.lua",
+    "kit/Window.lua",
     "ui/report/Layout.lua",
     "ui/report/Cards.lua",
     "ui/report/Rows.lua",

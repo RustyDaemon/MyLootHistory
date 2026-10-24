@@ -113,6 +113,94 @@ describe("MLH:getSessionStats", function()
     end)
 end)
 
+describe("the session totals", function()
+    local priced = 0
+    local original = nil
+
+    before_each(function()
+        seed()
+
+        priced = 0
+        original = MLH.getItemPrice
+
+        MLH.getItemPrice = function(self, ...)
+            priced = priced + 1
+            return original(self, ...)
+        end
+    end)
+
+    after_each(function() MLH.getItemPrice = original end)
+
+    it("are worked out once while only the clock moves", function()
+        local first = MLH:getSessionStats()
+        local scans = priced
+
+        wow.freeze(now + 60)
+
+        local second = MLH:getSessionStats()
+
+        assert.are.equal(scans, priced)
+        assert.are.equal(first.quantity, second.quantity)
+        assert.are.equal(3660, second.duration)
+        assert.is_true(second.goldPerHour < first.goldPerHour)
+    end)
+
+    it("are worked out again once something is looted", function()
+        MLH:getSessionStats()
+        MLH:addItem(100, 2, nil, 1, 1, "Copper Ore", 1, 100)
+
+        assert.are.equal(10, MLH:getSessionStats().quantity)
+    end)
+
+    it("are worked out again once the prices are cleared", function()
+        MLH:getSessionStats()
+
+        local scans = priced
+
+        MLH:clearPriceCache()
+        MLH:getSessionStats()
+
+        assert.is_true(priced > scans)
+    end)
+
+    it("are kept apart for each session", function()
+        local session = { startedOn = now - 7300, endedOn = now - 1000 }
+
+        assert.are.equal(8, MLH:getSessionStats().quantity)
+        assert.are.equal(9, MLH:getSessionStats(session).quantity)
+        assert.are.equal(8, MLH:getSessionStats().quantity)
+    end)
+end)
+
+describe("the session date range", function()
+    it("looks the picked session up once per pass, not once per entry", function()
+        seed()
+
+        local lootData = MLH.db.char.foundItems[1].lootData
+
+        for i = 1, 20 do
+            lootData[#lootData+1] = { quantity = 1, foundOn = now - 500 + i, zoneID = 1, sellPrice = 100 }
+        end
+
+        MLH:setFilter("range", 1)
+
+        local lookups = 0
+        local original = MLH.getSelectedSession
+
+        MLH.getSelectedSession = function(self)
+            lookups = lookups + 1
+            return original(self)
+        end
+
+        local report = MLH:buildReport()
+
+        MLH.getSelectedSession = original
+
+        assert.are.equal(28, report.totalQuantity)
+        assert.is_true(lookups <= 2, "looked the session up "..lookups.." times")
+    end)
+end)
+
 describe("the session date range", function()
     before_each(seed)
 

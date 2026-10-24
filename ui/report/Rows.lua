@@ -34,6 +34,23 @@ local function applyCell(fontString, right, width, justify)
     fontString:SetJustifyH(justify or "RIGHT")
 end
 
+-- "name (quantity), ..." for a list of { name, quantity }, at most `limit` of them when given.
+-- nameKey names the field to show in place of name, such as the item level.
+local function tally(list, limit, nameKey)
+    local parts = {}
+
+    for i = 1, math.min(#list, limit or #list) do
+        parts[i] = list[i][nameKey or "name"].." ("..list[i].quantity..")"
+    end
+
+    return table.concat(parts, ", ")
+end
+
+-- One line of the item tooltip's extra data: the label in grey, what it counts in green.
+local function addDetailLine(label, text)
+    GameTooltip:AddLine("|cFFDDDDDD"..label.."|r |cFF00BB00"..text.."|r", 1, 1, 1, true)
+end
+
 local rowMenu = nil
 
 local MAX_ROW_MENU_ZONES = 5
@@ -213,54 +230,26 @@ function View.createRow(parent)
 
             if (MLH.db.char.config.showAdditionalTooltipData) then
                 local item = entry.item
-                local zones = {}
-
-                for i = 1, #item.zones do
-                    zones[i] = item.zones[i].name.." ("..item.zones[i].quantity..")"
-                end
 
                 GameTooltip:AddLine(" ")
-                GameTooltip:AddLine("|cFFDDDDDD"..L["R_TotalQuantityGathered"].."|r |cFF00BB00"
-                    ..item.totalQuantity.."|r", 1, 1, 1, true)
+                addDetailLine(L["R_TotalQuantityGathered"], item.totalQuantity)
 
-                if (#zones > 0) then
-                    GameTooltip:AddLine("|cFFDDDDDD"..L["R_LootedIn"].."|r |cFF00BB00"
-                        ..table.concat(zones, ", ").."|r", 1, 1, 1, true)
+                if (#item.zones > 0) then
+                    addDetailLine(L["R_LootedIn"], tally(item.zones))
                 end
 
                 local levels = MLH:getItemLevelBreakdown(item)
 
                 if (#levels > 1) then
-                    local parts = {}
-
-                    for i = 1, #levels do
-                        parts[i] = levels[i].level.." ("..levels[i].quantity..")"
-                    end
-
-                    GameTooltip:AddLine("|cFFDDDDDD"..L["R_ItemLevels"].."|r |cFF00BB00"
-                        ..table.concat(parts, ", ").."|r", 1, 1, 1, true)
+                    addDetailLine(L["R_ItemLevels"], tally(levels, nil, "level"))
                 end
 
                 if (item.sources and #item.sources > 0) then
-                    local sources = {}
-
-                    for i = 1, math.min(#item.sources, 5) do
-                        sources[i] = item.sources[i].name.." ("..item.sources[i].quantity..")"
-                    end
-
-                    GameTooltip:AddLine("|cFFDDDDDD"..L["R_DroppedBy"].."|r |cFF00BB00"
-                        ..table.concat(sources, ", ").."|r", 1, 1, 1, true)
+                    addDetailLine(L["R_DroppedBy"], tally(item.sources, 5))
                 end
 
                 if (item.characters and #item.characters > 1) then
-                    local names = {}
-
-                    for i = 1, #item.characters do
-                        names[i] = item.characters[i].name.." ("..item.characters[i].quantity..")"
-                    end
-
-                    GameTooltip:AddLine("|cFFDDDDDD"..L["R_LootedBy"].."|r |cFF00BB00"
-                        ..table.concat(names, ", ").."|r", 1, 1, 1, true)
+                    addDetailLine(L["R_LootedBy"], tally(item.characters))
                 end
             end
 
@@ -276,11 +265,6 @@ function View.createRow(parent)
             if (entry.kind == "budget") then
                 local currency = entry.currency
                 local dimR, dimG, dimB = UI:rgb("textDim")
-                local zones = {}
-
-                for i = 1, math.min(#currency.zones, 5) do
-                    zones[i] = currency.zones[i].name.." ("..currency.zones[i].quantity..")"
-                end
 
                 GameTooltip:AddLine(" ")
                 GameTooltip:AddLine(L["R_CurrencyEarnedInView"](currency.quantity,
@@ -288,9 +272,8 @@ function View.createRow(parent)
                 GameTooltip:AddLine(L["R_CurrencyRate"](string.format("%.1f", currency.perHour or 0)),
                     dimR, dimG, dimB)
 
-                if (#zones > 0) then
-                    GameTooltip:AddLine(L["R_LootedIn"].." "..table.concat(zones, ", "),
-                        dimR, dimG, dimB, true)
+                if (#currency.zones > 0) then
+                    GameTooltip:AddLine(L["R_LootedIn"].." "..tally(currency.zones, 5), dimR, dimG, dimB, true)
                 end
 
                 GameTooltip:AddLine(" ")

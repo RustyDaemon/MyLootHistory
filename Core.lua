@@ -101,7 +101,7 @@ function MLH:OnInitialize()
         print(L["M_HistoryPruned"](removedEntries, removedRecords, self.db.char.config.retentionDays))
     end
 
-    self:initConfig()
+    self:addToGameOptions()
     self:initMinimap()
     self:RegisterChatCommand("mlh", "SlashCommandListener")
 
@@ -309,6 +309,19 @@ end
 function MLH.byQuantityThenName(l, r)
     if (l.quantity == r.quantity) then return l.name < r.name end
     return l.quantity > r.quantity
+end
+
+-- Sorts rows in place by value(row), either way, with ties broken by name(row) from A to Z.
+function MLH.sortRows(rows, value, descending, name)
+    table.sort(rows, function(l, r)
+        local lv, rv = value(l), value(r)
+
+        if (lv == rv) then return name(l) < name(r) end
+
+        if (descending) then return lv > rv end
+
+        return lv < rv
+    end)
 end
 
 function MLH:aggregateLoot(entries, unknownZoneName)

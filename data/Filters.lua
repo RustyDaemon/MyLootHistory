@@ -54,15 +54,15 @@ local function earliestFound(self)
 end
 
 -- The report's date ranges, in menu order. `id` is saved in params.selectedRangeValue, so ids never change.
--- matches(self, foundOn, entry) says whether a dated entry falls in the range;
+-- matches(self, foundOn, entry, context) says whether a dated entry falls in the range; context is
+-- what prepare(self), when the range has one, worked out once for a whole pass over the history.
 -- duration(self, now) is the range's length in seconds so far, for the per-hour rates.
 local ranges = {
     {
         id = MLH.RANGE_SESSION, labelKey = "RR_ThisSesion", shortKey = "RS_Session",
         -- the selected session, live or finished
-        matches = function(self, foundOn, entry)
-            local session = self:getSelectedSession()
-
+        prepare = function(self) return self:getSelectedSession() end,
+        matches = function(self, foundOn, entry, session)
             if (entry) then return self:isEntryInSession(entry, session) end
 
             if (session.startedOn == nil or foundOn < session.startedOn) then return false end
@@ -198,15 +198,23 @@ function MLH:hasActiveFilters()
         or active.zone ~= 0 or active.search ~= ""
 end
 
-function MLH:isInSelectedRange(foundOn, entry)
+-- The selected range as one test, fn(foundOn, entry), with what it needs looked up once: a report runs
+-- it on every loot entry in the history.
+function MLH:getRangeFilter()
     local id = self:getFilters().range
-
-    -- Undated legacy entries belong only to the unbounded date range.
-    if (foundOn == nil) then return id == MLH.RANGE_ALL end
-
     local range = rangesById[id]
+    local context = range and range.prepare and range.prepare(self)
 
-    return range ~= nil and range.matches(self, foundOn, entry)
+    return function(foundOn, entry)
+        -- Undated legacy entries belong only to the unbounded date range.
+        if (foundOn == nil) then return id == MLH.RANGE_ALL end
+
+        return range ~= nil and range.matches(self, foundOn, entry, context)
+    end
+end
+
+function MLH:isInSelectedRange(foundOn, entry)
+    return self:getRangeFilter()(foundOn, entry)
 end
 
 -- Seconds the selected range covers so far, at least 1 so it can divide. An unknown range counts as all time.

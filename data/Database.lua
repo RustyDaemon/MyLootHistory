@@ -214,6 +214,7 @@ function MLH:initDatabase()
     self.db = ADB:New("MyLootHistoryDB", defaults)
     self:upgradeCharacterData(self.db.char)
     resetIndexes()
+    self:bumpRevision()
 end
 
 function MLH:getItemRecord(itemID)

@@ -7,8 +7,6 @@ See License file for details.
 
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 
-local ACFG = LibStub("AceConfig-3.0")
-local ACFGDLG = LibStub("AceConfigDialog-3.0")
 local MLH_MMIcon = LibStub("LibDBIcon-1.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
@@ -20,24 +18,49 @@ for i = 1, #retentionOrder do
     retentionValues[days] = (days == 0) and L["C_RetentionForever"] or L["C_RetentionValue"](days)
 end
 
-local function alertsDisabled()
-    return not MLH.db.char.config.alerts.enabled
+local function config()
+    return MLH.db.char.config
 end
 
-local mainOptions = {
-    name = 'My Loot History',
-    type = 'group',
-    args = {
-        openSettingsButton = {
-            type = 'execute',
-            name = L["C_OpenSettings"],
-            func = function ()
-                HideUIPanel(SettingsPanel)
-                MLH:openSettings()
-            end
-        }
+local function alertsConfig()
+    return MLH.db.char.config.alerts
+end
+
+local function debugConfig()
+    return MLH.db.char.config.debug
+end
+
+local function alertsDisabled()
+    return not alertsConfig().enabled
+end
+
+local function refreshReport()
+    MLH:refreshReport()
+end
+
+-- A checkbox for the value at `key` in the table where() returns, labelled by the locale's `label` and
+-- `label`_Desc. apply(), when given, puts a change into effect once it is saved. extra holds any other
+-- fields the option needs, such as disabled.
+local function toggle(order, where, key, label, apply, extra)
+    local option = {
+        order = order,
+        type = "toggle",
+        name = L[label],
+        desc = L[label.."_Desc"],
+        get = function (_)
+            return where()[key]
+        end,
+        set = function (_, value)
+            where()[key] = value
+
+            if (apply) then apply(value) end
+        end,
     }
-}
+
+    for field, value in pairs(extra or {}) do option[field] = value end
+
+    return option
+end
 
 local generalOptions = {
     name = "My Loot History",
@@ -60,66 +83,22 @@ local generalOptions = {
                 end
             end
         },
-        resizableReportWindowCheckBox = {
-            order = 11,
-            type = "toggle",
-            name = L["C_ResizableWindow"],
-            desc = L["C_ResizableWindow_Desc"],
-            get = function (_)
-                return MLH.db.char.config.resizableReportWindow
-            end,
-            set = function (_, value)
-                MLH.db.char.config.resizableReportWindow = value
-                MLH:refreshReport()
-            end
-        },
-        showHUDCheckBox = {
-            order = 12,
-            type = "toggle",
-            name = L["C_ShowHUD"],
-            desc = L["C_ShowHUD_Desc"],
-            get = function (_)
-                return MLH.db.char.config.showHUD
-            end,
-            set = function (_, value)
-                MLH.db.char.config.showHUD = value
-                MLH:applyHUD()
-            end
-        },
-        lockHUDCheckBox = {
-            order = 13,
-            type = "toggle",
-            name = L["C_LockHUD"],
-            desc = L["C_LockHUD_Desc"],
-            disabled = function () return not MLH.db.char.config.showHUD end,
-            get = function (_)
-                return MLH.db.char.config.hudLocked
-            end,
-            set = function (_, value)
-                MLH.db.char.config.hudLocked = value
-            end
-        },
-        pixelFontCheckBox = {
-            order = 14,
-            type = "toggle",
-            name = L["C_PixelFont"],
-            desc = L["C_PixelFont_Desc"],
-            get = function (_)
-                return MLH.db.char.config.pixelFont
-            end,
-            set = function (_, value)
-                MLH.db.char.config.pixelFont = value
-
-                -- windows already built keep their font, so it only fully applies after a reload
-                MLH.UI:confirm({
-                    title = L["C_ReloadPromptTitle"],
-                    text = L["C_ReloadPrompt"],
-                    acceptText = L["C_ReloadPromptAccept"],
-                    cancelText = L["C_ReloadPromptLater"],
-                    onAccept = ReloadUI,
-                })
-            end
-        },
+        resizableReportWindowCheckBox = toggle(11, config, "resizableReportWindow", "C_ResizableWindow",
+            refreshReport),
+        showHUDCheckBox = toggle(12, config, "showHUD", "C_ShowHUD", function () MLH:applyHUD() end),
+        lockHUDCheckBox = toggle(13, config, "hudLocked", "C_LockHUD", nil, {
+            disabled = function () return not config().showHUD end,
+        }),
+        -- windows already built keep their font, so it only fully applies after a reload
+        pixelFontCheckBox = toggle(14, config, "pixelFont", "C_PixelFont", function ()
+            MLH.UI:confirm({
+                title = L["C_ReloadPromptTitle"],
+                text = L["C_ReloadPrompt"],
+                acceptText = L["C_ReloadPromptAccept"],
+                cancelText = L["C_ReloadPromptLater"],
+                onAccept = ReloadUI,
+            })
+        end),
         detailedHeader = {
             type = 'header',
             name = L["C_DetailedSettingsHeader"],
@@ -130,111 +109,20 @@ local generalOptions = {
             order = 21,
             name = L["C_Report"],
             args = {
-                showLastLootedRowCheckBox = {
-                    order = 1,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_ShowLastLootedRow"],
-                    desc = L["C_ShowLastLootedRow_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.showLastLooted
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.showLastLooted = value
-                        MLH:refreshReport()
-                    end
-                },
-                showZoneColumnCheckBox = {
-                    order = 2,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_ShowZoneColumn"],
-                    desc = L["C_ShowZoneColumn_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.showZone
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.showZone = value
-                        MLH:refreshReport()
-                    end
-                },
-                trackLootSourceCheckBox = {
-                    order = 21,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_TrackLootSource"],
-                    desc = L["C_TrackLootSource_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.trackLootSource
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.trackLootSource = value
-                        MLH:applySourceTracking()
-                        MLH:refreshReport()
-                    end
-                },
-                showSourceColumnCheckBox = {
-                    order = 22,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_ShowSourceColumn"],
-                    desc = L["C_ShowSourceColumn_Desc"],
-                    disabled = function () return not MLH.db.char.config.trackLootSource end,
-                    get = function (_)
-                        return MLH.db.char.config.showSource
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.showSource = value
-                        MLH:refreshReport()
-                    end
-                },
-                ignoreItemsWithZeroSellPriceCheckBox = {
-                    order = 3,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_IgnoreZeroPriceItems"],
-                    desc = L["C_IgnoreZeroPriceItems_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.ignoreItemsWithZeroPrice
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.ignoreItemsWithZeroPrice = value
-                    end
-                },
-                questRewardsInRatesCheckBox = {
-                    order = 3.5,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_QuestRewardsInRates"],
-                    desc = L["C_QuestRewardsInRates_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.questRewardsInRates
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.questRewardsInRates = value
+                showLastLootedRowCheckBox = toggle(1, config, "showLastLooted", "C_ShowLastLootedRow",
+                    refreshReport),
+                showZoneColumnCheckBox = toggle(2, config, "showZone", "C_ShowZoneColumn", refreshReport),
+                ignoreItemsWithZeroSellPriceCheckBox = toggle(3, config, "ignoreItemsWithZeroPrice",
+                    "C_IgnoreZeroPriceItems"),
+                questRewardsInRatesCheckBox = toggle(4, config, "questRewardsInRates", "C_QuestRewardsInRates",
+                    function ()
                         MLH:updateHUD()
                         MLH:refreshReport()
-                    end
-                },
-
-                showSessionBarCheckBox = {
-                    order = 4,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_ShowSessionBar"],
-                    desc = L["C_ShowSessionBar_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.showSessionBar
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.showSessionBar = value
-                        MLH:refreshReport()
-                    end
-                },
+                    end),
+                showSessionBarCheckBox = toggle(5, config, "showSessionBar", "C_ShowSessionBar", refreshReport),
 
                 priceSourceSelect = {
                     order = 6,
-                    width = "double",
                     type = "select",
                     name = L["C_PriceSource"],
                     desc = L["C_PriceSource_Desc"],
@@ -243,89 +131,25 @@ local generalOptions = {
                     end,
                     sorting = { "vendor", "auctionator" },
                     get = function (_)
-                        return MLH.db.char.config.priceSource or "vendor"
+                        return config().priceSource or "vendor"
                     end,
                     set = function (_, value)
-                        MLH.db.char.config.priceSource = value
+                        config().priceSource = value
                         MLH:clearPriceCache()
                         MLH:refreshReport()
                     end
                 },
 
-                showItemIDCheckBox = {
-                    order = 7,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_ShowItemID"],
-                    desc = L["C_ShowItemID_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.showItemID
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.showItemID = value
-                        MLH:refreshReport()
-                    end
-                },
-
-                showItemTooltipCheckBox = {
-                    order = 9,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_ShowItemTooltip"],
-                    desc = L["C_ShowItemTooltip_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.showTooltip
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.showTooltip = value
-                    end
-                },
-
-                showAdditionalTooltipDataCheckBox = {
-                    order = 10,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_ShowAdditionalTooltipData"],
-                    desc = L["C_ShowAdditionalTooltipData_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.showAdditionalTooltipData
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.showAdditionalTooltipData = value
-                    end
-                },
-
-                gameTooltipLineCheckBox = {
-                    order = 11,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_GameTooltipLine"],
-                    desc = L["C_GameTooltipLine_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.gameTooltipLine
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.gameTooltipLine = value
-                    end
-                },
-
-                trackCurrencyCheckBox = {
-                    order = 12,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_TrackCurrency"],
-                    desc = L["C_TrackCurrency_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.trackCurrency
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.trackCurrency = value
-                    end
-                },
+                showItemIDCheckBox = toggle(7, config, "showItemID", "C_ShowItemID", refreshReport),
+                showItemTooltipCheckBox = toggle(8, config, "showTooltip", "C_ShowItemTooltip"),
+                showAdditionalTooltipDataCheckBox = toggle(9, config, "showAdditionalTooltipData",
+                    "C_ShowAdditionalTooltipData"),
+                gameTooltipLineCheckBox = toggle(10, config, "gameTooltipLine", "C_GameTooltipLine"),
+                trackCurrencyCheckBox = toggle(11, config, "trackCurrency", "C_TrackCurrency"),
 
                 iconSizeRange = {
                     type = "range",
-                    order = 13,
+                    order = 12,
                     name = L["C_IconSize"],
                     min = 8,
                     max = 64,
@@ -333,13 +157,21 @@ local generalOptions = {
                     softMin = 12,
                     softMax = 24,
                     get = function (_)
-                        return MLH.db.char.config.reportIconSize
+                        return config().reportIconSize
                     end,
                     set = function (_, value)
-                        MLH.db.char.config.reportIconSize = value
+                        config().reportIconSize = value
                         MLH:refreshReport()
                     end
-                }
+                },
+
+                trackLootSourceCheckBox = toggle(13, config, "trackLootSource", "C_TrackLootSource", function ()
+                    MLH:applySourceTracking()
+                    MLH:refreshReport()
+                end),
+                showSourceColumnCheckBox = toggle(14, config, "showSource", "C_ShowSourceColumn", refreshReport, {
+                    disabled = function () return not config().trackLootSource end,
+                }),
             }
         },
         groupAlerts = {
@@ -347,36 +179,12 @@ local generalOptions = {
             order = 22,
             name = L["C_Alerts"],
             args = {
-                alertsEnabledCheckBox = {
-                    order = 1,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_AlertsEnabled"],
-                    desc = L["C_AlertsEnabled_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.alerts.enabled
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.alerts.enabled = value
-                    end
-                },
-                alertsCollectiblesCheckBox = {
-                    order = 2,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_AlertsCollectibles"],
-                    desc = L["C_AlertsCollectibles_Desc"],
+                alertsEnabledCheckBox = toggle(1, alertsConfig, "enabled", "C_AlertsEnabled"),
+                alertsCollectiblesCheckBox = toggle(2, alertsConfig, "collectibles", "C_AlertsCollectibles", nil, {
                     disabled = alertsDisabled,
-                    get = function (_)
-                        return MLH.db.char.config.alerts.collectibles
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.alerts.collectibles = value
-                    end
-                },
+                }),
                 alertsMinQualitySelect = {
                     order = 3,
-                    width = "double",
                     type = "select",
                     name = L["C_AlertsMinQuality"],
                     desc = L["C_AlertsMinQuality_Desc"],
@@ -391,15 +199,14 @@ local generalOptions = {
                     end,
                     sorting = { 0, 3, 4, 5 },
                     get = function (_)
-                        return MLH.db.char.config.alerts.minQuality or 0
+                        return alertsConfig().minQuality or 0
                     end,
                     set = function (_, value)
-                        MLH.db.char.config.alerts.minQuality = value
+                        alertsConfig().minQuality = value
                     end
                 },
                 alertsMinValueRange = {
                     order = 4,
-                    width = "double",
                     type = "range",
                     name = L["C_AlertsMinValue"],
                     desc = L["C_AlertsMinValue_Desc"],
@@ -410,40 +217,18 @@ local generalOptions = {
                     step = 1,
                     bigStep = 50,
                     get = function (_)
-                        return MLH.db.char.config.alerts.minValue or 0
+                        return alertsConfig().minValue or 0
                     end,
                     set = function (_, value)
-                        MLH.db.char.config.alerts.minValue = value
+                        alertsConfig().minValue = value
                     end
                 },
-                alertsSoundCheckBox = {
-                    order = 5,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_AlertsSound"],
-                    desc = L["C_AlertsSound_Desc"],
+                alertsSoundCheckBox = toggle(5, alertsConfig, "sound", "C_AlertsSound", nil, {
                     disabled = alertsDisabled,
-                    get = function (_)
-                        return MLH.db.char.config.alerts.sound
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.alerts.sound = value
-                    end
-                },
-                alertsChatCheckBox = {
-                    order = 6,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_AlertsChat"],
-                    desc = L["C_AlertsChat_Desc"],
+                }),
+                alertsChatCheckBox = toggle(6, alertsConfig, "chat", "C_AlertsChat", nil, {
                     disabled = alertsDisabled,
-                    get = function (_)
-                        return MLH.db.char.config.alerts.chat
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.alerts.chat = value
-                    end
-                },
+                }),
                 alertsPreviewButton = {
                     order = 10,
                     type = "execute",
@@ -499,19 +284,18 @@ local generalOptions = {
             args = {
                 retentionSelect = {
                     order = 1,
-                    width = "double",
                     type = "select",
                     name = L["C_RetentionDays"],
                     desc = L["C_RetentionDays_Desc"],
                     values = retentionValues,
                     sorting = retentionOrder,
                     get = function (_)
-                        return MLH.db.char.config.retentionDays or 0
+                        return config().retentionDays or 0
                     end,
                     set = function (_, value)
-                        local previous = MLH.db.char.config.retentionDays or 0
+                        local previous = config().retentionDays or 0
 
-                        MLH.db.char.config.retentionDays = value
+                        config().retentionDays = value
 
                         if (value <= 0) then return end
 
@@ -531,7 +315,7 @@ local generalOptions = {
                                 MLH:refreshSettings()
                             end,
                             onCancel = function ()
-                                MLH.db.char.config.retentionDays = previous
+                                config().retentionDays = previous
                                 MLH:refreshSettings()
                             end,
                         })
@@ -563,32 +347,8 @@ local generalOptions = {
             order = 24,
             name = L["C_Debug"],
             args = {
-                printDebugLootedInfo = {
-                    order = 1,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_PrintLootedSummary"],
-                    desc = L["C_PrintLootedSummary_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.debug.printLootedSummary
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.debug.printLootedSummary = value
-                    end
-                },
-                printDebugOtherInfo = {
-                    order = 2,
-                    width = "double",
-                    type = "toggle",
-                    name = L["C_PrintOtherDebugInfo"],
-                    desc = L["C_PrintOtherDebugInfo_Desc"],
-                    get = function (_)
-                        return MLH.db.char.config.debug.printOtherDebugInfo
-                    end,
-                    set = function (_, value)
-                        MLH.db.char.config.debug.printOtherDebugInfo = value
-                    end
-                }
+                printDebugLootedInfo = toggle(1, debugConfig, "printLootedSummary", "C_PrintLootedSummary"),
+                printDebugOtherInfo = toggle(2, debugConfig, "printOtherDebugInfo", "C_PrintOtherDebugInfo"),
             }
         },
         groupStatistics = MLH.groupStatistics,
@@ -596,42 +356,5 @@ local generalOptions = {
     }
 }
 
--- Drawn by settings/Window.lua, not by AceConfigDialog, so it is not registered.
+-- Drawn by settings/Window.lua.
 MLH.settingsOptions = generalOptions
-
-function MLH:initConfig()
-    ACFG:RegisterOptionsTable("MyLootHistory_MainOptions", mainOptions)
-
-    ACFGDLG:AddToBlizOptions("MyLootHistory_MainOptions", "My Loot History")
-end
-
-function MLH:getStatisticsText()
-    local itemsFound = self.db.char.foundItems
-    local itemTypesAmount = #itemsFound
-    local totalAmount = 0
-    local seenZones, zonesAmount = {}, 0
-
-    for i = 1, itemTypesAmount do
-        local lootData = itemsFound[i].lootData
-
-        for j = 1, #lootData do
-            local entry = lootData[j]
-
-            totalAmount = totalAmount + (tonumber(entry.quantity) or 1)
-
-            local zoneID = entry.zoneID or entry.zone or false
-
-            if (not seenZones[zoneID]) then
-                seenZones[zoneID] = true
-                zonesAmount = zonesAmount + 1
-            end
-        end
-    end
-
-    local currencyTypesAmount = #(self.db.char.foundCurrency or {})
-
-    return L["M_TotalDifferentItemsGathered"]..itemTypesAmount
-        ..'\n'..L["M_TotalQuantityGathered"]..totalAmount..'\n'..L["M_TotalZonesLooted"]..zonesAmount
-        ..'\n'..L["M_TotalCurrenciesGathered"]..currencyTypesAmount
-    ..'\n\n'..self:getSessionLine()
-end

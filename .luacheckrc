@@ -11,14 +11,15 @@ codes = true           -- print the warning code, so it can be looked up or igno
 max_line_length = 120
 
 exclude_files = {
-    "libs",            -- vendored Ace3 / LibStub / LibDBIcon / LibUIDropDownMenu
+    "libs",            -- vendored Ace3 / LibStub / LibDataBroker / LibDBIcon
     "dist",            -- build output
 }
 
 -- Warnings we deliberately do not want:
 ignore = {
-    "212",             -- unused argument: AceGUI hands every callback (widget, event, value)
-                       -- whether or not the handler needs them, so this is pure noise here.
+    "212",             -- unused argument: script handlers and option callbacks are handed
+                       -- (self, ...) or (info, value) whether or not they need them, so this is
+                       -- pure noise here.
                        -- 211 (unused local) stays on: that one does catch dead code.
     "213",             -- unused loop variable (common in `for _, v in pairs`)
 }
@@ -36,6 +37,7 @@ read_globals = {
     "LibStub",
 
     -- namespaced client API
+    "C_AddOns",
     "C_Container",
     "C_CurrencyInfo",
     "C_Item",

@@ -281,6 +281,47 @@ function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
     return frame
 end
 
+-- A tile with a caption, one big number and a footnote under it, edged in the accent color named.
+-- Fill it with card:Set(text, note, colorName).
+function UI:statCard(parent, caption, accentColorName)
+    local card = self:panel(parent, "panel", true)
+
+    card:EnableMouse(true)
+
+    self:attachHover(card, "panelHover", 0.6, "BORDER")
+
+    local stripe = card:CreateTexture(nil, "ARTWORK")
+    stripe:SetPoint("TOPLEFT")
+    stripe:SetPoint("BOTTOMLEFT")
+    stripe:SetWidth(2)
+    stripe:SetColorTexture(self:rgb(accentColorName or "accentDim"))
+
+    local title = self:text(card, 10, "textFaint")
+    title:SetPoint("TOPLEFT", 12, -10)
+    title:SetText(caption)
+
+    local value = self:number(card, 22, "text")
+    value:SetPoint("TOPLEFT", 11, -25)
+
+    local footnote = self:text(card, 10, "textDim")
+    footnote:SetPoint("BOTTOMLEFT", 12, 9)
+    footnote:SetPoint("BOTTOMRIGHT", -8, 9)
+    footnote:SetJustifyH("LEFT")
+    footnote:SetWordWrap(false)
+
+    card.value = value
+    card.footnote = footnote
+    card.stripe = stripe
+
+    card.Set = function(_, text, note, colorName)
+        value:SetText(text)
+        value:SetTextColor(UI:rgb(colorName or "text"))
+        footnote:SetText(note or "")
+    end
+
+    return card
+end
+
 function UI:segmented(parent, height, options, getValue, onSelect)
     local frame = self:panel(parent, "window", true)
     frame:SetHeight(height or 26)

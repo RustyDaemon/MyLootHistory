@@ -1,7 +1,7 @@
 ## Interface: 120105, 16001
 ## Title: My Loot History
 ## Author: RustyDaemon
-## Version: 2.4.1
+## Version: 2.5.0
 ## Notes: Look through |cFF00FF00everything|r you looted
 ## IconTexture: Interface\Icons\9xp_sigil_ardenweald01
 ## OptionalDeps: Ace3, Auctionator
@@ -33,6 +33,7 @@ kit\Palette.lua
 kit\Primitives.lua
 kit\Controls.lua
 kit\Confirm.lua
+kit\Window.lua
 
 ui\report\Layout.lua
 ui\report\Cards.lua
@@ -50,3 +51,4 @@ settings\Statistics.lua
 settings\Faq.lua
 settings\Options.lua
 settings\Window.lua
+settings\GameOptions.lua

@@ -13,6 +13,8 @@ local UI = MLH.UI
 local View = MLH.reportView
 
 local PAD = View.PAD
+local SCROLLBAR_WIDTH = 8
+local WHEEL_STEP = 48
 
 local exportWindow = nil
 
@@ -27,54 +29,47 @@ function View.showExportWindow()
     end
 
     if (not exportWindow) then
-        local frame = CreateFrame("Frame", "MLHExportFrame", UIParent)
+        local frame = UI:window({
+            name = "MLHExportFrame",
+            strata = "FULLSCREEN_DIALOG",
+            compact = true,
+            title = L["R_ExportTitle"],
+        })
 
-        frame:SetFrameStrata("FULLSCREEN_DIALOG")
         frame:SetSize(620, 440)
         frame:SetPoint("CENTER")
-        frame:SetMovable(true)
-        frame:EnableMouse(true)
-        frame:SetClampedToScreen(true)
-
-        UI:addShadow(frame, 6, 0.5)
-
-        local bg = frame:CreateTexture(nil, "BACKGROUND", nil, -7)
-        bg:SetAllPoints()
-        bg:SetColorTexture(UI:rgb("window", 0.98))
-
-        UI:addBorder(frame, UI:rgb("borderLight"))
-
-        local titleBar = CreateFrame("Frame", nil, frame)
-        titleBar:SetPoint("TOPLEFT", 1, -1)
-        titleBar:SetPoint("TOPRIGHT", -1, -1)
-        titleBar:SetHeight(36)
-        titleBar:EnableMouse(true)
-        titleBar:RegisterForDrag("LeftButton")
-        titleBar:SetScript("OnDragStart", function() frame:StartMoving() end)
-        titleBar:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
-
-        local titleFill = UI:gradient(titleBar, "BACKGROUND", "VERTICAL",
-            0.055, 0.059, 0.070, 1, 0.114, 0.106, 0.075, 1)
-        titleFill:SetAllPoints()
-
-        local title = UI:text(titleBar, 13, "text")
-        title:SetPoint("LEFT", PAD, 0)
-        title:SetText(L["R_ExportTitle"])
-
-        local close = UI:iconButton(titleBar, 26, "Interface\\Buttons\\UI-StopButton",
-            function() frame:Hide() end)
-        close:SetPoint("RIGHT", -5, 0)
 
         local hint = UI:text(frame, 11, "textFaint")
         hint:SetPoint("BOTTOMLEFT", PAD, 10)
 
         local box = UI:panel(frame, "panel", true)
-        box:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", PAD - 1, -PAD)
+        box:SetPoint("TOPLEFT", frame.titleBar, "BOTTOMLEFT", PAD - 1, -PAD)
         box:SetPoint("BOTTOMRIGHT", -PAD + 1, 30)
 
-        local scroll = CreateFrame("ScrollFrame", "MLHExportScroll", box, "UIPanelScrollFrameTemplate")
+        local scroll = CreateFrame("ScrollFrame", nil, box)
         scroll:SetPoint("TOPLEFT", 8, -8)
-        scroll:SetPoint("BOTTOMRIGHT", -26, 8)
+        scroll:SetPoint("BOTTOMRIGHT", -(SCROLLBAR_WIDTH + 18), 8)
+        scroll:EnableMouseWheel(true)
+
+        local scrollbar = UI:scrollbar(box, function(offset)
+            frame.offset = offset
+            scroll:SetVerticalScroll(offset)
+        end)
+        scrollbar:SetPoint("TOPRIGHT", -6, -8)
+        scrollbar:SetPoint("BOTTOMRIGHT", -6, 8)
+
+        -- The edit box grows with its text, and the scroll frame says so when it does.
+        frame.UpdateScroll = function(_, offset)
+            local visible = scroll:GetHeight()
+
+            frame.offset = scrollbar:Update(visible, visible + scroll:GetVerticalScrollRange(), offset)
+            scroll:SetVerticalScroll(frame.offset)
+        end
+
+        scroll:SetScript("OnScrollRangeChanged", function() frame:UpdateScroll() end)
+        scroll:SetScript("OnMouseWheel", function(_, delta)
+            frame:UpdateScroll((frame.offset or 0) - delta * WHEEL_STEP)
+        end)
 
         local editBox = CreateFrame("EditBox", nil, scroll)
         editBox:SetMultiLine(true)
@@ -92,10 +87,6 @@ function View.showExportWindow()
         frame.editBox = editBox
         frame.hint = hint
 
-        if (not tContains(UISpecialFrames, "MLHExportFrame")) then
-            tinsert(UISpecialFrames, "MLHExportFrame")
-        end
-
         exportWindow = frame
     end
 
@@ -103,6 +94,7 @@ function View.showExportWindow()
     exportWindow.editBox:SetText(csv)
     exportWindow.hint:SetText(L["R_ExportHint"](count))
     exportWindow:Show()
+    exportWindow:UpdateScroll(0)
     exportWindow.editBox:SetFocus()
     exportWindow.editBox:HighlightText()
 end

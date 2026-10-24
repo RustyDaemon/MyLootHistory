@@ -16,45 +16,6 @@ local ACTIVITY_HOURS = 24
 
 local GOLD_ICON = UI.GOLD_ICON
 
-function View.createCard(parent, caption, accentColorName)
-    local card = UI:panel(parent, "panel", true)
-
-    card:EnableMouse(true)
-
-    UI:attachHover(card, "panelHover", 0.6, "BORDER")
-
-    local stripe = card:CreateTexture(nil, "ARTWORK")
-    stripe:SetPoint("TOPLEFT")
-    stripe:SetPoint("BOTTOMLEFT")
-    stripe:SetWidth(2)
-    stripe:SetColorTexture(UI:rgb(accentColorName or "accentDim"))
-
-    local title = UI:text(card, 10, "textFaint")
-    title:SetPoint("TOPLEFT", 12, -10)
-    title:SetText(caption)
-
-    local value = UI:number(card, 22, "text")
-    value:SetPoint("TOPLEFT", 11, -25)
-
-    local footnote = UI:text(card, 10, "textDim")
-    footnote:SetPoint("BOTTOMLEFT", 12, 9)
-    footnote:SetPoint("BOTTOMRIGHT", -8, 9)
-    footnote:SetJustifyH("LEFT")
-    footnote:SetWordWrap(false)
-
-    card.value = value
-    card.footnote = footnote
-    card.stripe = stripe
-
-    card.Set = function(_, text, note, colorName)
-        value:SetText(text)
-        value:SetTextColor(UI:rgb(colorName or "text"))
-        footnote:SetText(note or "")
-    end
-
-    return card
-end
-
 function View.createActivityGraph(parent)
     local graph = UI:panel(parent, "panel", true)
 

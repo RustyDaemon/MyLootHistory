@@ -31,10 +31,13 @@ local function capProgress(info)
     return nil
 end
 
+local function rowName(row)
+    return row.name
+end
+
 function MLH:sortCurrencyRows(rows)
     local active = self:getFilters()
     local key = active.currencySort or "earned"
-    local descending = active.currencySortDescending
 
     local value = function(row)
         if (key == "earned") then return row.quantity end
@@ -45,15 +48,7 @@ function MLH:sortCurrencyRows(rows)
         return row.name
     end
 
-    table.sort(rows, function(l, r)
-        local lv, rv = value(l), value(r)
-
-        if (lv == rv) then return l.name < r.name end
-
-        if (descending) then return lv > rv end
-
-        return lv < rv
-    end)
+    MLH.sortRows(rows, value, active.currencySortDescending, rowName)
 end
 
 -- Balances and caps are for the logged-in character, even under account-wide scope.

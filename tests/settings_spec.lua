@@ -13,8 +13,6 @@ end
 
 _G.GetTime = function() return 0 end
 
-wow.provide("AceConfig-3.0", { RegisterOptionsTable = function() end })
-wow.provide("AceConfigDialog-3.0", { AddToBlizOptions = function() end, Open = function() end })
 wow.provide("LibDBIcon-1.0", { Show = function() end, Hide = function() end })
 
 wow.loadThrough("data/Currency.lua")
@@ -28,6 +26,7 @@ wow.load("settings/Faq.lua")
 wow.loadThrough("ui/Alerts.lua")
 wow.load("settings/Options.lua")
 wow.load("settings/Window.lua")
+wow.load("settings/GameOptions.lua")
 
 MLH:initDatabase()
 
@@ -71,6 +70,19 @@ describe("pages", function()
 
         assert.same({ "C_General", "C_Report", "C_Alerts", "C_HiddenItems", "C_Data", "C_Debug",
             "C_Statistics", "C_FAQ" }, names)
+    end)
+
+    it("lays the report options out in their order", function()
+        local keys = {}
+
+        for i, row in ipairs(page(pageIndex("C_Report")).frame.rows) do keys[i] = row.info[1] end
+
+        assert.same({
+            "showLastLootedRowCheckBox", "showZoneColumnCheckBox", "ignoreItemsWithZeroSellPriceCheckBox",
+            "questRewardsInRatesCheckBox", "showSessionBarCheckBox", "priceSourceSelect", "showItemIDCheckBox",
+            "showItemTooltipCheckBox", "showAdditionalTooltipDataCheckBox", "gameTooltipLineCheckBox",
+            "trackCurrencyCheckBox", "iconSizeRange", "trackLootSourceCheckBox", "showSourceColumnCheckBox",
+        }, keys)
     end)
 
     it("drops the heading that only introduced the groups", function()
@@ -293,6 +305,78 @@ describe("hidden items", function()
         end
 
         assert.is_true(said)
+    end)
+end)
+
+describe("the game's options", function()
+    local registered, added, closed = nil, nil, nil
+
+    before_each(function()
+        registered, added, closed = nil, nil, nil
+
+        _G.Settings = {
+            RegisterCanvasLayoutCategory = function(panel, name)
+                registered = { panel = panel, name = name }
+                return registered
+            end,
+            RegisterAddOnCategory = function(category) added = category end,
+        }
+        _G.SettingsPanel = {}
+        _G.HideUIPanel = function(frame) closed = frame end
+
+        MLH:addToGameOptions()
+    end)
+
+    after_each(function()
+        _G.Settings, _G.SettingsPanel, _G.HideUIPanel = nil, nil, nil
+    end)
+
+    it("get a page of the addon's own", function()
+        assert.equal(registered, added)
+        assert.equal("MM_IconTitle", tostring(registered.name))
+    end)
+
+    it("open the settings window from the page, closing themselves", function()
+        if (window()) then window():Hide() end
+
+        registered.panel.openSettings:Click()
+
+        assert.equal(_G.SettingsPanel, closed)
+        assert.is_true(window():IsShown())
+    end)
+
+    it("open the report from the page, and leave one already open alone", function()
+        local toggled = 0
+
+        MLH.gui = function() toggled = toggled + 1 end
+
+        registered.panel.openReport:Click()
+
+        assert.equal(_G.SettingsPanel, closed)
+        assert.equal(1, toggled)
+
+        _G.MLHReportFrame = CreateFrame("Frame")
+        registered.panel.openReport:Click()
+
+        assert.equal(1, toggled)
+
+        _G.MLHReportFrame, MLH.gui = nil, nil
+    end)
+
+    it("show the live session on the page while it is open", function()
+        local panel = registered.panel
+
+        panel:Show()
+
+        for _, card in ipairs(panel.cards) do
+            assert.is_not.equal("", card.value:GetText())
+        end
+
+        panel:Hide()
+    end)
+
+    it("are left alone on a client without the Settings API", function()
+        assert.has_no.errors(function() MLH:addToGameOptions() end)
     end)
 end)
 

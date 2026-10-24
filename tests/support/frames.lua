@@ -186,6 +186,7 @@ function widget:SetVertexColor(r, g, b)
 end
 
 function widget:SetScrollChild(child) self.scrollChild = child return self end
+function widget:GetVerticalScrollRange() return self.verticalScrollRange or 0 end
 
 function frames.install()
     _G.UIParent = newWidget("Frame", "UIParent")

@@ -5,9 +5,10 @@ Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 See License file for details.
 --]]
 
--- The settings window: the AceConfig options table from settings/Options.lua, drawn with the
--- same kit as the report. The table stays the one place a setting is defined; this file only reads
--- it, so a new option there shows up here without any change.
+-- The settings window: the options table from settings/Options.lua, drawn with the same kit as the
+-- report. The table keeps AceConfig's shape, though AceConfig itself is no longer bundled. It stays
+-- the one place a setting is defined; this file only reads it, so a new option there shows up here
+-- without any change.
 
 local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
 local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
@@ -16,7 +17,6 @@ local UI = MLH.UI
 local WIDTH = 780
 local HEIGHT = 580
 local PAD = 14
-local TITLE_HEIGHT = 44
 local SIDEBAR_WIDTH = 176
 local NAV_HEIGHT = 30
 local SCROLLBAR_WIDTH = 8
@@ -30,7 +30,7 @@ local FONT_SIZES = { small = 11, medium = 13, large = 15 }
 local window = nil
 local ticker = nil
 
--- AceConfig hands an info table to every callback; the options here ignore it, but keep the shape.
+-- AceConfig's shape hands an info table to every callback; the options here ignore it, but keep it.
 local function infoFor(key, option)
     return { key, option = option, type = option.type }
 end
@@ -443,77 +443,22 @@ local function createNavButton(parent, text, onClick)
 end
 
 local function savePosition()
-    local point, _, relativePoint, x, y = window:GetPoint()
-
     MLH.db.char.ui = MLH.db.char.ui or {}
-    MLH.db.char.ui.settings = { point = point, relativePoint = relativePoint, x = x, y = y }
+    MLH.db.char.ui.settings = UI:savePoint(window)
 end
 
 local function buildWindow()
-    local frame = CreateFrame("Frame", "MLHSettingsFrame", UIParent)
+    local frame = UI:window({
+        name = "MLHSettingsFrame",
+        title = L["MM_IconTitle"],
+        subtitle = L["R_Settings"],
+        closeTooltip = L["R_Close"],
+        onMoved = savePosition,
+    })
 
-    frame:SetFrameStrata("HIGH")
-    frame:SetToplevel(true)
-    frame:SetClampedToScreen(true)
-    frame:SetMovable(true)
-    frame:EnableMouse(true)
     frame:SetSize(WIDTH, HEIGHT)
-    frame:Hide()
 
-    UI:addShadow(frame, 6, 0.45)
-
-    local bg = frame:CreateTexture(nil, "BACKGROUND", nil, -7)
-    bg:SetAllPoints()
-    bg:SetColorTexture(UI:rgb("window", 0.97))
-
-    UI:addBorder(frame, UI:rgb("borderLight"))
-
-    local titleBar = CreateFrame("Frame", nil, frame)
-    titleBar:SetPoint("TOPLEFT", 1, -1)
-    titleBar:SetPoint("TOPRIGHT", -1, -1)
-    titleBar:SetHeight(TITLE_HEIGHT)
-    titleBar:EnableMouse(true)
-    titleBar:RegisterForDrag("LeftButton")
-
-    local titleFill = UI:gradient(titleBar, "BACKGROUND", "VERTICAL",
-        0.055, 0.059, 0.070, 1, 0.114, 0.106, 0.075, 1)
-    titleFill:SetAllPoints()
-
-    local titleLine = titleBar:CreateTexture(nil, "ARTWORK")
-    titleLine:SetPoint("BOTTOMLEFT")
-    titleLine:SetPoint("BOTTOMRIGHT")
-    titleLine:SetHeight(1)
-    titleLine:SetColorTexture(UI:rgb("accentDim", 0.6))
-
-    titleBar:SetScript("OnDragStart", function() frame:StartMoving() end)
-    titleBar:SetScript("OnDragStop", function()
-        frame:StopMovingOrSizing()
-        savePosition()
-    end)
-
-    local logo = titleBar:CreateTexture(nil, "ARTWORK")
-    logo:SetSize(24, 24)
-    logo:SetPoint("LEFT", PAD, 0)
-    logo:SetTexture("Interface\\Icons\\inv_misc_map09")
-    logo:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-    local logoBorder = titleBar:CreateTexture(nil, "BACKGROUND")
-    logoBorder:SetPoint("TOPLEFT", logo, "TOPLEFT", -1, 1)
-    logoBorder:SetPoint("BOTTOMRIGHT", logo, "BOTTOMRIGHT", 1, -1)
-    logoBorder:SetColorTexture(UI:rgb("accentDim"))
-
-    local title = UI:text(titleBar, 15, "text")
-    title:SetPoint("LEFT", logo, "RIGHT", 10, 1)
-    title:SetText(L["MM_IconTitle"])
-
-    local subtitle = UI:text(titleBar, 11, "textFaint")
-    subtitle:SetPoint("LEFT", title, "RIGHT", 10, 0)
-    subtitle:SetText(L["R_Settings"])
-
-    local close = UI:iconButton(titleBar, 28, "Interface\\Buttons\\UI-StopButton",
-        function() frame:Hide() end)
-    close:SetPoint("RIGHT", -6, 0)
-    UI:tooltip(close, L["R_Close"])
+    local titleBar = frame.titleBar
 
     local sidebar = UI:panel(frame, "panel", true)
     sidebar:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", PAD - 1, -PAD)
@@ -563,10 +508,6 @@ local function buildWindow()
         ticker = nil
     end)
 
-    if (not tContains(UISpecialFrames, "MLHSettingsFrame")) then
-        tinsert(UISpecialFrames, "MLHSettingsFrame")
-    end
-
     return frame
 end
 
@@ -574,15 +515,8 @@ function MLH:openSettings(pageIndex)
     if (not window) then window = buildWindow() end
 
     local ui = self.db.char.ui or {}
-    local saved = ui.settings or {}
 
-    window:ClearAllPoints()
-
-    if (saved.point) then
-        window:SetPoint(saved.point, UIParent, saved.relativePoint or saved.point, saved.x or 0, saved.y or 0)
-    else
-        window:SetPoint("CENTER")
-    end
+    UI:restorePoint(window, ui.settings)
 
     window:Show()
     window:Raise()
