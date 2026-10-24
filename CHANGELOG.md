@@ -1,3 +1,8 @@
+## 2.4.1
+
+- The addon's own pixel font is available as an option: "Pixel font" in the General settings draws the report, the HUD and the settings in it. The game's font stays the default, since the pixel font only has English letters and item names in other alphabets or with accents would not show correctly. Changing it offers to reload the UI, which is when it takes effect.
+- Updated for patch 12.1.5.
+
 ## 2.4.0
 
 - Quest rewards are tracked. The gold a quest pays is recorded, and the items and currencies that arrive with it are put down to the quest, with its name in the From column and the tooltip. World quests and bonus objectives count too. They are part of your history and the report, but are left out of the session's gold per hour, items per hour and value, so a round of world quests does not make a farming spot look better than it is. "Count quest rewards in gold per hour" in the Report settings puts them back in.
