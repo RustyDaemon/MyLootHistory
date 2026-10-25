@@ -1,3 +1,9 @@
+## 2.5.1
+
+- The **Pixel font** option says which languages the font covers: English, German, French, Spanish, Portuguese and Italian. Item names in Russian, Korean or Chinese still need the game's font.
+- With **Pixel font** on, text now falls back to the game's font if the pixel font can't be loaded, instead of disappearing.
+- After updating, restart the game rather than reloading the UI: the pixel font has moved, and the game only finds new files when it starts.
+
 ## 2.5.0
 
 - My Loot History has a page of its own in the game's options (AddOns tab), drawn in the same style as the report: your current session at a glance, buttons to open the settings or the report, and the slash commands.
