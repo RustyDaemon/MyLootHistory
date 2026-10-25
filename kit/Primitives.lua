@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.1.0
+RustyKit UI kit 1.2.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -44,6 +44,11 @@ local function addBorder(frame, r, g, b, a)
             edges[i]:SetColorTexture(br, bg, bb, ba or 1)
         end
     end
+
+    -- One unit is one screen pixel only at some UI scales. An addon that wants its borders a physical
+    -- pixel thin at every scale sets UI.onBorder, which gets the finished border's four lines (top,
+    -- bottom, left, right).
+    if (UI.onBorder) then UI.onBorder(frame, edges) end
 
     return frame
 end

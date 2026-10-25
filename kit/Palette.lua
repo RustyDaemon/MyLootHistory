@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.1.0
+RustyKit UI kit 1.2.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -31,7 +31,8 @@ UI.fonts = {
     { value = "pixel",    text = "Rusty Pixel", file = KIT_PATH .. "fonts\\RustyPixel.ttf" },
 }
 
-local preload = nil
+-- A font object per font file, so what one reports is about its own file and not one loaded before.
+local preloads, preloadCount = {}, 0
 
 -- Picks the font for everything built from here on; windows already built keep theirs until a
 -- reload. Called once the saved settings are loaded, before any window exists. A key it does not
@@ -49,7 +50,14 @@ function UI:setFont(key)
     if (file) then
         -- A font file is loaded on first use, and until then GetStringWidth() measures 0. Touch it
         -- now so it is ready before any window sizes itself around its text.
-        preload = preload or CreateFont(ADDON .. "FontPreload")
+        local preload = preloads[file]
+
+        if (not preload) then
+            preloadCount = preloadCount + 1
+            preload = CreateFont(ADDON .. "FontPreload" .. preloadCount)
+            preloads[file] = preload
+        end
+
         preload:SetFont(file, 12, "")
 
         -- A file the client cannot find (one added since the game started, until a restart) leaves the
