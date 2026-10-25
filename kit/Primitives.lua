@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.0.0
+RustyKit UI kit 1.1.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -83,7 +83,7 @@ end
 function UI:text(parent, size, colorName, flags)
     local fs = parent:CreateFontString(nil, "OVERLAY")
 
-    fs:SetFont(self.font, size or 12, flags or "")
+    fs:SetFont(self.font, self:fontSize(size or 12), flags or "")
     fs:SetTextColor(self:rgb(colorName or "text"))
     fs:SetShadowColor(0, 0, 0, 0.9)
     fs:SetShadowOffset(1, -1)
@@ -94,7 +94,7 @@ end
 function UI:number(parent, size, colorName)
     local fs = parent:CreateFontString(nil, "OVERLAY")
 
-    fs:SetFont(self.fontNumber, size or 16, "OUTLINE")
+    fs:SetFont(self.fontNumber, self:fontSize(size or 16), "OUTLINE")
     fs:SetTextColor(self:rgb(colorName or "text"))
 
     return fs

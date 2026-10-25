@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.0.0
+RustyKit UI kit 1.1.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -44,7 +44,7 @@ function UI:button(parent, text, width, height, onClick)
 
     button.SetAccent = function(_, on)
         if (on) then
-            bg:SetColorTexture(0.24, 0.19, 0.06, 1)
+            bg:SetColorTexture(UI:rgb("accentLit"))
             button:SetBorderColor(UI:rgb("accentDim"))
             label:SetTextColor(UI:rgb("accent"))
         else
@@ -98,7 +98,7 @@ function UI:searchBox(parent, width, height, placeholder, onChange)
     editBox:SetPoint("RIGHT", -22, 0)
     editBox:SetHeight(height or 26)
     editBox:SetAutoFocus(false)
-    editBox:SetFont(UI.font, 12, "")
+    editBox:SetFont(UI.font, self:fontSize(12), "")
     editBox:SetTextColor(self:rgb("text"))
 
     local hint = self:text(frame, 12, "textFaint")
@@ -343,7 +343,7 @@ function UI:segmented(parent, height, options, getValue, onSelect)
 
         local lit = button:CreateTexture(nil, "BORDER")
         lit:SetAllPoints()
-        lit:SetColorTexture(0.24, 0.19, 0.06, 1)
+        lit:SetColorTexture(self:rgb("accentLit"))
         lit:Hide()
 
         local underline = button:CreateTexture(nil, "OVERLAY")
@@ -561,7 +561,7 @@ function UI:inputBox(parent, width, height, label, getValue, onCommit, readOnly)
     editBox:SetPoint("RIGHT", -8, 0)
     editBox:SetHeight(height or 26)
     editBox:SetAutoFocus(false)
-    editBox:SetFont(UI.font, 12, "")
+    editBox:SetFont(UI.font, self:fontSize(12), "")
     editBox:SetTextColor(self:rgb("text"))
 
     local focused = false
