@@ -1,8 +1,10 @@
 --[[
-RustyKit UI kit
+RustyKit UI kit 1.0.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
+
+Synced from RustyKit (https://github.com/RustyDaemon/RustyKit): change it there, not in this copy.
 --]]
 
 -- The kit's colors and fonts. Creates ns.UI, so it loads before the rest of kit/.
@@ -21,7 +23,7 @@ local KIT_PATH = "Interface\\AddOns\\" .. ADDON .. "\\kit\\"
 UI.font = BLIZZARD_FONT
 UI.fontNumber = BLIZZARD_NUMBER
 
--- The fonts an addon can offer. Rusty Pixel, built by My Loot History's tools/font/build_font.py, has
+-- The fonts an addon can offer. Rusty Pixel, built by RustyKit's tools/font/build_font.py, has
 -- Latin letters with the common accents but no Cyrillic, Korean or Chinese; its digits share one
 -- width, so it serves numbers too.
 UI.fonts = {

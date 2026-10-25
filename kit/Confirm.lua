@@ -1,8 +1,10 @@
 --[[
-RustyKit UI kit
+RustyKit UI kit 1.0.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
+
+Synced from RustyKit (https://github.com/RustyDaemon/RustyKit): change it there, not in this copy.
 --]]
 
 -- The yes/no dialog asked before anything that cannot be undone.
