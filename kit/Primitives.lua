@@ -1,5 +1,5 @@
 --[[
-My Loot History addon
+RustyKit UI kit
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -7,8 +7,8 @@ See License file for details.
 
 -- The building blocks every control is made of: borders, panels, text, hover fades.
 
-local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
-local UI = MLH.UI
+local _, ns = ...
+local UI = ns.UI
 
 local function addBorder(frame, r, g, b, a)
     local edges = {}

@@ -174,6 +174,8 @@ end
 function widget:SetTexture(value)
     assert(value ~= nil, "SetTexture(nil)")
 
+    self.texture = value
+
     return self
 end
 

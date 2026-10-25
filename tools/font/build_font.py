@@ -1,5 +1,5 @@
 """
-Builds media/RustyPixel.ttf, the addon's own pixel font, from the glyph art below.
+Builds kit/fonts/RustyPixel.ttf, the kit's pixel font, from the glyph art below.
 
 Every glyph is drawn on a pixel grid: '#' is ink, '.' is empty. Art rows run top to bottom
 starting at the cap height (y = 6), so a 7-row glyph sits on the baseline and rows 8 and 9 of a
@@ -10,7 +10,7 @@ Grid: cap height 7, x-height 5, descender 2, accents on capitals reach y = 9. Th
 so at font size 12 one grid pixel is one screen pixel.
 
     pip install fonttools pillow
-    python tools/font/build_font.py            # writes media/RustyPixel.ttf
+    python tools/font/build_font.py            # writes kit/fonts/RustyPixel.ttf
     python tools/font/build_font.py --preview  # also writes tools/font/preview.png
 """
 
@@ -28,7 +28,7 @@ CAP_TOP = 6               # y of the first art row
 SPACING = 1               # empty grid pixels after every glyph
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, "media", "RustyPixel.ttf")
+OUT = os.path.join(ROOT, "kit", "fonts", "RustyPixel.ttf")
 
 GLYPHS = {
     # --- capitals -----------------------------------------------------------

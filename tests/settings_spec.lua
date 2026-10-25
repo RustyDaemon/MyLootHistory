@@ -206,7 +206,7 @@ describe("confirmations", function()
             if (entry.kind == "Button" and entry.value == days and entry:IsShown()) then entry:Click() end
         end
 
-        return _G.MLHConfirmDialog
+        return _G.MyLootHistoryConfirmDialog
     end
 
     it("ask before removing older loot, and keep the old setting on cancel", function()
@@ -255,12 +255,12 @@ describe("confirmations", function()
         local clear = rowFor(pageIndex("C_Data"), "clearData").children[1]
 
         clear:Click()
-        _G.MLHConfirmDialog.cancel:Click()
+        _G.MyLootHistoryConfirmDialog.cancel:Click()
 
         assert.equal(1, #MLH.db.char.foundGold)
 
         clear:Click()
-        _G.MLHConfirmDialog.accept:Click()
+        _G.MyLootHistoryConfirmDialog.accept:Click()
 
         assert.equal(0, #MLH.db.char.foundGold)
     end)

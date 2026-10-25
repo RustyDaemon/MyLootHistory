@@ -7,10 +7,10 @@ See License file for details.
 
 local addonName, addon = ...
 
-local MLH = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
+-- The addon object is the namespace every file is handed, so what the kit puts on it (ns.UI) is
+-- MLH.UI.
+local MLH = LibStub("AceAddon-3.0"):NewAddon(addon, addonName, "AceConsole-3.0", "AceEvent-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
-
-addon.MLH = MLH
 
 MLH.website = "https://mlh.rustydaemon.com"
 
@@ -93,7 +93,10 @@ end
 
 function MLH:OnInitialize()
     self:initDatabase()
-    self.UI:applyFont(self.db.char.config.pixelFont)
+
+    -- Every window's title bar shows a map, not the sigil the AddOns list shows.
+    self.UI.logo = "Interface\\Icons\\inv_misc_map09"
+    self.UI:setFont(self.db.char.config.pixelFont and "pixel" or "blizzard")
 
     local removedEntries, removedRecords = self:pruneHistory()
 

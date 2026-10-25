@@ -24,6 +24,12 @@ ignore = {
     "213",             -- unused loop variable (common in `for _, v in pairs`)
 }
 
+-- A script set inside a kit method takes its own self, the frame it runs on. Ignored in kit/ only,
+-- so the shared kit lints the same here as in Rusty Merchant and Rusty Alts.
+files["kit/*.lua"] = {
+    ignore = { "432/self" },
+}
+
 -- The addon namespace and the libraries it embeds. Read and written by us.
 globals = {
     "MyLootHistoryDB",     -- SavedVariables table, written by the client
@@ -135,6 +141,9 @@ read_globals = {
     "date",
     "time",
 
+    -- clients before C_AddOns
+    "GetAddOnMetadata",
+
     -- Lua 5.1 globals the WoW client keeps but newer stds dropped
     "tContains",
     "tinsert",
@@ -170,7 +179,7 @@ files["tests/**/*.lua"] = {
     std = "max+busted",
     read_globals = {
         -- installed by tests/support/wow.lua
-        "LibStub", "C_CurrencyInfo", "C_Item", "C_Map", "C_Timer", "Enum",
+        "LibStub", "C_AddOns", "C_CurrencyInfo", "C_Item", "C_Map", "C_Timer", "Enum",
         "GameTooltip", "GetMoneyString", "BreakUpLargeNumbers", "Item", "MyLootHistoryDB",
         "date", "time",
 
@@ -195,7 +204,7 @@ files["tests/support/*.lua"] = {
     std = "max+busted",
     globals = {
         "LibStub",
-        "ChatEdit_TryInsertChatLink", "CreateColor", "CreateFont", "CreateFrame", "C_Timer",
+        "ChatEdit_TryInsertChatLink", "C_AddOns", "CreateColor", "CreateFont", "CreateFrame", "C_Timer",
         "BreakUpLargeNumbers", "GameFontNormal", "GameTooltip", "GetCursorPosition", "GetRealmName",
         "IsLeftShiftKeyDown", "IsRightShiftKeyDown", "NumberFontNormal", "PlaySound",
         "SOUNDKIT", "UIParent", "UISpecialFrames", "UnitName", "tContains", "tinsert",

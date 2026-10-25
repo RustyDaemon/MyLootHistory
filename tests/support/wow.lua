@@ -168,6 +168,13 @@ _G.Enum = {
     TooltipDataType = { Item = 0 },
 }
 
+-- The .toc fields the client answers; a spec can change them to play a client that leaves one out.
+wow.metadata = { IconTexture = "Interface\\Icons\\9xp_sigil_ardenweald01" }
+
+_G.C_AddOns = {
+    GetAddOnMetadata = function(_, field) return wow.metadata[field] end,
+}
+
 local loaded = {}
 
 function wow.load(path)
@@ -178,7 +185,8 @@ function wow.load(path)
 
     loaded[path] = true
 
-    return chunk(path, addon)
+    -- As the client does: every file gets the addon's name and its namespace.
+    return chunk("MyLootHistory", addon)
 end
 
 -- The addon files the stubs can run, in MyLootHistory.toc order (loadorder_spec keeps the two in sync).

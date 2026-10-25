@@ -1,39 +1,62 @@
 --[[
-My Loot History addon
+RustyKit UI kit
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
 --]]
 
--- The kit's colors and fonts. Creates MLH.UI, so it loads before the rest of kit/.
+-- The kit's colors and fonts. Creates ns.UI, so it loads before the rest of kit/.
 
-local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
+local ADDON, ns = ...
 
 local UI = {}
-MLH.UI = UI
+ns.UI = UI
 
 -- The game's own fonts by default, so every locale keeps its own alphabet.
-local FONT = GameFontNormal:GetFont()
-local FONT_NUMBER = (NumberFontNormal and NumberFontNormal:GetFont()) or FONT
+local BLIZZARD_FONT = GameFontNormal:GetFont()
+local BLIZZARD_NUMBER = (NumberFontNormal and NumberFontNormal:GetFont()) or BLIZZARD_FONT
 
--- The addon's own pixel font, built by tools/font/build_font.py, offered as an option. Its digits
--- share one width, so it serves numbers too. It only has ASCII glyphs.
-local PIXEL_FONT = "Interface\\AddOns\\MyLootHistory\\media\\RustyPixel.ttf"
+local KIT_PATH = "Interface\\AddOns\\" .. ADDON .. "\\kit\\"
 
-UI.font = FONT
-UI.fontNumber = FONT_NUMBER
+UI.font = BLIZZARD_FONT
+UI.fontNumber = BLIZZARD_NUMBER
+
+-- The fonts an addon can offer. Rusty Pixel, built by My Loot History's tools/font/build_font.py, has
+-- Latin letters with the common accents but no Cyrillic, Korean or Chinese; its digits share one
+-- width, so it serves numbers too.
+UI.fonts = {
+    { value = "blizzard", text = "Blizzard" },
+    { value = "pixel",    text = "Rusty Pixel", file = KIT_PATH .. "fonts\\RustyPixel.ttf" },
+}
+
+local preload = nil
 
 -- Picks the font for everything built from here on; windows already built keep theirs until a
--- reload. Called once the saved settings are loaded, before any window exists.
-function UI:applyFont(pixel)
-    if (pixel) then
-        -- A font file is loaded on first use, and until then GetStringWidth() measures 0. Touch it
-        -- now so it is ready before any window sizes itself around its text.
-        CreateFont("MyLootHistoryFontPreload"):SetFont(PIXEL_FONT, 12, "")
+-- reload. Called once the saved settings are loaded, before any window exists. A key it does not
+-- know means the game's font.
+function UI:setFont(key)
+    local file = nil
+
+    for _, preset in ipairs(self.fonts) do
+        if (preset.value == key) then
+            file = preset.file
+            break
+        end
     end
 
-    self.font = pixel and PIXEL_FONT or FONT
-    self.fontNumber = pixel and PIXEL_FONT or FONT_NUMBER
+    if (file) then
+        -- A font file is loaded on first use, and until then GetStringWidth() measures 0. Touch it
+        -- now so it is ready before any window sizes itself around its text.
+        preload = preload or CreateFont(ADDON .. "FontPreload")
+        preload:SetFont(file, 12, "")
+
+        -- A file the client cannot find (one added since the game started, until a restart) leaves the
+        -- font object without a font. The game's font then draws, rather than no text at all.
+        if (not preload:GetFont()) then file = nil end
+    end
+
+    self.font = file or BLIZZARD_FONT
+    self.fontNumber = file or BLIZZARD_NUMBER
 end
 
 UI.GOLD_ICON = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:0:-1|t"

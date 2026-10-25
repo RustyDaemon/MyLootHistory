@@ -1,5 +1,5 @@
 --[[
-My Loot History addon
+RustyKit UI kit
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -7,8 +7,8 @@ See License file for details.
 
 -- Interactive controls built from the primitives: buttons, menus, dropdowns, inputs, sliders.
 
-local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
-local UI = MLH.UI
+local _, ns = ...
+local UI = ns.UI
 
 function UI:button(parent, text, width, height, onClick)
     local button = CreateFrame("Button", nil, parent)

@@ -1,5 +1,5 @@
 --[[
-My Loot History addon
+RustyKit UI kit
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -7,8 +7,11 @@ See License file for details.
 
 -- The yes/no dialog asked before anything that cannot be undone.
 
-local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
-local UI = MLH.UI
+local ADDON, ns = ...
+local UI = ns.UI
+
+-- Named after the addon, so Escape can close it (UISpecialFrames lists frames by name).
+local DIALOG_NAME = ADDON .. "ConfirmDialog"
 
 local CONFIRM_WIDTH = 400
 local CONFIRM_PAD = 20
@@ -17,7 +20,7 @@ local confirmDialog = nil
 
 local function buildConfirm()
     -- A full-screen shade that swallows clicks, so the question is answered before anything else.
-    local shade = CreateFrame("Button", "MLHConfirmDialog", UIParent)
+    local shade = CreateFrame("Button", DIALOG_NAME, UIParent)
     shade:SetAllPoints(UIParent)
     shade:SetFrameStrata("FULLSCREEN_DIALOG")
     shade:EnableMouse(true)
@@ -79,8 +82,8 @@ local function buildConfirm()
         if (not self.answered) then answer(false) end
     end)
 
-    if (not tContains(UISpecialFrames, "MLHConfirmDialog")) then
-        tinsert(UISpecialFrames, "MLHConfirmDialog")
+    if (not tContains(UISpecialFrames, DIALOG_NAME)) then
+        tinsert(UISpecialFrames, DIALOG_NAME)
     end
 
     shade.box = box

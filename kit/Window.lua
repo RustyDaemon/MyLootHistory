@@ -1,5 +1,5 @@
 --[[
-My Loot History addon
+RustyKit UI kit
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -8,18 +8,25 @@ See License file for details.
 -- The frame every window of the addon is built in: shadow, border, a title bar to drag it by and a
 -- close button. What goes inside is up to the window.
 
-local MLH = LibStub("AceAddon-3.0"):GetAddon("MyLootHistory")
-local UI = MLH.UI
+local ADDON, ns = ...
+local UI = ns.UI
 
 local PAD = 14
-local LOGO = "Interface\\Icons\\inv_misc_map09"
+
+local getMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+
+-- The title bar's logo: UI.logo when the addon sets one, otherwise the icon its .toc gives the AddOns
+-- list, and a question mark on a client that does not say.
+local function logoTexture()
+    return UI.logo or getMetadata(ADDON, "IconTexture") or "Interface\\Icons\\INV_Misc_QuestionMark"
+end
 
 -- Dresses a frame as one of the addon's windows: background, border and a title bar with the logo,
 -- the title and the subtitle. options:
 --   compact       a slimmer title bar with no logo and no rule, for a window opened from another one
 --   title         the title bar's text
 --   subtitle      fainter text after the title, if any
--- The frame gains titleBar, title and subtitle.
+-- The frame gains titleBar, title and subtitle, and logo unless compact.
 function UI:chrome(frame, options)
     local compact = options.compact and true or false
 
@@ -53,7 +60,7 @@ function UI:chrome(frame, options)
         local logo = titleBar:CreateTexture(nil, "ARTWORK")
         logo:SetSize(24, 24)
         logo:SetPoint("LEFT", PAD, 0)
-        logo:SetTexture(LOGO)
+        logo:SetTexture(logoTexture())
         logo:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
         local logoBorder = titleBar:CreateTexture(nil, "BACKGROUND")
@@ -62,6 +69,8 @@ function UI:chrome(frame, options)
         logoBorder:SetColorTexture(self:rgb("accentDim"))
 
         title:SetPoint("LEFT", logo, "RIGHT", 10, 1)
+
+        frame.logo = logo
     end
 
     if (options.subtitle) then
