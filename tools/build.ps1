@@ -72,7 +72,8 @@ if ($Version) {
     if ($Version -notmatch '^\d+\.\d+\.\d+$') { Fail "Version must look like 1.5.0, got '$Version'" }
     Step "Setting version to $Version in $AddonName.toc"
     $toc = $toc | ForEach-Object { $_ -replace '^##\s*Version:.*$', "## Version: $Version" }
-    Set-Content -Path $TocPath -Value $toc -Encoding UTF8
+    # Windows PowerShell's UTF8 writes a byte-order mark, which would sit in front of "## Interface".
+    [System.IO.File]::WriteAllLines($TocPath, [string[]]$toc, (New-Object System.Text.UTF8Encoding $false))
 }
 
 $versionLine = $toc | Where-Object { $_ -match '^##\s*Version:' } | Select-Object -First 1
