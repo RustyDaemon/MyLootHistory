@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.2.0
+RustyKit UI kit 1.3.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -12,6 +12,80 @@ Synced from RustyKit (https://github.com/RustyDaemon/RustyKit): change it there,
 local _, ns = ...
 local UI = ns.UI
 
+-- One physical screen pixel in a region's own units. The UI is 768 units tall at scale 1, so a line
+-- one unit thick lands between pixels at most UI scales.
+function UI:pixel(region)
+    local height = GetPhysicalScreenSize and select(2, GetPhysicalScreenSize())
+    local scale = region and region:GetEffectiveScale()
+
+    if (not height or height <= 0 or not scale or scale <= 0) then return 1 end
+
+    return 768 / height / scale
+end
+
+local measures = {}
+
+-- Runs measure now, and again whenever the UI scale or the screen size changes.
+function UI:pixelPerfect(measure)
+    measures[#measures + 1] = measure
+    measure()
+end
+
+local scaleWatcher = CreateFrame("Frame")
+
+-- The UI scale is only known for sure once the player is in the world, and Edit Mode scales the
+-- frames it lays out (an addon may border one of them). A client that lacks one of the events
+-- refuses to register it, and the others still count.
+for _, event in ipairs({ "UI_SCALE_CHANGED", "DISPLAY_SIZE_CHANGED", "PLAYER_ENTERING_WORLD",
+    "EDIT_MODE_LAYOUTS_UPDATED" }) do
+    pcall(scaleWatcher.RegisterEvent, scaleWatcher, event)
+end
+
+local measurePending = false
+
+-- A frame's effective scale has caught up with the change only by the next frame. Events that come
+-- together, as a new resolution's do, measure once.
+scaleWatcher:SetScript("OnEvent", function()
+    if (measurePending) then return end
+
+    measurePending = true
+
+    C_Timer.After(0, function()
+        measurePending = false
+
+        for _, measure in ipairs(measures) do pcall(measure) end
+    end)
+end)
+
+-- Snapping rounds each side of a texture to the pixel grid on its own, so a one-pixel line whose
+-- edge falls on a half pixel rounds to nothing and that side of a border goes missing. Unsnapped,
+-- a line exactly a pixel thick always covers exactly one pixel.
+function UI:crisp(texture)
+    if (texture.SetSnapToPixelGrid) then
+        texture:SetSnapToPixelGrid(false)
+        texture:SetTexelSnappingBias(0)
+    end
+end
+
+-- Makes texture, already anchored along two corners, a line one physical pixel thick on owner:
+-- tall for "horizontal", wide otherwise.
+function UI:pixelLine(owner, texture, orientation)
+    self:crisp(texture)
+
+    self:pixelPerfect(function()
+        if (orientation == "horizontal") then
+            texture:SetHeight(UI:pixel(owner))
+        else
+            texture:SetWidth(UI:pixel(owner))
+        end
+    end)
+
+    return texture
+end
+
+-- Which way each of a border's four lines (top, bottom, left, right) runs.
+local BORDER_SIDES = { "horizontal", "horizontal", "vertical", "vertical" }
+
 local function addBorder(frame, r, g, b, a)
     local edges = {}
 
@@ -23,19 +97,15 @@ local function addBorder(frame, r, g, b, a)
 
     edges[1]:SetPoint("TOPLEFT")
     edges[1]:SetPoint("TOPRIGHT")
-    edges[1]:SetHeight(1)
 
     edges[2]:SetPoint("BOTTOMLEFT")
     edges[2]:SetPoint("BOTTOMRIGHT")
-    edges[2]:SetHeight(1)
 
     edges[3]:SetPoint("TOPLEFT")
     edges[3]:SetPoint("BOTTOMLEFT")
-    edges[3]:SetWidth(1)
 
     edges[4]:SetPoint("TOPRIGHT")
     edges[4]:SetPoint("BOTTOMRIGHT")
-    edges[4]:SetWidth(1)
 
     frame.borderTextures = edges
 
@@ -45,10 +115,17 @@ local function addBorder(frame, r, g, b, a)
         end
     end
 
-    -- One unit is one screen pixel only at some UI scales. An addon that wants its borders a physical
-    -- pixel thin at every scale sets UI.onBorder, which gets the finished border's four lines (top,
-    -- bottom, left, right).
-    if (UI.onBorder) then UI.onBorder(frame, edges) end
+    -- An addon that draws the kit's borders its own way sets UI.onBorder, which gets the finished
+    -- border's four lines one unit thick and sizes them as it likes: the kit never measures them.
+    if (UI.onBorder) then
+        for i = 1, 4 do
+            if (BORDER_SIDES[i] == "horizontal") then edges[i]:SetHeight(1) else edges[i]:SetWidth(1) end
+        end
+
+        UI.onBorder(frame, edges)
+    else
+        for i = 1, 4 do UI:pixelLine(frame, edges[i], BORDER_SIDES[i]) end
+    end
 
     return frame
 end
@@ -188,8 +265,8 @@ function UI:sectionHeading(parent, text)
     local rule = frame:CreateTexture(nil, "ARTWORK")
     rule:SetPoint("LEFT", label, "RIGHT", 8, 0)
     rule:SetPoint("RIGHT", -2, 0)
-    rule:SetHeight(1)
     rule:SetColorTexture(UI:rgb("border"))
+    self:pixelLine(frame, rule, "horizontal")
 
     frame.label = label
 

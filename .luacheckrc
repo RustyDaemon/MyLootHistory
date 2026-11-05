@@ -87,6 +87,7 @@ read_globals = {
     "CreateFont",
     "CreateFrame",
     "GetCursorPosition",
+    "GetPhysicalScreenSize",
     "PlaySound",
     "ReloadUI",
     "SOUNDKIT",

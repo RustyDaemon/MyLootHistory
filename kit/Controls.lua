@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.2.0
+RustyKit UI kit 1.3.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -365,10 +365,11 @@ function UI:segmented(parent, height, options, getValue, onSelect)
 
         if (i > 1) then
             local divider = frame:CreateTexture(nil, "OVERLAY")
-            divider:SetPoint("TOPLEFT", button, "TOPLEFT", -1, -4)
-            divider:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", -1, 4)
-            divider:SetWidth(1)
+            -- The last pixel of the option before, however thin a pixel is at this scale.
+            divider:SetPoint("TOPRIGHT", button, "TOPLEFT", 0, -4)
+            divider:SetPoint("BOTTOMRIGHT", button, "BOTTOMLEFT", 0, 4)
             divider:SetColorTexture(self:rgb("border"))
+            self:pixelLine(frame, divider, "vertical")
         end
 
         buttons[i] = button

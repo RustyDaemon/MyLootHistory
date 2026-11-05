@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.2.0
+RustyKit UI kit 1.3.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -56,8 +56,8 @@ function UI:chrome(frame, options)
         local titleLine = titleBar:CreateTexture(nil, "ARTWORK")
         titleLine:SetPoint("BOTTOMLEFT")
         titleLine:SetPoint("BOTTOMRIGHT")
-        titleLine:SetHeight(1)
         titleLine:SetColorTexture(self:rgb("accentDim", 0.6))
+        self:pixelLine(titleBar, titleLine, "horizontal")
 
         local logo = titleBar:CreateTexture(nil, "ARTWORK")
         logo:SetSize(24, 24)
@@ -65,10 +65,18 @@ function UI:chrome(frame, options)
         logo:SetTexture(logoTexture())
         logo:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
+        -- The logo's frame is this texture showing one pixel past the logo on every side.
         local logoBorder = titleBar:CreateTexture(nil, "BACKGROUND")
-        logoBorder:SetPoint("TOPLEFT", logo, "TOPLEFT", -1, 1)
-        logoBorder:SetPoint("BOTTOMRIGHT", logo, "BOTTOMRIGHT", 1, -1)
         logoBorder:SetColorTexture(self:rgb("accentDim"))
+        self:crisp(logoBorder)
+
+        self:pixelPerfect(function()
+            local px = UI:pixel(titleBar)
+
+            logoBorder:ClearAllPoints()
+            logoBorder:SetPoint("TOPLEFT", logo, "TOPLEFT", -px, px)
+            logoBorder:SetPoint("BOTTOMRIGHT", logo, "BOTTOMRIGHT", px, -px)
+        end)
 
         title:SetPoint("LEFT", logo, "RIGHT", 10, 1)
 
