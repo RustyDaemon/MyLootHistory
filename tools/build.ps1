@@ -42,7 +42,7 @@ $StageDir  = Join-Path $DistDir $AddonName
 # zip - everything has to be excluded here.
 #
 # Anything whose name starts with a dot is dropped at any depth, which covers
-# .git, .github, .vscode, .claude, .luacheckrc, .busted, .gitignore, .DS_Store
+# .git, .github, .vscode, .luacheckrc, .busted, .gitignore, .DS_Store
 # and any tool config added later without anyone having to remember this file.
 $ExcludeDirs  = @('assets', 'dist', 'node_modules', 'tests', 'tools', 'web')
 $ExcludeFiles = @('DEVELOPMENT.md')
