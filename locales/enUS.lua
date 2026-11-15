@@ -212,7 +212,9 @@ L["R_SellPrice"] = "Sell price: "
 L["R_MarketPrice"] = "AH: "
 L["R_GoldEarned"] = "Gold earned: "
 L["R_TotalQuantityGathered"] = "Total quantity gathered:"
-L["R_NothingIsHereYet"] = "Nothing is here yet.\n  Loot something or change the filters :)"
+L["R_NothingIsHereYet"] = "Nothing is here yet.\n  Loot something and it shows up here :)"
+L["R_NothingMatchesFilters"] = "Nothing matches these filters.\n  Change them, or reset them to see everything"
+L["R_EverythingHidden"] = "Everything looted here is hidden.\n  Unhide items under /mlh config, Hidden items"
 L["R_Search"] = "Search"
 L["R_Zone"] = "Zone"
 L["R_UnknownZone"] = "Unknown zone"
@@ -246,6 +248,9 @@ L["S_SessionLine"] = function (duration, quantity, itemsPerHour, total, goldPerH
 end
 
 L["S_SessionTooltip"] = "Click to start a new session from now. The one you were in is filed under the session picker"
+L["S_ResetPromptTitle"] = "Start a new session?"
+L["S_ResetPrompt"] = "The session you are in is filed under the session picker, and the time, items per hour and gold per hour start again from now."
+L["S_ResetPromptAccept"] = "New session"
 
 -- session history
 L["S_LiveSession"] = "Current session"
@@ -275,6 +280,7 @@ end
 
 -- report columns
 L["R_ColQuality"] = "Q"
+L["R_ColQualityName"] = "Quality"
 L["R_ColItem"] = "Item"
 L["R_ColQuantity"] = "Qty"
 L["R_ColValue"] = "Value"
@@ -357,6 +363,7 @@ L["R_Settings"] = "Settings"
 L["R_ResizeHint"] = "Drag to resize"
 L["R_ShiftClickToLink"] = "Shift+click to link it in chat"
 L["R_RightClickForZone"] = "Right-click to filter by zone"
+L["R_RightClickForZoneOrHide"] = "Right-click to filter by zone or hide this item"
 L["R_ShowAllZones"] = "Show all zones"
 L["R_HideItem"] = "Hide this item"
 
@@ -369,6 +376,17 @@ L["R_FilterToZone"] = function (zoneName)
 end
 L["R_Money"] = "Money"
 L["R_GoldEarnedShort"] = "Gold looted"
+L["R_GoldFromLoot"] = "Picked up"
+L["R_GoldFromQuests"] = "Quest rewards"
+L["R_GoldTotal"] = "Total"
+
+L["R_GoldInView"] = function (viewName)
+  return 'During "'..viewName..'"'
+end
+
+L["R_GoldInZone"] = function (zoneName)
+  return 'In '..zoneName
+end
 
 L["R_MostlyFrom"] = function (zoneName)
   return 'Mostly from '..zoneName

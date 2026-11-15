@@ -56,6 +56,10 @@ function widget:GetWidth() return self.width end
 function widget:GetHeight() return self.height end
 function widget:GetSize() return self.width, self.height end
 function widget:GetEffectiveScale() return 1 end
+
+-- Frames sit at the screen's left edge unless a spec moves one by setting its `left`.
+function widget:GetLeft() return self.left or 0 end
+function widget:GetRight() return (self.left or 0) + self.width end
 function widget:GetScale() return 1 end
 function widget:GetFrameLevel() return 5 end
 function widget:GetFrameStrata() return "HIGH" end

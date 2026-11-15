@@ -19,34 +19,41 @@ local function entryFilter(self)
     end
 end
 
--- The loot entries the filter selects, appended to `into` when given, and their total quantity.
+-- The loot entries the filter selects, appended to `into` when given, their total quantity, and how
+-- much of it a quest gave: a turn-in's reward is an entry whose source is the quest.
 local function matchingLoot(lootData, matches, into)
-    local matched, quantity = into or {}, 0
+    local matched, quantity, fromQuests = into or {}, 0, 0
 
     for i = 1, #lootData do
         local entry = lootData[i]
 
         if (matches(entry)) then
+            local count = tonumber(entry.quantity) or 1
+
             matched[#matched+1] = entry
-            quantity = quantity + (tonumber(entry.quantity) or 1)
+            quantity = quantity + count
+
+            if (entry.source and entry.source.kind == "quest") then fromQuests = fromQuests + count end
         end
     end
 
-    return matched, quantity
+    return matched, quantity, fromQuests
 end
 
+-- The coins in view, and how many of them quests paid.
 function MLH:calculateGoldFound()
     local histories = self:getHistories()
     local matches = entryFilter(self)
-    local total = 0
+    local total, fromQuests = 0, 0
 
     for h = 1, #histories do
-        local _, quantity = matchingLoot(histories[h].gold, matches)
+        local _, quantity, questQuantity = matchingLoot(histories[h].gold, matches)
 
         total = total + quantity
+        fromQuests = fromQuests + questQuantity
     end
 
-    return total
+    return total, fromQuests
 end
 
 function MLH:collectCurrencies()
@@ -385,10 +392,16 @@ end
 
 function MLH:buildReport()
     local items, hiddenCount = self:collectItems()
+    local gold, questGold = 0, 0
+
+    -- A search names items, so it leaves the coins out.
+    if (self:getFilters().search == "") then gold, questGold = self:calculateGoldFound() end
+
     local report = {
         items = items,
         currencies = {},
-        gold = self:getFilters().search == "" and self:calculateGoldFound() or 0,
+        gold = gold,
+        questGold = questGold,
         totalQuantity = 0,
         totalValue = 0,
         totalVendorValue = 0,

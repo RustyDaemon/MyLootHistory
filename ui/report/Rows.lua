@@ -123,6 +123,59 @@ function View.closeRowMenu()
     if (rowMenu) then rowMenu:Hide() end
 end
 
+-- Row tooltips sit beside the report, on whichever side of it has more of the screen, so a window
+-- pushed against the right edge does not send them off it.
+local function anchorTooltip(row)
+    local window = View.window
+    local scale = window:GetEffectiveScale()
+    local screenScale = UIParent:GetEffectiveScale()
+    local left, right = window:GetLeft(), window:GetRight()
+
+    GameTooltip:SetOwner(row, "ANCHOR_NONE")
+    GameTooltip:ClearAllPoints()
+
+    local roomRight = right and (UIParent:GetRight() * screenScale - right * scale) or 1
+    local roomLeft = left and (left * scale - UIParent:GetLeft() * screenScale) or 0
+
+    if (roomRight >= roomLeft) then
+        GameTooltip:SetPoint("TOPLEFT", window, "TOPRIGHT", 6, 0)
+    else
+        GameTooltip:SetPoint("TOPRIGHT", window, "TOPLEFT", -6, 0)
+    end
+end
+
+-- The time window the report covers: the picked session's name while the range is a session.
+local function viewName()
+    local range = MLH:getFilters().range
+
+    if (range == MLH.RANGE_SESSION) then return MLH:getSelectedSessionName() end
+
+    return MLH:getRangeName(range) or ""
+end
+
+-- The gold row adds up coins picked up and coins quests paid; the tooltip tells the two apart.
+local function showGoldTooltip(entry)
+    local dimR, dimG, dimB = UI:rgb("textDim")
+    local questGold = entry.questGold or 0
+
+    GameTooltip:SetText(L["R_GoldEarnedShort"], UI:rgb("money"))
+    GameTooltip:AddLine(L["R_GoldInView"](viewName()), dimR, dimG, dimB)
+
+    -- The zone filter narrows the coins as well, so a picked zone is named with the time window.
+    if (MLH:getFilters().zone ~= 0) then
+        GameTooltip:AddLine(L["R_GoldInZone"](MLH:getZoneFilterName()), dimR, dimG, dimB)
+    end
+
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddDoubleLine(L["R_GoldFromLoot"], MLH:formatMoneyShort(entry.gold - questGold),
+        dimR, dimG, dimB, 1, 1, 1)
+    GameTooltip:AddDoubleLine(L["R_GoldFromQuests"], MLH:formatMoneyShort(questGold),
+        dimR, dimG, dimB, 1, 1, 1)
+    GameTooltip:AddDoubleLine(L["R_GoldTotal"], MLH:formatMoneyShort(entry.gold),
+        dimR, dimG, dimB, 1, 1, 1)
+    GameTooltip:Show()
+end
+
 function View.createRow(parent)
     local row = CreateFrame("Button", nil, parent)
 
@@ -215,8 +268,7 @@ function View.createRow(parent)
         local entry = self.entry
 
         if (entry.kind == "item") then
-            GameTooltip:SetOwner(self, "ANCHOR_NONE")
-            GameTooltip:SetPoint("TOPLEFT", View.window, "TOPRIGHT", 6, 0)
+            anchorTooltip(self)
 
             MLH:setTooltipSuppressed(true)
 
@@ -255,11 +307,10 @@ function View.createRow(parent)
 
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine(L["R_ShiftClickToLink"], UI:rgb("textFaint"))
-            GameTooltip:AddLine(L["R_RightClickForZone"], UI:rgb("textFaint"))
+            GameTooltip:AddLine(L["R_RightClickForZoneOrHide"], UI:rgb("textFaint"))
             GameTooltip:Show()
         elseif (entry.kind == "currency" or entry.kind == "budget") then
-            GameTooltip:SetOwner(self, "ANCHOR_NONE")
-            GameTooltip:SetPoint("TOPLEFT", View.window, "TOPRIGHT", 6, 0)
+            anchorTooltip(self)
             GameTooltip:SetCurrencyByID(entry.currency.currencyId)
 
             if (entry.kind == "budget") then
@@ -281,6 +332,9 @@ function View.createRow(parent)
             end
 
             GameTooltip:Show()
+        elseif (entry.kind == "gold") then
+            anchorTooltip(self)
+            showGoldTooltip(entry)
         end
     end)
 

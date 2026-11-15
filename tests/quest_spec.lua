@@ -222,6 +222,23 @@ describe("gold per hour", function()
         MLH:setFilter("zone", 0)
         MLH:setFilter("search", "")
 
-        assert.are.equal(130000, MLH:calculateGoldFound())
+        local total = MLH:calculateGoldFound()
+
+        assert.are.equal(130000, total)
+    end)
+
+    it("tells the report how much of its gold quests paid", function()
+        MLH:setFilter("scope", "char")
+        MLH:setFilter("range", MLH.RANGE_ALL)
+        MLH:setFilter("zone", 0)
+        MLH:setFilter("search", "")
+
+        local total, fromQuests = MLH:calculateGoldFound()
+        local report = MLH:buildReport()
+
+        assert.are.equal(130000, total)
+        assert.are.equal(120000, fromQuests)
+        assert.are.equal(130000, report.gold)
+        assert.are.equal(120000, report.questGold)
     end)
 end)

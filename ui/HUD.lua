@@ -116,10 +116,7 @@ local function buildHud()
         if (button == "LeftButton") then
             MLH:gui()
         elseif (button == "RightButton") then
-            PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
-            MLH:resetSession()
-            MLH:updateHUD()
-            MLH:refreshReport()
+            MLH:confirmResetSession()
         end
     end)
 

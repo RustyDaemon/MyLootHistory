@@ -22,6 +22,9 @@ local SORT_DOWN = " |TInterface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up:16:16:0:-2
 
 local rows = {}
 
+-- Text columns start A to Z; the numbers and dates start with the biggest or newest.
+local ASCENDING_FIRST = { name = true, zone = true, character = true, source = true }
+
 local function setSort(key)
     local currency = View.isCurrencyView()
     local currentKey, descending = View.sortState()
@@ -32,8 +35,7 @@ local function setSort(key)
     end
 
     MLH:setFilter(currency and "currencySort" or "sortKey", key)
-    MLH:setFilter(currency and "currencySortDescending" or "sortDescending",
-        key ~= "name" and key ~= "zone" and key ~= "character")
+    MLH:setFilter(currency and "currencySortDescending" or "sortDescending", not ASCENDING_FIRST[key])
 end
 
 function View.rebuildList()
@@ -53,7 +55,9 @@ function View.rebuildList()
 
     if (View.report.gold > 0) then
         View.displayList[#View.displayList+1] = { kind = "heading", text = L["R_Money"] }
-        View.displayList[#View.displayList+1] = { kind = "gold", gold = View.report.gold }
+        View.displayList[#View.displayList+1] = {
+            kind = "gold", gold = View.report.gold, questGold = View.report.questGold,
+        }
     end
 end
 
@@ -107,7 +111,8 @@ function View.updateScroll(offset)
     View.layoutRows()
 end
 
-function View.createHeaderColumn(parent, key, text, justify)
+-- sortName is the column's name in its tooltip, for a header too narrow to spell it out.
+function View.createHeaderColumn(parent, key, text, justify, sortName)
     local button = CreateFrame("Button", nil, parent)
 
     button:SetHeight(HEADER_HEIGHT)
@@ -126,6 +131,7 @@ function View.createHeaderColumn(parent, key, text, justify)
 
     button.key = key
     button.baseText = text
+    button.sortName = sortName or text
     button.label = label
     button.underline = underline
 
@@ -133,7 +139,7 @@ function View.createHeaderColumn(parent, key, text, justify)
         if (View.sortState() ~= self.key) then self.label:SetTextColor(UI:rgb("text")) end
 
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText(L["R_SortBy"](self.baseText), 1, 1, 1)
+        GameTooltip:SetText(L["R_SortBy"](self.sortName), 1, 1, 1)
 
         if (self.hint) then GameTooltip:AddLine(self.hint, UI:rgb("textDim")) end
 

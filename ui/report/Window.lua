@@ -26,7 +26,6 @@ local FOOTER_HEIGHT = 30
 local GRAPH_WIDTH = 232
 local CARD_GAP = 8
 
-local MIN_WIDTH = 780
 local MIN_HEIGHT = 460
 local DEFAULT_WIDTH = 940
 local DEFAULT_HEIGHT = 620
@@ -60,6 +59,49 @@ local function showShareMenu(anchor)
     end, nil, 140)
 end
 
+-- Whether the history in scope holds anything the current table could show, before any filter.
+local function hasHistory()
+    local histories = MLH:getHistories()
+    local currency = View.isCurrencyView()
+
+    for h = 1, #histories do
+        local records = currency and histories[h].currency or histories[h].items
+
+        if (not currency and #histories[h].gold > 0) then return true end
+
+        for i = 1, #records do
+            if (records[i].lootData and #records[i].lootData > 0) then return true end
+        end
+    end
+
+    return false
+end
+
+-- Whether a filter that applies to the current table differs from showing everything. The quality
+-- filters are left out of the currency table, which they do not narrow.
+local function filtersNarrow()
+    local active = MLH:getFilters()
+
+    if (active.range ~= MLH.RANGE_ALL or active.zone ~= 0 or active.search ~= "") then return true end
+
+    return not View.isCurrencyView() and (active.quality ~= 0 or active.exactQuality == true)
+end
+
+-- What an empty list says, and whether resetting the filters would help: nothing looted yet, everything
+-- in view hidden by the player, or filters (the default Today range among them) leaving nothing.
+local function emptyMessage()
+    if (not hasHistory()) then
+        return View.isCurrencyView() and L["R_NoCurrenciesHere"] or L["R_NothingIsHereYet"], false
+    end
+
+    local active = MLH:getFilters()
+    local hidden = not View.isCurrencyView() and (View.report.hiddenCount or 0) > 0
+        and active.search == "" and active.quality == 0 and not active.exactQuality
+
+    if (hidden) then return L["R_EverythingHidden"], false end
+
+    return L["R_NothingMatchesFilters"], filtersNarrow()
+end
 
 function View.refreshReport(keepScroll)
     if (not View.window) then return end
@@ -76,9 +118,14 @@ function View.refreshReport(keepScroll)
 
     local isEmpty = #View.displayList == 0
 
-    View.window.emptyText:SetText(View.isCurrencyView() and L["R_NoCurrenciesHere"] or L["R_NothingIsHereYet"])
+    if (isEmpty) then
+        local message, offerReset = emptyMessage()
+
+        View.window.emptyText:SetText(message)
+        View.window.emptyReset:SetShown(offerReset)
+    end
+
     View.window.empty:SetShown(isEmpty)
-    View.window.emptyReset:SetShown(isEmpty and MLH:hasActiveFilters())
     View.window.header:SetShown(not isEmpty)
 
     View.updateScroll(View.scrollOffset)
@@ -102,6 +149,22 @@ function MLH:refreshReport()
     View.window.statsRow:SetShown(self.db.char.config.showSessionBar and true or false)
     View.window:UpdateLayout()
     View.refreshReport(true)
+end
+
+-- A new session files the live one away and starts its numbers again, which a stray click on the session
+-- card or the HUD should not do unasked. The slash command, typed on purpose, does not ask.
+function MLH:confirmResetSession()
+    UI:confirm({
+        title = L["S_ResetPromptTitle"],
+        text = L["S_ResetPrompt"],
+        acceptText = L["S_ResetPromptAccept"],
+        cancelText = L["C_Cancel"],
+        onAccept = function()
+            MLH:resetSession()
+            MLH:updateHUD()
+            MLH:refreshReport()
+        end,
+    })
 end
 
 -- Saved flat in db.char.ui, next to the window's size, as it always has been.
@@ -128,10 +191,6 @@ local function buildWindow()
     })
 
     frame:SetResizable(true)
-
-    if (frame.SetResizeBounds) then
-        frame:SetResizeBounds(MIN_WIDTH, MIN_HEIGHT)
-    end
 
     local titleBar = frame.titleBar
     local close = frame.close
@@ -179,11 +238,7 @@ local function buildWindow()
     }
 
     cards.time:EnableMouse(true)
-    cards.time:SetScript("OnMouseUp", function()
-        PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
-        MLH:resetSession()
-        View.refreshReport(true)
-    end)
+    cards.time:SetScript("OnMouseUp", function() MLH:confirmResetSession() end)
     UI:tooltip(cards.time, L["G_Session"], L["S_SessionTooltip"])
     UI:tooltip(cards.items, L["G_ItemsPerHour"], L["G_ItemsPerHourTooltip"])
     UI:tooltip(cards.gold, L["G_GoldPerHour"], L["G_GoldPerHourTooltip"])
@@ -319,7 +374,7 @@ local function buildWindow()
     headerRule:SetHeight(1)
     headerRule:SetColorTexture(UI:rgb("border"))
 
-    header.quality = View.createHeaderColumn(header, "quality", L["R_ColQuality"], "LEFT")
+    header.quality = View.createHeaderColumn(header, "quality", L["R_ColQuality"], "LEFT", L["R_ColQualityName"])
     header.name = View.createHeaderColumn(header, "name", L["R_ColItem"], "LEFT")
     header.quantity = View.createHeaderColumn(header, "quantity", L["R_ColQuantity"], "RIGHT")
     header.value = View.createHeaderColumn(header, "value", L["R_ColValue"], "RIGHT")
@@ -406,11 +461,13 @@ local function buildWindow()
     grip:SetScript("OnMouseDown", function()
         if (not MLH.db.char.config.resizableReportWindow) then return end
 
+        frame.isSizing = true
         frame:StartSizing("BOTTOMRIGHT")
     end)
 
     grip:SetScript("OnMouseUp", function()
         frame:StopMovingOrSizing()
+        frame.isSizing = nil
         saveWindowPosition()
         frame:UpdateLayout()
         View.refreshReport(true)
@@ -441,8 +498,23 @@ local function buildWindow()
     frame.footerZone = footerZone
     frame.grip = grip
 
+    -- The minimum follows the current table's columns, so the Item column keeps its room. The resize
+    -- bounds stop a drag at it; a window left narrower than that is widened once no drag is under way,
+    -- since setting the width mid-drag would fight the player's hand.
+    local function applyMinimumWidth()
+        local minimum = View.minimumWidth()
+
+        if (frame.SetResizeBounds) then
+            frame:SetResizeBounds(minimum, MIN_HEIGHT)
+        end
+
+        if (not frame.isSizing and frame:GetWidth() < minimum) then frame:SetWidth(minimum) end
+    end
+
     frame.UpdateLayout = function(self)
         local showSession = MLH.db.char.config.showSessionBar and true or false
+
+        applyMinimumWidth()
 
         statsRow:SetShown(showSession)
         graph:SetShown(showSession and self:GetWidth() >= 860)
@@ -478,6 +550,10 @@ local function buildWindow()
         if (not self:IsShown()) then return end
 
         self:UpdateLayout()
+
+        -- The text columns narrow with the window, so the header follows the rows.
+        if (View.report) then View.refreshHeader() end
+
         View.updateScroll(View.scrollOffset)
     end)
 
