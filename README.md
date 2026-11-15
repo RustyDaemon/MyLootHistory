@@ -54,7 +54,7 @@ Three numbers on your screen, no window needed:
 
 ![The session HUD: time farmed, items per hour, gold per hour](assets/screenshots/hud.png)
 
-Drag it anywhere and lock it. Left click opens the report, right click starts a fresh session when you move to a new spot. Turn it on with `/mlh hud`.
+Drag it anywhere and lock it. Left click opens the report, right click starts a fresh session (it asks first) when you move to a new spot. Turn it on with `/mlh hud`.
 
 ## Drop alerts
 

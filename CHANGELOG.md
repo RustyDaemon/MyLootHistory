@@ -1,3 +1,13 @@
+## 2.6.0
+
+- The report window is resizable by default. **Resizable window** in the settings still turns it off.
+- With every column on, item names stay readable: Looted, Character, Zone and From narrow first, and the window keeps a minimum width that fits them all.
+- Starting a new session from the Session card or the HUD's right click asks first. `/mlh session reset` still starts one at once.
+- The gold row has a tooltip: the coins you picked up, the gold from quest rewards and the total, for the time and zone shown.
+- An empty report says why: nothing looted yet, filters hiding everything, or every item hidden.
+- The From column sorts A to Z first, row tooltips open on the side of the window with room on screen, item tooltips mention right-click to hide an item, and the Q column's tooltip says Quality.
+- Borders no longer lose a side, or all four, at some UI scales.
+
 ## 2.5.1
 
 - The **Pixel font** option says which languages the font covers: English, German, French, Spanish, Portuguese and Italian. Item names in Russian, Korean or Chinese still need the game's font.
