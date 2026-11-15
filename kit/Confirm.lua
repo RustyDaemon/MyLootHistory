@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.3.0
+RustyKit UI kit 1.4.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -41,7 +41,7 @@ local function buildConfirm()
 
     local bg = box:CreateTexture(nil, "BACKGROUND", nil, -7)
     bg:SetAllPoints()
-    bg:SetColorTexture(UI:rgb("window", 0.98))
+    UI:paint(bg, "window", 0.98)
 
     UI:addBorder(box, UI:rgb("borderLight"))
 

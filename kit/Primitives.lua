@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.3.0
+RustyKit UI kit 1.4.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -132,12 +132,26 @@ end
 
 UI.addBorder = function(_, frame, ...) return addBorder(frame, ...) end
 
--- Black drop shadow extending `inset` pixels past each edge of the frame.
+-- Fills a texture with a palette color: flat, or over the addon's surface texture (UI:setSurface)
+-- tinted by the color when it set one.
+function UI:paint(texture, colorName, alpha)
+    if (self.surface) then
+        texture:SetTexture(self.surface)
+        texture:SetVertexColor(self:rgb(colorName, alpha))
+    else
+        texture:SetColorTexture(self:rgb(colorName, alpha))
+    end
+
+    return texture
+end
+
+-- A drop shadow in the theme's shadow color (black on dark) extending `inset` pixels past each edge
+-- of the frame.
 function UI:addShadow(frame, inset, alpha, subLevel)
     local shadow = frame:CreateTexture(nil, "BACKGROUND", nil, subLevel or -8)
     shadow:SetPoint("TOPLEFT", -inset, inset)
     shadow:SetPoint("BOTTOMRIGHT", inset, -inset)
-    shadow:SetColorTexture(0, 0, 0, alpha)
+    shadow:SetColorTexture(self:rgb("shadow", alpha))
 
     return shadow
 end
@@ -147,12 +161,12 @@ function UI:panel(parent, colorName, bordered, alpha)
     local bg = frame:CreateTexture(nil, "BACKGROUND")
 
     bg:SetAllPoints()
-    bg:SetColorTexture(self:rgb(colorName or "panel", alpha))
+    self:paint(bg, colorName or "panel", alpha)
 
     frame.bg = bg
 
     frame.SetPanelColor = function(_, name, a)
-        bg:SetColorTexture(UI:rgb(name, a))
+        UI:paint(bg, name, a)
     end
 
     if (bordered) then
@@ -167,16 +181,17 @@ function UI:text(parent, size, colorName, flags)
 
     fs:SetFont(self.font, self:fontSize(size or 12), flags or "")
     fs:SetTextColor(self:rgb(colorName or "text"))
-    fs:SetShadowColor(0, 0, 0, 0.9)
+    fs:SetShadowColor(self:rgb("textShadow"))
     fs:SetShadowOffset(1, -1)
 
     return fs
 end
 
+-- Numbers draw outlined on the dark theme; the theme says how.
 function UI:number(parent, size, colorName)
     local fs = parent:CreateFontString(nil, "OVERLAY")
 
-    fs:SetFont(self.fontNumber, self:fontSize(size or 16), "OUTLINE")
+    fs:SetFont(self.fontNumber, self:fontSize(size or 16), self.numberFlags)
     fs:SetTextColor(self:rgb(colorName or "text"))
 
     return fs
@@ -209,8 +224,9 @@ function UI:tooltip(frame, title, body, anchor)
 
         local bodyText = type(self.tooltipBody) == "function" and self.tooltipBody() or self.tooltipBody
 
+        -- The game's tooltip stays dark whatever the theme, so its body has a color of its own.
         if (bodyText) then
-            local r, g, b = UI:rgb("textDim")
+            local r, g, b = UI:rgb("tooltipBody")
 
             GameTooltip:AddLine(bodyText, r, g, b, true)
         end
@@ -227,7 +243,7 @@ local function attachHover(frame, colorName, maxAlpha, layer)
     local hl = frame:CreateTexture(nil, layer or "ARTWORK")
 
     hl:SetAllPoints()
-    hl:SetColorTexture(UI:rgb(colorName or "panelHover"))
+    UI:paint(hl, colorName or "panelHover")
     hl:SetAlpha(0)
 
     frame.hover = hl

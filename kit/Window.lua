@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.3.0
+RustyKit UI kit 1.4.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -34,7 +34,7 @@ function UI:chrome(frame, options)
 
     local bg = frame:CreateTexture(nil, "BACKGROUND", nil, -7)
     bg:SetAllPoints()
-    bg:SetColorTexture(self:rgb("window", 0.97))
+    self:paint(bg, "window", 0.97)
 
     self:addBorder(frame, self:rgb("borderLight"))
 
@@ -43,8 +43,17 @@ function UI:chrome(frame, options)
     titleBar:SetPoint("TOPRIGHT", -1, -1)
     titleBar:SetHeight(compact and 36 or 44)
 
-    local titleFill = self:gradient(titleBar, "BACKGROUND", "VERTICAL",
-        0.055, 0.059, 0.070, 1, 0.114, 0.106, 0.075, 1)
+    -- The title bar fades between the theme's two title colors, over the surface texture when the
+    -- addon set one.
+    local titleFill = titleBar:CreateTexture(nil, "BACKGROUND")
+
+    if (self.surface) then
+        titleFill:SetTexture(self.surface)
+    else
+        titleFill:SetColorTexture(1, 1, 1, 1)
+    end
+
+    titleFill:SetGradient("VERTICAL", CreateColor(self:rgb("titleBottom")), CreateColor(self:rgb("titleTop")))
     titleFill:SetAllPoints()
 
     local title = self:text(titleBar, compact and 13 or 15, "text")

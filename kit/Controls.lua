@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.3.0
+RustyKit UI kit 1.4.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -19,10 +19,10 @@ function UI:button(parent, text, width, height, onClick)
 
     local bg = button:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetColorTexture(self:rgb("raised"))
+    self:paint(bg, "raised")
 
     UI:addBorder(button, self:rgb("border"))
-    UI:attachHover(button, "borderLight", 0.55)
+    UI:attachHover(button, "buttonHover", 0.55)
 
     local label = self:text(button, 12, "text")
     label:SetPoint("CENTER", 0, 0)
@@ -44,11 +44,11 @@ function UI:button(parent, text, width, height, onClick)
 
     button.SetAccent = function(_, on)
         if (on) then
-            bg:SetColorTexture(UI:rgb("accentLit"))
+            UI:paint(bg, "accentLit")
             button:SetBorderColor(UI:rgb("accentDim"))
             label:SetTextColor(UI:rgb("accent"))
         else
-            bg:SetColorTexture(UI:rgb("raised"))
+            UI:paint(bg, "raised")
             button:SetBorderColor(UI:rgb("border"))
             label:SetTextColor(UI:rgb("text"))
         end
@@ -343,7 +343,7 @@ function UI:segmented(parent, height, options, getValue, onSelect)
 
         local lit = button:CreateTexture(nil, "BORDER")
         lit:SetAllPoints()
-        lit:SetColorTexture(self:rgb("accentLit"))
+        self:paint(lit, "accentLit")
         lit:Hide()
 
         local underline = button:CreateTexture(nil, "OVERLAY")
