@@ -1,3 +1,7 @@
+## 2.6.1
+
+- Behind the scenes: the Rusty addons' shared toolkit is brought up to date. Nothing changes in game.
+
 ## 2.6.0
 
 - The report window is resizable by default. **Resizable window** in the settings still turns it off.
