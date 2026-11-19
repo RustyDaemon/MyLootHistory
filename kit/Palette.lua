@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.4.0
+RustyKit UI kit 1.4.1
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -146,9 +146,9 @@ UI.accents = {
 
 -- The looks an addon can pick. Dark is the kit's own, the one every addon has until it picks another.
 -- Each theme gives every color but the accent, which comes from its own accent preset until the
--- addon picks one of UI.accents. A color given as another's name follows that one, accent borders
--- included. fadeTo is what a shade of the accent recedes toward (the plain accent border), and
--- numberFlags the outline numbers draw with.
+-- addon picks one of UI.accents, and those every theme shares (below). A color given as another's
+-- name follows that one, accent borders included. fadeTo is what a shade of the accent recedes toward
+-- (the plain accent border), and numberFlags the outline numbers draw with.
 UI.themes = {
     {
         value = "dark", text = "Dark",
@@ -179,9 +179,6 @@ UI.themes = {
 
             -- A button lit up under the mouse.
             buttonHover = "borderLight",
-
-            -- Body text in the game's own tooltip, which stays dark whatever the theme.
-            tooltipBody = { 0.596, 0.620, 0.678 },
         },
     },
     {
@@ -214,10 +211,15 @@ UI.themes = {
             titleTop    = { 0.875, 0.808, 0.659 },
 
             buttonHover = { 0.769, 0.678, 0.502 },
-
-            tooltipBody = { 0.596, 0.620, 0.678 },
         },
     },
+}
+
+-- Colors every theme shares: they paint something of the game's own, whose look no theme changes.
+-- A theme's color may name one of them.
+local SHARED_COLORS = {
+    -- Body text in the game's own tooltip, which stays dark whatever the theme.
+    tooltipBody = { 0.596, 0.620, 0.678 },
 }
 
 -- Colors are handed out as copies, so code that changes one in place never reaches a preset. A
@@ -270,6 +272,8 @@ function UI:setTheme(key)
         if (preset.value == key) then
             theme = preset
 
+            for name, value in pairs(SHARED_COLORS) do C[name] = copy(value) end
+
             for name, value in pairs(theme.colors) do
                 if (type(value) == "table") then C[name] = copy(value) end
             end
@@ -284,7 +288,8 @@ end
 
 -- Swaps in an accent by its key, for everything colored from here on, over the theme's own; accent
 -- borders follow it. nil goes back to the theme's own accent; any other key it does not know keeps the
--- current one. The presets are made for the dark theme: their lit shade is a dark one.
+-- current one. The presets are made for the dark theme: their lit shade is a dark one, so on another
+-- theme its own accent is the one that fits.
 function UI:setAccent(key)
     if (key == nil) then
         chosenAccent = nil
@@ -310,8 +315,9 @@ end
 -- A texture file of the addon's own (paper grain, say) that window backgrounds and the controls'
 -- filled surfaces draw tinted by their color, from here on; nil, or anything but a path, means flat
 -- color as before. The texture is stretched over each surface and multiplied by its color, so a light,
--- near-white one keeps the theme's colors. The client cannot say whether the file exists, so the addon
--- has to ship it.
+-- near-white one keeps the theme's colors. The client cannot say whether the file exists, so there is
+-- no falling back to flat color for a missing one: the addon has to ship it. A panel built before the
+-- call takes the surface the next time its color changes (SetPanelColor, say), not before.
 function UI:setSurface(file)
     self.surface = (type(file) == "string" and file ~= "") and file or nil
 end

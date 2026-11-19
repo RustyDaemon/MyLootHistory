@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.4.0
+RustyKit UI kit 1.4.1
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
