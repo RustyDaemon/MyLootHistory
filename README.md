@@ -14,7 +14,7 @@ A World of Warcraft addon that tracks every item, coin and currency you loot —
 
 Works on Retail and WoW Forever.
 
-➡️ [Download on CurseForge](https://www.curseforge.com/wow/addons/my-loot-history) · 🌐 [Website](https://mlh.rustydaemon.com)
+➡️ [Download on CurseForge](https://www.curseforge.com/wow/addons/my-loot-history) · 🌐 [Website](https://mlh.rustydaemon.com) · 💬 [Discord](https://discord.gg/B5tyg8Bwyy)
 
 ![The report window, showing looted items with value, source and zone](assets/screenshots/main.png)
 

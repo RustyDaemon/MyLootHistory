@@ -107,6 +107,7 @@ The game's options page also shows your current session at a glance. Broker disp
 
 - Website: [mlh.rustydaemon.com](https://mlh.rustydaemon.com)
 - Source and issues: [GitHub](https://github.com/RustyDaemon/MyLootHistory)
+- Questions, bugs and ideas: [Discord](https://discord.gg/B5tyg8Bwyy)
 
 # Logo
 
