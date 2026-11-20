@@ -212,7 +212,19 @@ Write-Host "  $copied files" -ForegroundColor Green
 $ZipPath = Join-Path $DistDir "$AddonName-$AddonVersion.zip"
 if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
 Step "Zipping $AddonName-$AddonVersion.zip"
-Compress-Archive -Path $StageDir -DestinationPath $ZipPath -CompressionLevel Optimal
+# Compress-Archive in Windows PowerShell writes backslashes into entry names,
+# which macOS and Linux unzip as flat files named with them. The zip is built
+# by hand instead, with forward slashes, as build.sh's zip writes it.
+Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+$zip = [IO.Compression.ZipFile]::Open($ZipPath, 'Create')
+try {
+    Get-ChildItem $StageDir -Recurse -File -Force | Sort-Object FullName | ForEach-Object {
+        $entry = "$AddonName/" + ($_.FullName.Substring($StageDir.Length + 1) -replace '\\', '/')
+        [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $entry, 'Optimal') | Out-Null
+    }
+} finally {
+    $zip.Dispose()
+}
 $sizeKb = [math]::Round((Get-Item $ZipPath).Length / 1KB, 1)
 
 # --- summary -----------------------------------------------------------------
