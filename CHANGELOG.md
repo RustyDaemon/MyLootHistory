@@ -1,3 +1,9 @@
+## 2.7.0
+
+- The session clock pauses while you're away or resting in an inn or city, so gold per hour stays honest. The HUD shows a pause mark and the time card says so.
+- Loot picked up while paused is still recorded, just left out of the per-hour figures.
+- **Pause while away or resting** turns it off and counts every minute again.
+
 ## 2.6.1
 
 - Behind the scenes: the Rusty addons' shared toolkit is brought up to date. Nothing changes in game.
