@@ -69,7 +69,7 @@ function MLH:buildCurrencyReport()
         local row = rows[i]
         local info = C_CurrencyInfo.GetCurrencyInfo(row.currencyId)
 
-        row.perHour = row.quantity / duration * SECONDS_PER_HOUR
+        row.perHour = (row.rateQuantity or row.quantity) / duration * SECONDS_PER_HOUR
         row.held = info and info.quantity or nil
         row.cap = capProgress(info)
 

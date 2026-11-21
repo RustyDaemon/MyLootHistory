@@ -119,6 +119,12 @@ function MLH:OnEnable()
     self:RegisterEvent("CHAT_MSG_MONEY")
     self:RegisterEvent("CHAT_MSG_CURRENCY")
 
+    -- Going away, coming back, and walking into or out of a resting area pause and resume the session
+    -- clock. Entering the world checks again, since the resting state may not be known at load time.
+    self:RegisterEvent("PLAYER_FLAGS_CHANGED", "onSessionPauseEvent")
+    self:RegisterEvent("PLAYER_UPDATE_RESTING", "onSessionPauseEvent")
+    self:RegisterEvent("PLAYER_ENTERING_WORLD", "onSessionPauseEvent")
+
     self:applySourceTracking()
     self:applyQuestTracking()
     self:initTooltip()

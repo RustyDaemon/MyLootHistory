@@ -70,7 +70,7 @@ local ranges = {
             return session.endedOn == nil or foundOn <= session.endedOn
         end,
         duration = function(self)
-            return self:getSessionStats(self:getSelectedSession()).duration
+            return self:getSessionStats(self:getSelectedSession()).rateDuration
         end,
     },
     {

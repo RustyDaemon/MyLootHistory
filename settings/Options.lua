@@ -119,6 +119,11 @@ local generalOptions = {
                         MLH:updateHUD()
                         MLH:refreshReport()
                     end),
+                pauseWhenAwayCheckBox = toggle(4.5, config, "pauseWhenAway", "C_PauseWhenAway", function ()
+                    MLH:updateSessionPause()
+                    MLH:updateHUD()
+                    MLH:refreshReport()
+                end),
                 showSessionBarCheckBox = toggle(5, config, "showSessionBar", "C_ShowSessionBar", refreshReport),
 
                 priceSourceSelect = {

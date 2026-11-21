@@ -112,11 +112,11 @@ describe("the currency report", function()
         seed()
 
         originalGetCurrencyInfo = C_CurrencyInfo.GetCurrencyInfo
-        C_CurrencyInfo.GetCurrencyInfo = function(id) return currencyInfo[id] end
+        _G.C_CurrencyInfo.GetCurrencyInfo = function(id) return currencyInfo[id] end
     end)
 
     after_each(function()
-        C_CurrencyInfo.GetCurrencyInfo = originalGetCurrencyInfo
+        _G.C_CurrencyInfo.GetCurrencyInfo = originalGetCurrencyInfo
     end)
 
     it("counts what the filters select, not the balance", function()

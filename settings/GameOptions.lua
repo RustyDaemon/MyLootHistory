@@ -125,7 +125,7 @@ local function buildPage()
     local function updateCards()
         local stats = MLH:getSessionStats()
 
-        cards[1]:Set(MLH:formatDuration(stats.duration), L["S_LiveSession"], "text")
+        cards[1]:Set(MLH:formatDuration(stats.duration), MLH:getPausedCaption(stats) or L["S_LiveSession"], "text")
         cards[2]:Set(string.format("%.0f", stats.itemsPerHour), L["G_ItemsTotal"](stats.quantity), "text")
         cards[3]:Set(MLH:formatGoldCompact(stats.goldPerHour)..GOLD_ICON,
             L["G_ValueSoFar"](MLH:formatGoldCompact(stats.totalValue)), "money")

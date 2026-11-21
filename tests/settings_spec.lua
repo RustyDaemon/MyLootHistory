@@ -79,7 +79,8 @@ describe("pages", function()
 
         assert.same({
             "showLastLootedRowCheckBox", "showZoneColumnCheckBox", "ignoreItemsWithZeroSellPriceCheckBox",
-            "questRewardsInRatesCheckBox", "showSessionBarCheckBox", "priceSourceSelect", "showItemIDCheckBox",
+            "questRewardsInRatesCheckBox", "pauseWhenAwayCheckBox", "showSessionBarCheckBox", "priceSourceSelect",
+            "showItemIDCheckBox",
             "showItemTooltipCheckBox", "showAdditionalTooltipDataCheckBox", "gameTooltipLineCheckBox",
             "trackCurrencyCheckBox", "iconSizeRange", "trackLootSourceCheckBox", "showSourceColumnCheckBox",
         }, keys)

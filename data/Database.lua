@@ -20,6 +20,7 @@ local defaults = {
         foundGold = {},
         foundCurrency = {},
         thisSessionStart = time(),
+        sessionPauses = {}, -- the live session's spans away or resting: { from = t, to = t or nil while open }
 
         minimapData = {
             hide = false,
@@ -45,6 +46,7 @@ local defaults = {
             reportIconSize = 24,
             ignoreItemsWithZeroPrice = true,
             questRewardsInRates = false, -- quest rewards stay in the history but out of gold per hour
+            pauseWhenAway = true, -- the session clock stops while the player is AFK or resting
             resizableReportWindow = true,
             pixelFont = false, -- the addon's own pixel font instead of the game's; Latin letters only
             alerts = {
@@ -82,7 +84,7 @@ local defaults = {
     },
 }
 
-local DB_VERSION = 2
+local DB_VERSION = 3
 
 local legacyMonths = {
     Jan = 1, Feb = 2, Mar = 3, Apr = 4,  May = 5,  Jun = 6,
@@ -145,12 +147,20 @@ local function upgradeRecords(records)
     end
 end
 
+-- Sessions filed before the clock could pause had no pauses: their time farmed stays as it was.
+local function upgradeSessions(sessions)
+    for i = 1, #sessions do
+        sessions[i].pausedSeconds = tonumber(sessions[i].pausedSeconds) or 0
+    end
+end
+
 function MLH:upgradeCharacterData(data)
     if (type(data) ~= "table" or data.dbVersion == DB_VERSION) then return false end
 
     upgradeRecords(data.foundItems or {})
     upgradeRecords(data.foundCurrency or {})
     upgradeEntries(data.foundGold or {})
+    upgradeSessions(data.sessions or {})
 
     data.dbVersion = DB_VERSION
 

@@ -64,6 +64,7 @@ function MLH:collectCurrencies()
     local matchedById = {}
     local recordById = {}
     local order = {}
+    local pauses = self:getRangePauses()
 
     search = search ~= "" and search:lower() or nil
 
@@ -94,7 +95,17 @@ function MLH:collectCurrencies()
         local name = (info and info.name) or record.currencyName or ("#"..id)
 
         if (quantity > 0 and (not search or name:lower():find(search, 1, true))) then
+            -- What came in while the session's clock was paused is earned, but not at a rate.
+            local rateQuantity = 0
+
+            for _, entry in ipairs(matchedById[id]) do
+                if (not self:isPausedLoot(pauses, entry.foundOn)) then
+                    rateQuantity = rateQuantity + (tonumber(entry.quantity) or 1)
+                end
+            end
+
             currencies[#currencies+1] = {
+                rateQuantity = rateQuantity,
                 currencyId = id,
                 name = name,
                 icon = (info and info.iconFileID) or record.currencyIcon,

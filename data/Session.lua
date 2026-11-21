@@ -10,6 +10,9 @@ local L = LibStub("AceLocale-3.0"):GetLocale("MyLootHistory")
 
 local SECONDS_PER_HOUR = 3600
 
+-- The shortest time a per-hour rate is measured over.
+local MIN_RATE_SECONDS = 60
+
 local MAX_SESSIONS = 40
 
 -- New entries use session IDs; legacy entries fall back to timestamp windows.
@@ -26,7 +29,158 @@ function MLH:beginSession()
     char.sessionSerial = (char.sessionSerial or 0) + 1
     char.currentSessionID = self:getCharacterKey()..":"..char.sessionSerial
     char.thisSessionStart = time()
+    char.sessionPauses = {}
     self:bumpRevision()
+
+    -- A session started in a city or an inn starts out paused.
+    self:updateSessionPause()
+end
+
+-- Time spent away or resting is left out of the session's clock, so gold and items per hour measure
+-- the farming rather than the break. Each pause is kept as a span: a session is filed as ending at its
+-- last pickup, and only the pauses before that pickup count against it.
+local function openPause(pauses)
+    local last = pauses and pauses[#pauses]
+
+    if (last ~= nil and last.to == nil) then return last end
+
+    return nil
+end
+
+local function pausedWithin(pauses, from, to)
+    local paused = 0
+
+    for i = 1, #(pauses or {}) do
+        local pause = pauses[i]
+        local startsAt = math.max(pause.from or from, from)
+        local endsAt = math.min(pause.to or to, to)
+
+        if (endsAt > startsAt) then paused = paused + endsAt - startsAt end
+    end
+
+    return paused
+end
+
+-- Retail hides the AFK flag behind a secret during a chat lockdown, which only comes with an
+-- encounter: a player in one is not away, so a secret reads as not away.
+local function isAway()
+    local away = UnitIsAFK("player")
+
+    if (_G.issecretvalue ~= nil and _G.issecretvalue(away)) then return false end
+
+    return away == true
+end
+
+local function isResting()
+    return IsResting() == true
+end
+
+function MLH:shouldPauseSession()
+    if (not self.db.char.config.pauseWhenAway) then return false end
+
+    return isAway() or isResting()
+end
+
+-- Opens a pause when the player has just gone away or started resting, and closes it once neither
+-- holds any more or the option has been turned off. Loot keeps being recorded either way.
+function MLH:updateSessionPause()
+    local char = self.db.char
+
+    char.sessionPauses = char.sessionPauses or {}
+
+    local pauses = char.sessionPauses
+    local open = openPause(pauses)
+    local now = time()
+
+    if (self:shouldPauseSession()) then
+        if (not open) then pauses[#pauses+1] = { from = now } end
+    elseif (open) then
+        -- A pause that ended in the second it began took no time; it is dropped rather than kept.
+        if (open.from >= now) then
+            pauses[#pauses] = nil
+        else
+            open.to = now
+        end
+    end
+end
+
+function MLH:isSessionPaused()
+    return openPause(self.db.char.sessionPauses) ~= nil
+end
+
+-- The client says the player went away, came back, or walked into or out of a resting area. The flags
+-- event fires for every group member too; only the player's own matters. A unit the client keeps
+-- secret cannot be compared, so it is simply checked again, which does no harm.
+function MLH:onSessionPauseEvent(event, unit)
+    local secret = _G.issecretvalue ~= nil and _G.issecretvalue(unit)
+
+    if (event == "PLAYER_FLAGS_CHANGED" and not secret and unit ~= "player") then return end
+
+    self:updateSessionPause()
+
+    if (self.updateHUD) then self:updateHUD() end
+end
+
+-- Whether loot picked up at foundOn came in during one of the pauses. Such loot stays in the history
+-- and the totals, but not in the rates: crafting a stack in a city is not farming, and with the clock
+-- stopped it would make the hour look like millions.
+local function inPause(pauses, foundOn)
+    if (not pauses or foundOn == nil) then return false end
+
+    for i = #pauses, 1, -1 do
+        local pause = pauses[i]
+
+        if (foundOn >= pause.from and (pause.to == nil or foundOn <= pause.to)) then return true end
+    end
+
+    return false
+end
+
+-- The pauses that count against a session. A filed one keeps what it was filed with; the live one's
+-- count only while the option is on, so turning it off counts every minute again.
+function MLH:getSessionPauses(session)
+    if (session.endedOn == nil and not self.db.char.config.pauseWhenAway) then return nil end
+
+    return session.pauses
+end
+
+-- How many seconds of a session up to endsAt were paused: a filed session carries the sum.
+function MLH:getSessionPausedSeconds(session, endsAt)
+    if (session.endedOn ~= nil) then return tonumber(session.pausedSeconds) or 0 end
+
+    return pausedWithin(self:getSessionPauses(session), session.startedOn or endsAt, endsAt)
+end
+
+-- The pauses the report's per-hour rates leave out: the selected session's while the range is a
+-- session, and none for a calendar range, whose clock runs on regardless.
+function MLH:getRangePauses()
+    if (self:getFilters().range ~= MLH.RANGE_SESSION) then return nil end
+
+    return self:getSessionPauses(self:getSelectedSession())
+end
+
+function MLH:isPausedLoot(pauses, foundOn)
+    return inPause(pauses, foundOn)
+end
+
+-- The pauses a session filed now keeps: those of the session that is running, cut to its last
+-- pickup. Pauses never belong to an older start, and none are kept while the option is off.
+local function pausesToFile(self, startedOn, endedOn)
+    local char = self.db.char
+    local kept = {}
+
+    if (startedOn ~= char.thisSessionStart or not char.config.pauseWhenAway) then return kept end
+
+    local pauses = char.sessionPauses or {}
+
+    for i = 1, #pauses do
+        local from = math.max(pauses[i].from or startedOn, startedOn)
+        local to = math.min(pauses[i].to or endedOn, endedOn)
+
+        if (to >= from) then kept[#kept+1] = { from = from, to = to } end
+    end
+
+    return kept
 end
 
 -- Quest rewards are history, but not farming: they count toward the rates only when asked to.
@@ -38,8 +192,9 @@ end
 
 -- History is chronological; scan backwards. Missing quantity counts as one, or zero for gold.
 -- unitValue(entry), when given, prices one of the entry's units; the second return is their sum.
-local function inWindow(entries, startedOn, missingQuantity, session, unitValue)
-    local quantity, value = 0, 0
+-- The last two returns are the same sums without what came in during a pause, for the rates.
+local function inWindow(entries, startedOn, missingQuantity, session, pauses, unitValue)
+    local quantity, value, rateQuantity, rateValue = 0, 0, 0, 0
 
     for i = #entries, 1, -1 do
         local entry = entries[i]
@@ -49,18 +204,23 @@ local function inWindow(entries, startedOn, missingQuantity, session, unitValue)
 
         if (MLH:isEntryInSession(entry, session) and MLH:countsTowardRates(entry)) then
             local entryQuantity = tonumber(entry.quantity) or missingQuantity
+            local entryValue = unitValue and unitValue(entry) * entryQuantity or 0
 
             quantity = quantity + entryQuantity
+            value = value + entryValue
 
-            if (unitValue) then value = value + unitValue(entry) * entryQuantity end
+            if (not inPause(pauses, foundOn)) then
+                rateQuantity = rateQuantity + entryQuantity
+                rateValue = rateValue + entryValue
+            end
         end
     end
 
-    return quantity, value
+    return quantity, value, rateQuantity, rateValue
 end
 
 -- What a session holds: everything getSessionStats reports except the clock.
-local function sessionTotals(self, session, sessionStart)
+local function sessionTotals(self, session, sessionStart, pauses)
     local stats = {
         itemTypes = 0,
         quantity = 0,
@@ -68,6 +228,8 @@ local function sessionTotals(self, session, sessionStart)
         rawGold = 0,
         currencyQuantity = 0,
         currencyTypes = 0,
+        rateQuantity = 0,
+        rateValue = 0,
     }
 
     local foundItems = self.db.char.foundItems
@@ -78,9 +240,13 @@ local function sessionTotals(self, session, sessionStart)
         -- A hidden item is one the player said does not matter, so it does not count toward the rates.
         -- Each drop is priced by the link it dropped as, so an upgraded one counts at its own value.
         local lootData = self:isItemHidden(item.itemId) and {} or item.lootData
-        local sessionQuantity, sessionValue = inWindow(lootData, sessionStart, 1, session, function(entry)
-            return (self:getItemPrice(item.itemId, entry.sellPrice or 0, entry.itemLink or item.itemLink))
-        end)
+        local sessionQuantity, sessionValue, rateQuantity, rateValue = inWindow(lootData, sessionStart, 1,
+            session, pauses, function(entry)
+                return (self:getItemPrice(item.itemId, entry.sellPrice or 0, entry.itemLink or item.itemLink))
+            end)
+
+        stats.rateQuantity = stats.rateQuantity + rateQuantity
+        stats.rateValue = stats.rateValue + rateValue
 
         if (sessionQuantity > 0) then
             stats.itemTypes = stats.itemTypes + 1
@@ -100,12 +266,15 @@ local function sessionTotals(self, session, sessionStart)
         end
     end
 
-    stats.rawGold = inWindow(self.db.char.foundGold, sessionStart, 0, session)
+    local rawGold, _, rateGold = inWindow(self.db.char.foundGold, sessionStart, 0, session, pauses)
+
+    stats.rawGold = rawGold
+    stats.rateValue = stats.rateValue + rateGold
 
     local foundCurrency = self.db.char.foundCurrency or {}
 
     for i = 1, #foundCurrency do
-        local sessionQuantity = inWindow(foundCurrency[i].lootData, sessionStart, 1, session)
+        local sessionQuantity = inWindow(foundCurrency[i].lootData, sessionStart, 1, session, pauses)
 
         if (sessionQuantity > 0) then
             stats.currencyTypes = stats.currencyTypes + 1
@@ -128,7 +297,16 @@ local function totalsCacheKey(self)
         ..tostring(self.db.char.config.questRewardsInRates == true)
 end
 
-local function cachedTotals(self, session, sessionStart)
+-- Closed pauses never change, so the count and the last one's ends tell one set of pauses from another.
+local function pausesKey(pauses)
+    if (not pauses or #pauses == 0) then return "-" end
+
+    local last = pauses[#pauses]
+
+    return #pauses..":"..tostring(last.from)..":"..tostring(last.to)
+end
+
+local function cachedTotals(self, session, sessionStart, pauses)
     local key = totalsCacheKey(self)
 
     if (totalsCache.key ~= key) then
@@ -136,11 +314,12 @@ local function cachedTotals(self, session, sessionStart)
         totalsCache.bySession = {}
     end
 
-    local sessionKey = tostring(session.id)..":"..sessionStart..":"..tostring(session.endedOn)
+    local sessionKey = tostring(session.id)..":"..sessionStart..":"..tostring(session.endedOn)..":"
+        ..pausesKey(pauses)
     local totals = totalsCache.bySession[sessionKey]
 
     if (not totals) then
-        totals = sessionTotals(self, session, sessionStart)
+        totals = sessionTotals(self, session, sessionStart, pauses)
         totalsCache.bySession[sessionKey] = totals
     end
 
@@ -152,21 +331,39 @@ function MLH:getSessionStats(session)
 
     local sessionStart = session.startedOn or time()
     local endedOn = session.endedOn
-    local duration = math.max((endedOn or time()) - sessionStart, 1)
-    local totals = cachedTotals(self, session, sessionStart)
+    local endsAt = endedOn or time()
+    local pauses = self:getSessionPauses(session)
+    local pausedSeconds = self:getSessionPausedSeconds(session, endsAt)
+    local duration = math.max(endsAt - sessionStart - pausedSeconds, 1)
+    -- A session a few seconds old would turn its first pickup into a wild rate.
+    local rateDuration = math.max(duration, MIN_RATE_SECONDS)
+    local totals = cachedTotals(self, session, sessionStart, pauses)
 
     local stats = {
         sessionStart = sessionStart,
         endedOn = endedOn,
         isLive = endedOn == nil,
+        isPaused = endedOn == nil and openPause(pauses) ~= nil,
+        pausedSeconds = pausedSeconds,
         duration = duration,
-        goldPerHour = math.floor(totals.totalValue / duration * SECONDS_PER_HOUR),
-        itemsPerHour = totals.quantity / duration * SECONDS_PER_HOUR,
+        rateDuration = rateDuration,
+        goldPerHour = math.floor(totals.rateValue / rateDuration * SECONDS_PER_HOUR),
+        itemsPerHour = totals.rateQuantity / rateDuration * SECONDS_PER_HOUR,
     }
 
     for key, value in pairs(totals) do stats[key] = value end
 
     return stats
+end
+
+-- The time card's caption while pauses shape the time it shows: that the clock is paused now, or how
+-- much paused time it leaves out. nil when nothing was paused, so the card keeps its own caption.
+function MLH:getPausedCaption(stats)
+    if (stats.isPaused) then return L["G_PausedNow"] end
+
+    if ((stats.pausedSeconds or 0) > 0) then return L["G_PausedFor"](self:formatDuration(stats.pausedSeconds)) end
+
+    return nil
 end
 
 function MLH:formatDuration(seconds)
@@ -275,7 +472,9 @@ function MLH:shareSession(channel, session)
 end
 
 function MLH:getLiveSession()
-    return { startedOn = self.db.char.thisSessionStart or time(), id = self.db.char.currentSessionID }
+    local char = self.db.char
+
+    return { startedOn = char.thisSessionStart or time(), id = char.currentSessionID, pauses = char.sessionPauses }
 end
 
 function MLH:getSessions()
@@ -343,6 +542,11 @@ function MLH:closeSession(startedOn)
 
     char.sessions = char.sessions or {}
     session.endedOn = endedOn
+    -- A pause still open at logout ran on past the last pickup; only what came before it counts.
+    local pauses = pausesToFile(self, startedOn, endedOn)
+
+    session.pausedSeconds = pausedWithin(pauses, startedOn, endedOn)
+    if (#pauses > 0) then session.pauses = pauses end
     char.sessions[#char.sessions+1] = session
 
     while (#char.sessions > MAX_SESSIONS) do

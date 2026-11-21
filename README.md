@@ -56,6 +56,8 @@ Three numbers on your screen, no window needed:
 
 Drag it anywhere and lock it. Left click opens the report, right click starts a fresh session (it asks first) when you move to a new spot. Turn it on with `/mlh hud`.
 
+Go AFK or rest in an inn or a city and the clock pauses (the HUD says so), so a break doesn't drag your gold per hour down. What you loot or craft meanwhile is still recorded, just left out of the per-hour figures. Switch it off in `/mlh config` if you'd rather count every minute.
+
 ## Drop alerts
 
 Loot a mount, pet, toy, an Epic, or anything worth more than the gold you set, and a small toast pops up with the item and what it's worth. It tells you when gear is a **new appearance**, and when a mount, pet or toy is one you **already own**.

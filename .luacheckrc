@@ -96,6 +96,10 @@ read_globals = {
     "GameFontNormal",
     "NumberFontNormal",
 
+    -- away and resting, which pause the session clock
+    "IsResting",
+    "UnitIsAFK",
+
     -- player identity, shown in the report title bar
     "GetRealmName",
     "UnitName",
@@ -182,7 +186,7 @@ files["tests/**/*.lua"] = {
         -- installed by tests/support/wow.lua
         "LibStub", "C_AddOns", "C_CurrencyInfo", "C_Item", "C_Map", "C_Timer", "Enum",
         "GameTooltip", "GetMoneyString", "BreakUpLargeNumbers", "Item", "MyLootHistoryDB",
-        "date", "time",
+        "date", "time", "IsResting", "UnitIsAFK",
 
         -- and by tests/support/frames.lua, for the specs that drive the report window
         "CreateFrame", "UIParent", "UISpecialFrames",
@@ -207,7 +211,7 @@ files["tests/support/*.lua"] = {
         "LibStub",
         "ChatEdit_TryInsertChatLink", "C_AddOns", "CreateColor", "CreateFont", "CreateFrame", "C_Timer",
         "BreakUpLargeNumbers", "GameFontNormal", "GameTooltip", "GetCursorPosition", "GetRealmName",
-        "IsLeftShiftKeyDown", "IsRightShiftKeyDown", "NumberFontNormal", "PlaySound",
-        "SOUNDKIT", "UIParent", "UISpecialFrames", "UnitName", "tContains", "tinsert",
+        "IsLeftShiftKeyDown", "IsResting", "IsRightShiftKeyDown", "NumberFontNormal", "PlaySound",
+        "SOUNDKIT", "UIParent", "UISpecialFrames", "UnitIsAFK", "UnitName", "tContains", "tinsert",
     },
 }

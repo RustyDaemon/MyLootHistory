@@ -1,6 +1,6 @@
 local wow = require("tests.support.wow")
 
-wow.loadThrough("data/Export.lua")
+wow.loadThrough("data/Currency.lua")
 
 local MLH = wow.addon
 
@@ -110,6 +110,286 @@ describe("MLH:getSessionStats", function()
         assert.is_false(stats.isLive)
         assert.are.equal(9, stats.quantity)          -- the 4 and the 5, but not the 3 after it ended
         assert.are.equal(6300, stats.duration)
+    end)
+end)
+
+describe("pausing the session clock", function()
+    before_each(function()
+        seed()
+
+        wow.player.afk, wow.player.resting = false, false
+        MLH.db.char.sessionPauses = {}
+        MLH.db.char.config.pauseWhenAway = true
+    end)
+
+    after_each(function()
+        wow.player.afk, wow.player.resting = false, false
+    end)
+
+    -- Moves the clock on by seconds, then lets the addon hear the flag change.
+    local function after(seconds)
+        wow.freeze(wow.now() + seconds)
+        MLH:onSessionPauseEvent()
+    end
+
+    it("is on unless turned off", function()
+        MLH:initDatabase()
+
+        assert.is_true(MLH.db.char.config.pauseWhenAway)
+    end)
+
+    it("stops while the player is away and goes on once they are back", function()
+        wow.player.afk = true
+        after(0)
+
+        assert.is_true(MLH:isSessionPaused())
+
+        wow.player.afk = false
+        after(600)
+
+        assert.is_false(MLH:isSessionPaused())
+        assert.are.equal(3600, MLH:getSessionStats().duration)   -- 4200 on the wall clock, 600 of them away
+    end)
+
+    it("stops while the player is resting", function()
+        wow.player.resting = true
+        after(0)
+        after(900)
+
+        local stats = MLH:getSessionStats()
+
+        assert.is_true(stats.isPaused)
+        assert.are.equal(3600, stats.duration)
+        assert.are.equal(900, stats.pausedSeconds)
+    end)
+
+    it("stays paused until neither holds", function()
+        wow.player.resting = true
+        after(0)
+        wow.player.afk = true
+        after(300)
+        wow.player.resting = false
+        after(300)
+
+        assert.is_true(MLH:isSessionPaused())
+
+        wow.player.afk = false
+        after(300)
+
+        assert.is_false(MLH:isSessionPaused())
+        assert.are.equal(3600, MLH:getSessionStats().duration)
+    end)
+
+    it("leaves the paused time out of gold and items per hour", function()
+        local before = MLH:getSessionStats()
+
+        wow.player.afk = true
+        after(0)
+        after(3600)
+
+        local stats = MLH:getSessionStats()
+
+        assert.are.equal(before.goldPerHour, stats.goldPerHour)
+        assert.are.equal(before.itemsPerHour, stats.itemsPerHour)
+    end)
+
+    it("leaves it out of the session range's rates too", function()
+        wow.player.afk = true
+        after(0)
+        after(1800)
+
+        MLH:setFilter("range", 1)
+
+        assert.are.equal(3600, MLH:getRangeDuration())
+    end)
+
+    it("keeps recording what is looted while paused", function()
+        wow.player.resting = true
+        after(0)
+
+        MLH:addItem(100, 2, nil, 1, 1, "Copper Ore", 1, 100)
+
+        assert.are.equal(10, MLH:getSessionStats().quantity)
+    end)
+
+    it("does not pause, and lets an open pause go, once turned off", function()
+        wow.player.afk = true
+        after(0)
+        after(600)
+
+        MLH.db.char.config.pauseWhenAway = false
+        after(0)
+        after(600)
+
+        assert.is_false(MLH:isSessionPaused())
+        assert.are.equal(4800, MLH:getSessionStats().duration)   -- with it off, every minute counts
+    end)
+
+    it("starts a new session paused in a resting area, with none of the old pauses", function()
+        wow.player.afk = true
+        after(0)
+        after(600)
+        wow.player.afk = false
+        wow.player.resting = true
+
+        MLH:beginSession()
+
+        assert.is_true(MLH:isSessionPaused())
+        assert.are.equal(1, #MLH.db.char.sessionPauses)
+    end)
+
+    it("reads a secret AFK flag as not away", function()
+        local original = _G.UnitIsAFK
+        local secret = {}
+
+        _G.UnitIsAFK = function() return secret end
+        _G.issecretvalue = function(value) return value == secret end
+
+        after(0)
+
+        _G.UnitIsAFK, _G.issecretvalue = original, nil
+
+        assert.is_false(MLH:isSessionPaused())
+    end)
+
+    it("files a session with the pauses before its last pickup only", function()
+        -- Away for ten minutes in the middle, then resting from the last pickup on until logout.
+        MLH.db.char.sessionPauses = {
+            { from = now - 2400, to = now - 1800 },
+            { from = now - 900 },
+        }
+
+        local session = MLH:closeSession()
+
+        -- The last pickup was at now - 600: 600 from the first pause and 300 from the open one.
+        assert.are.equal(900, session.pausedSeconds)
+        assert.are.equal(3000 - 900, MLH:getSessionStats(session).duration)
+    end)
+
+    it("files a session that never paused with none", function()
+        assert.are.equal(0, MLH:closeSession().pausedSeconds)
+    end)
+
+    it("keeps loot from a pause in the totals but out of the rates", function()
+        local before = MLH:getSessionStats()
+
+        wow.player.resting = true
+        after(0)
+
+        -- A stack crafted in town: a hundred bars at a gold each, with the clock stopped.
+        MLH:addItem(200, 100, nil, 1, 1, "Bar", 1, 10000)
+        MLH:addGold(50000, 1)
+
+        local stats = MLH:getSessionStats()
+
+        assert.are.equal(108, stats.quantity)
+        assert.are.equal(55000, stats.rawGold)
+        assert.are.equal(before.goldPerHour, stats.goldPerHour)
+        assert.are.equal(before.itemsPerHour, stats.itemsPerHour)
+    end)
+
+    it("counts that loot in the rates again once the option is off", function()
+        wow.player.resting = true
+        after(0)
+
+        MLH:addItem(200, 100, nil, 1, 1, "Bar", 1, 10000)
+
+        MLH.db.char.config.pauseWhenAway = false
+        after(0)
+
+        assert.are.equal(108, MLH:getSessionStats().itemsPerHour)
+    end)
+
+    it("files a session's pauses so its loot from them stays out of its rates", function()
+        wow.player.resting = true
+        after(0)
+        MLH:addItem(200, 100, nil, 1, 1, "Bar", 1, 10000)
+
+        local session = MLH:closeSession()
+        local stats = MLH:getSessionStats(session)
+
+        assert.are.equal(108, stats.quantity)
+        assert.are.equal(8, stats.itemsPerHour)   -- the 8 farmed over the hour the clock ran
+    end)
+
+    it("leaves currency from a pause out of the session range's per-hour rate", function()
+        MLH.db.char.foundCurrency = {
+            { currencyId = 3008, currencyName = "Valorstones", currencyIcon = 1, quality = 1,
+              lootData = { { quantity = 60, foundOn = now - 900, zoneID = 1 } } },
+        }
+
+        wow.player.resting = true
+        after(0)
+        MLH:addCurrency(3008, 500, "Valorstones", 1, 1, 1)
+
+        MLH:setFilter("range", 1)
+        MLH:setFilter("view", "currency")
+
+        local row = MLH:buildCurrencyReport().rows[1]
+
+        assert.are.equal(560, row.quantity)
+        assert.are.equal(60, math.floor(row.perHour + 0.5))
+    end)
+
+    it("measures a rate over a minute at the least", function()
+        MLH.db.char.thisSessionStart = now - 5
+        MLH.db.char.foundItems = {
+            { itemId = 100, itemName = "Copper Ore", itemTexture = 1, quality = 1,
+              lootData = { { quantity = 1, foundOn = now, zoneID = 1, sellPrice = 100 } } },
+        }
+        MLH.db.char.foundGold = {}
+        MLH:bumpRevision()
+
+        local stats = MLH:getSessionStats()
+
+        assert.are.equal(5, stats.duration)
+        assert.are.equal(60, stats.itemsPerHour)
+    end)
+
+    it("counts every minute while the option is off, pauses taken before included", function()
+        wow.player.afk = true
+        after(0)
+        wow.player.afk = false
+        after(600)
+
+        MLH.db.char.config.pauseWhenAway = false
+
+        assert.are.equal(4200, MLH:getSessionStats().duration)
+        assert.are.equal(0, MLH:closeSession().pausedSeconds)
+    end)
+
+    it("pays no heed to another group member going away", function()
+        wow.player.afk = true
+        MLH:onSessionPauseEvent("PLAYER_FLAGS_CHANGED", "party1")
+
+        assert.is_false(MLH:isSessionPaused())
+
+        MLH:onSessionPauseEvent("PLAYER_FLAGS_CHANGED", "player")
+
+        assert.is_true(MLH:isSessionPaused())
+    end)
+
+    it("files an older start with none of the running session's pauses", function()
+        MLH.db.char.sessionPauses = { { from = now - 2400, to = now - 1800 } }
+
+        local session = MLH:closeSession(now - 7300)
+
+        assert.are.equal(0, session.pausedSeconds)
+        assert.is_nil(session.pauses)
+    end)
+
+    it("says under the time card that the clock is paused, or how much it left out", function()
+        assert.is_nil(MLH:getPausedCaption(MLH:getSessionStats()))
+
+        wow.player.afk = true
+        after(0)
+
+        assert.are.equal("G_PausedNow", tostring(MLH:getPausedCaption(MLH:getSessionStats())))
+
+        wow.player.afk = false
+        after(600)
+
+        assert.are.equal("G_PausedFor", tostring(MLH:getPausedCaption(MLH:getSessionStats())))
     end)
 end)
 

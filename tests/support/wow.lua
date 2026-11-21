@@ -158,6 +158,13 @@ _G.C_Timer = {
     end,
 }
 
+-- Whether the player is flagged away or resting; a spec sets these to pause the session clock.
+wow.player = { afk = false, resting = false }
+
+_G.UnitIsAFK = function(unit) return unit == "player" and wow.player.afk end
+
+_G.IsResting = function() return wow.player.resting end
+
 _G.GetMoneyString = function(copper) return tostring(copper or 0).."c" end
 
 _G.BreakUpLargeNumbers = function(value) return tostring(value or 0) end

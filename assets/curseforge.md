@@ -55,6 +55,8 @@ It is resizable, remembers its size and position, closes on Escape, says why whe
 
 Three numbers on your screen, no window needed: time farmed, items per hour and gold per hour. Drag it anywhere and lock it. Left click opens the report, right click starts a fresh session (it asks first) when you move to a new spot. Turn it on with `/mlh hud`.
 
+Go AFK or rest in an inn or a city and the clock pauses (the HUD says so), so a break doesn't drag your gold per hour down. What you loot or craft meanwhile is still recorded, just left out of the per-hour figures. Switch it off in the settings if you'd rather count every minute.
+
 ## Drop alerts
 
 Loot a mount, pet, toy, an Epic, or anything worth more than the gold you set, and a small toast pops up with the item and what it's worth. It tells you when gear is a **new appearance**, and when a mount, pet or toy is one you **already own**. Hover a toast to keep it on screen, click to dismiss it, Shift+click to link the item in chat.
@@ -76,7 +78,7 @@ Vendor price by default. Install [Auctionator](https://www.curseforge.com/wow/ad
 `/mlh config`, the gear in the report, a right click on the minimap button, or the addon's page in the game's options (AddOns tab) opens the settings.
 
 - **General**: Show minimap button, Resizable window, Show session HUD, Lock the HUD, Pixel font (the addon's own font for English, German, French, Spanish, Portuguese and Italian; takes effect after a reload).
-- **Report**: Show last looted date row, Show zone column, Ignore items with 0 sell price, Count quest rewards in gold per hour, Show session bar, Price source, Show Item ID, Show item tooltip, Show additional tooltip data, Add a line to item tooltips, Track currencies, Icon size, Record where loot came from, Show source column.
+- **Report**: Show last looted date row, Show zone column, Ignore items with 0 sell price, Count quest rewards in gold per hour, Pause while away or resting, Show session bar, Price source, Show Item ID, Show item tooltip, Show additional tooltip data, Add a line to item tooltips, Track currencies, Icon size, Record where loot came from, Show source column.
 - **Drop alerts**: Alert on notable drops, Mounts, pets and toys, Quality at least, Worth at least (gold), Play a sound, Also print to chat, and a Preview button.
 - **Hidden items**: every item you hid, with Unhide to bring its history back. Shared by all your characters.
 - **Data**: Keep history for (Forever, or from 30 days to two years), and Clear data.

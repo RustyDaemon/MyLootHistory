@@ -79,6 +79,8 @@ L["C_IgnoreZeroPriceItems"] = "Ignore items with 0 sell price"
 L["C_IgnoreZeroPriceItems_Desc"] = "Ignore items with zero (0) sell price in the report"
 L["C_QuestRewardsInRates"] = "Count quest rewards in gold per hour"
 L["C_QuestRewardsInRates_Desc"] = "Quest gold, items and currencies are always kept in your history and shown in the report. With this off they are left out of the session's gold per hour, items per hour and value, so a round of world quests does not make a farming spot look better than it is"
+L["C_PauseWhenAway"] = "Pause while away or resting"
+L["C_PauseWhenAway_Desc"] = "The session's time stops while you are flagged AFK or resting in an inn or a city, and goes on once you are back, so a break does not drag down gold per hour and items per hour. What you loot or craft meanwhile is still recorded, but left out of the per-hour figures. With this off, every minute counts"
 L["C_ShowItemID"] = "Show Item ID"
 L["C_ShowItemID_Desc"] = "Show or hide the Item ID value"
 L["C_ShowItemTooltip"] = "Show item tooltip"
@@ -150,7 +152,8 @@ L["F_Session"] = "What is the session line at the top of the report?"
 L["F_Session_Desc"] = "It is the live half of the addon: how long you have been playing since you logged in, how many items that is per hour, and how much gold per hour "..
   "(the value of what you looted plus the coins you picked up).\n\n"..
   "Click the line to start a new session from that moment, which is what you want when you move to a new farming spot. "..
-  "The same numbers are on the minimap button tooltip and behind '/mlh session'."
+  "The same numbers are on the minimap button tooltip and behind '/mlh session'.\n\n"..
+  "The time stops while you are AFK or resting in an inn or a city, unless you turn that off in the Report settings."
 L["F_CanILinkToChat"] = "Can I link the item from the report?"
 L["F_CanILinkToChat_Desc"] = "Yes, you can. Just Shift+click on the item icon and it will be linked to the chat. The chat should be opened."
 L["F_Restrinctions"] = "Any known restrictions?"
@@ -402,6 +405,12 @@ L["G_ItemsPerHour"] = "ITEMS / HOUR"
 L["G_GoldPerHour"] = "GOLD / HOUR"
 L["G_InView"] = "IN VIEW"
 L["G_SinceLogin"] = "click to start a new one"
+L["G_PausedNow"] = "paused, away or resting"
+
+L["G_PausedFor"] = function (duration)
+  return duration..' paused, not counted'
+end
+
 L["G_ItemsPerHourTooltip"] = "How fast you are picking things up, measured over the whole session"
 L["G_GoldPerHourTooltip"] = "The value of everything you looted plus the coins, per hour of this session"
 L["G_InViewTooltip"] = "What the rows below add up to, coins included. It follows the filters"
@@ -420,6 +429,8 @@ L["H_ItemsPerHour"] = " i/h"
 L["H_GoldPerHour"] = " /h"
 L["H_Locked"] = "It is locked in place - unlock it in the settings to move it"
 L["H_Unlocked"] = "Drag it to move it"
+
+L["H_Paused"] = "Paused while away or resting"
 
 L["H_Tooltip"] = function (lockLine)
   return 'How long this session has run, items an hour and gold an hour.\n'

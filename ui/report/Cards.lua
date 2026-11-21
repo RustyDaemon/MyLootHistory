@@ -108,8 +108,8 @@ function View.updateSession()
     local stats = MLH:getSessionStats(viewing)
     local cards = View.window.cards
 
-    cards.time:Set(MLH:formatDuration(stats.duration),
-        stats.isLive and L["G_SinceLogin"] or L["S_PastSession"](date("%d %b %H:%M", stats.sessionStart)),
+    cards.time:Set(MLH:formatDuration(stats.duration), MLH:getPausedCaption(stats)
+        or (stats.isLive and L["G_SinceLogin"] or L["S_PastSession"](date("%d %b %H:%M", stats.sessionStart))),
         "text")
     cards.items:Set(string.format("%.0f", stats.itemsPerHour), L["G_ItemsTotal"](stats.quantity), "text")
     cards.gold:Set(MLH:formatGoldCompact(stats.goldPerHour)..GOLD_ICON,

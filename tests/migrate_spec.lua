@@ -96,6 +96,28 @@ describe("MLH:upgradeCharacterData", function()
         assert.is_false(MLH:upgradeCharacterData(data))
     end)
 
+    it("gives a session filed before the clock could pause no paused time", function()
+        local data = {
+            dbVersion = 2,
+            sessions = { { id = "Tester - Testrealm:1", startedOn = LEGACY_TIME, endedOn = LEGACY_TIME + 3600 } },
+        }
+
+        assert.is_true(MLH:upgradeCharacterData(data))
+
+        local session = data.sessions[1]
+
+        assert.are.equal(0, session.pausedSeconds)
+        assert.are.equal(3600, MLH:getSessionStats(session).duration)
+    end)
+
+    it("keeps the paused time a session already has", function()
+        local data = { sessions = { { startedOn = LEGACY_TIME, endedOn = LEGACY_TIME + 3600, pausedSeconds = 600 } } }
+
+        MLH:upgradeCharacterData(data)
+
+        assert.are.equal(600, data.sessions[1].pausedSeconds)
+    end)
+
     it("survives a character missing the lists entirely", function()
         local data = {}
 

@@ -990,6 +990,53 @@ describe("the session HUD", function()
         assert.are.equal(MLH:formatDuration(stats.duration), _G.MLHHudFrame.cells[1].text)
     end)
 
+    it("marks its time while the session clock is paused, and drops the mark once it runs again", function()
+        char.config.pauseWhenAway = true
+        wow.player.afk = true
+        MLH:onSessionPauseEvent()
+
+        local text = _G.MLHHudFrame.cells[1].text
+        local elapsed = MLH:formatDuration(MLH:getSessionStats().duration)
+
+        -- A small mark and the time, not a word that would not fit the cell.
+        assert.is_not_nil(text:find("^|TInterface\\TimeManager\\PauseButton:"))
+        assert.are.equal(elapsed, text:match("|t (.*)$"))
+
+        wow.player.afk = false
+        MLH:onSessionPauseEvent()
+
+        assert.are.equal(MLH:formatDuration(MLH:getSessionStats().duration), _G.MLHHudFrame.cells[1].text)
+    end)
+
+    it("says in its tooltip why the time stands still", function()
+        char.config.pauseWhenAway = true
+        wow.player.afk = true
+        MLH:onSessionPauseEvent()
+
+        assert.is_not_nil(tostring(_G.MLHHudFrame.tooltipBody()):find("H_Paused", 1, true))
+
+        wow.player.afk = false
+        MLH:onSessionPauseEvent()
+
+        assert.is_nil(tostring(_G.MLHHudFrame.tooltipBody()):find("H_Paused", 1, true))
+
+        wow.player.afk = false
+        MLH:onSessionPauseEvent()
+    end)
+
+    it("puts the paused state under the time card", function()
+        char.config.pauseWhenAway = true
+        wow.player.afk = true
+        MLH:onSessionPauseEvent()
+        open()
+
+        assert.are.equal("G_PausedNow", window.cards.time.footnote.text)
+
+        wow.player.afk = false
+        MLH:onSessionPauseEvent()
+        MLH:refreshReport()
+    end)
+
     it("refuses to be dragged while it is locked", function()
         local hud = _G.MLHHudFrame
 

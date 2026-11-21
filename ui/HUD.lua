@@ -18,6 +18,16 @@ local GOLD_ICON = UI.GOLD_ICON
 local hud = nil
 local ticker = nil
 
+local PAUSE_TEXTURE = "Interface\\TimeManager\\PauseButton"
+
+-- The pause mark in front of a paused time, tinted the dim text colour like the time beside it.
+local function pauseMark()
+    local r, g, b = UI:rgb("textDim")
+
+    return string.format("|T%s:12:12:0:0:32:32:0:32:0:32:%d:%d:%d|t ", PAUSE_TEXTURE,
+        math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+end
+
 local function isLocked()
     return MLH.db.char.config.hudLocked and true or false
 end
@@ -121,7 +131,11 @@ local function buildHud()
     end)
 
     UI:tooltip(frame, L["H_Title"], function()
-        return L["H_Tooltip"](isLocked() and L["H_Locked"] or L["H_Unlocked"])
+        local text = L["H_Tooltip"](isLocked() and L["H_Locked"] or L["H_Unlocked"])
+
+        if (MLH:isSessionPaused()) then text = text.."\n"..L["H_Paused"] end
+
+        return text
     end)
 
     frame.cells = cells
@@ -134,7 +148,18 @@ function MLH:updateHUD()
 
     local stats = self:getSessionStats()
 
-    hud.cells[1]:SetText(self:formatDuration(stats.duration))
+    -- While the clock is paused its time stands still, dimmed behind a pause mark, and the rates hold.
+    -- The mark is a small texture: the HUD's number fonts have no pause glyph, and a word would not fit.
+    local elapsed = self:formatDuration(stats.duration)
+
+    if (stats.isPaused) then
+        hud.cells[1]:SetText(pauseMark()..elapsed)
+        hud.cells[1]:SetTextColor(UI:rgb("textDim"))
+    else
+        hud.cells[1]:SetText(elapsed)
+        hud.cells[1]:SetTextColor(UI:rgb("text"))
+    end
+
     hud.cells[2]:SetText(string.format("%.0f", stats.itemsPerHour)..L["H_ItemsPerHour"])
     hud.cells[3]:SetText(self:formatGoldCompact(stats.goldPerHour)..GOLD_ICON..L["H_GoldPerHour"])
 end
