@@ -35,6 +35,30 @@ local sources = {
             return ok and price or nil
         end,
     },
+    -- Auction Bourse prices gear by its item level and random suffix, which only the link names, so a
+    -- piece of gear asked by its ID alone has no price there.
+    auctionbourse = {
+        label = "S_PriceAuctionBourse",
+        isAvailable = function()
+            return AuctionBourseAPI ~= nil and AuctionBourseAPI.v1 ~= nil
+                and AuctionBourseAPI.v1.GetPriceByItemLink ~= nil
+        end,
+        getPrice = function(itemID, itemLink)
+            local api = AuctionBourseAPI.v1
+
+            if (itemLink) then
+                local ok, price = pcall(api.GetPriceByItemLink, itemLink)
+
+                if (ok and price) then return price end
+            end
+
+            if (not api.GetPriceByItemID) then return nil end
+
+            local ok, price = pcall(api.GetPriceByItemID, itemID)
+
+            return ok and price or nil
+        end,
+    },
 }
 
 local priceCache = {}

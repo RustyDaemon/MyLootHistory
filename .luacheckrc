@@ -162,8 +162,9 @@ read_globals = {
     -- client older than the secret values it answers about, so it is read through _G
     "issecretvalue",
 
-    -- optional dependency, absent unless the player has it installed
+    -- optional dependencies, absent unless the player has them installed
     "Auctionator",
+    "AuctionBourseAPI",
 }
 
 -- The report window is split over ui/report/, whose files share their state and

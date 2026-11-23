@@ -34,7 +34,7 @@ My Loot History tracks every item, coin and currency you loot, and turns it into
 - **Drop alerts**: a toast for a mount, pet, toy, an Epic or anything worth more than you set, saying when gear is a new appearance.
 - **Tooltips everywhere**: hover any item to see how many you've looted and when the last one dropped.
 
-Prices come from vendors, or from the auction house with [Auctionator](https://www.curseforge.com/wow/addons/auctionator) installed.
+Prices come from vendors, or from the auction house with [Auctionator](https://www.curseforge.com/wow/addons/auctionator) or [Auction Bourse](https://www.curseforge.com/wow/addons/auction-bourse) installed.
 
 Retail and WoW Forever, from the same download.
 

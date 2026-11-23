@@ -227,3 +227,66 @@ describe("auction prices", function()
         assert.are.equal(900000, (MLH:getItemPrice(212000, 2500, UPGRADED)))
     end)
 end)
+
+describe("Auction Bourse prices", function()
+    local asked
+
+    before_each(function()
+        seed()
+
+        asked = {}
+        _G.AuctionBourseAPI = { v1 = {
+            GetPriceByItemLink = function(itemLink)
+                asked[#asked + 1] = itemLink
+
+                if (itemLink == UPGRADED) then return 900000, 1000 end
+                if (itemLink == BASE) then return 300000, 1000 end
+
+                return nil
+            end,
+            GetPriceByItemID = function(itemID) return itemID == 2589 and 120 or nil end,
+        } }
+
+        MLH.db.char.config.priceSource = "auctionbourse"
+        MLH:clearPriceCache()
+    end)
+
+    after_each(function()
+        _G.AuctionBourseAPI = nil
+        MLH.db.char.config.priceSource = "vendor"
+        MLH:clearPriceCache()
+    end)
+
+    it("are a price source of their own, offered while Auction Bourse is loaded", function()
+        assert.are.equal("auctionbourse", (MLH:getPriceSource()))
+        assert.is_not_nil(MLH:getPriceSources().auctionbourse)
+    end)
+
+    it("price each drop by its link, so gear is valued at its own item level", function()
+        assert.are.same({ 300000, false }, { MLH:getItemPrice(212000, 1000, BASE) })
+        assert.are.same({ 900000, false }, { MLH:getItemPrice(212000, 2500, UPGRADED) })
+    end)
+
+    it("are asked once per link", function()
+        MLH:getItemPrice(212000, 1000, BASE)
+        MLH:getItemPrice(212000, 1000, BASE)
+
+        assert.are.equal(1, #asked)
+    end)
+
+    it("fall back to the item ID when the link has no price, and to the vendor price when that has none", function()
+        assert.are.same({ 120, false }, { MLH:getItemPrice(2589, 25, "|cffffffff|Hitem:2589::::::::5|h[Linen]|h|r") })
+        assert.are.same({ 40, true }, { MLH:getItemPrice(4306, 40, "|cffffffff|Hitem:4306::::::::5|h[Silk]|h|r") })
+    end)
+
+    it("leave the vendor price in use when Auction Bourse is not loaded", function()
+        local installed = MLH:getPriceSources().auctionbourse
+
+        _G.AuctionBourseAPI = nil
+        MLH:clearPriceCache()
+
+        assert.are.equal("vendor", (MLH:getPriceSource()))
+        assert.are.same({ 1000, false }, { MLH:getItemPrice(212000, 1000, BASE) })
+        assert.are_not.equal(installed, MLH:getPriceSources().auctionbourse)
+    end)
+end)

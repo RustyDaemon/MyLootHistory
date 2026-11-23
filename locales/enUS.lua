@@ -94,7 +94,7 @@ L["C_TrackCurrency_Desc"] = "Record currencies (Valorstones, Crests, and so on) 
 L["C_GameTooltipLine"] = "Add a line to item tooltips"
 L["C_GameTooltipLine_Desc"] = "Add 'looted 47x, last on 3 Aug' to any item tooltip in the game for items you have looted before"
 L["C_PriceSource"] = "Price source"
-L["C_PriceSource_Desc"] = "Adds a second value column with auction house prices, next to the vendor price. Needs Auctionator installed; an item the chosen source has no price for shows a dash"
+L["C_PriceSource_Desc"] = "Adds a second value column with auction house prices, next to the vendor price. Needs Auctionator or Auction Bourse installed; an item the chosen source has no price for shows a dash"
 L["C_IconSize"] = "Icon size"
 L["C_PrintLootedSummary"] = "Print looted summary"
 L["C_PrintLootedSummary_Desc"] = "Print looted summary in the chat window (for debug purposes). This is visible only to you"
@@ -270,6 +270,7 @@ end
 -- price sources
 L["S_PriceVendor"] = "Vendor price"
 L["S_PriceAuctionator"] = "Auctionator"
+L["S_PriceAuctionBourse"] = "Auction Bourse"
 L["S_PriceUnavailable"] = "(not installed)"
 
 -- tooltip

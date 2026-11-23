@@ -134,7 +134,7 @@ local generalOptions = {
                     values = function ()
                         return MLH:getPriceSources()
                     end,
-                    sorting = { "vendor", "auctionator" },
+                    sorting = { "vendor", "auctionator", "auctionbourse" },
                     get = function (_)
                         return config().priceSource or "vendor"
                     end,
