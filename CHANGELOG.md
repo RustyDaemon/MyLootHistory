@@ -1,3 +1,8 @@
+## 2.8.0
+
+- Auction Bourse is a new **Price source**: with it installed, the market column, totals, gold per hour, the CSV and drop alerts use its auction prices. WoW Forever only.
+- **Price source** no longer says "Needs Auctionator": both auction addons are listed, and a missing one falls back to vendor prices.
+
 ## 2.7.0
 
 - The session clock pauses while you're away or resting in an inn or city, so gold per hour stays honest. The HUD shows a pause mark and the time card says so.

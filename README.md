@@ -72,7 +72,7 @@ Hover any item — in your bags, at a vendor, in the auction house, in chat — 
 
 ## Prices
 
-Vendor price by default. Install [Auctionator](https://www.curseforge.com/wow/addons/auctionator) and switch the price source to get an auction house column too — both side by side.
+Vendor price by default. Install [Auctionator](https://www.curseforge.com/wow/addons/auctionator) or [Auction Bourse](https://www.curseforge.com/wow/addons/auction-bourse) (WoW Forever) and switch the price source to get an auction house column too — both side by side.
 
 ## Slash commands
 
