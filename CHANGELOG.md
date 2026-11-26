@@ -1,3 +1,9 @@
+## 2.9.0
+
+- A `/reload`, or logging back in within 15 minutes, keeps your session going instead of starting a new one. The time you were logged out never counts against gold per hour. **Keep the session over a reload** turns it off.
+- **Clear data** also erases your saved sessions and starts a fresh one.
+- **Ignore items with 0 sell price** now says what it does: such items are not recorded at all (their drop alert still shows).
+
 ## 2.8.0
 
 - Auction Bourse is a new **Price source**: with it installed, the market column, totals, gold per hour, the CSV and drop alerts use its auction prices. WoW Forever only.
