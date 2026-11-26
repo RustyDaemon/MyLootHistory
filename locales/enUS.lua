@@ -76,11 +76,13 @@ L["C_TrackLootSource_Desc"] = "Remember what each drop came off - the creature, 
 L["C_ShowSourceColumn"] = "Show source column"
 L["C_ShowSourceColumn_Desc"] = "Show what an item mostly came from. The full breakdown is always in the item tooltip"
 L["C_IgnoreZeroPriceItems"] = "Ignore items with 0 sell price"
-L["C_IgnoreZeroPriceItems_Desc"] = "Ignore items with zero (0) sell price in the report"
+L["C_IgnoreZeroPriceItems_Desc"] = "Items with a zero (0) sell price are not recorded at all, so they never reach your history or the report. A drop alert for one, such as a mount, still shows"
 L["C_QuestRewardsInRates"] = "Count quest rewards in gold per hour"
 L["C_QuestRewardsInRates_Desc"] = "Quest gold, items and currencies are always kept in your history and shown in the report. With this off they are left out of the session's gold per hour, items per hour and value, so a round of world quests does not make a farming spot look better than it is"
 L["C_PauseWhenAway"] = "Pause while away or resting"
-L["C_PauseWhenAway_Desc"] = "The session's time stops while you are flagged AFK or resting in an inn or a city, and goes on once you are back, so a break does not drag down gold per hour and items per hour. What you loot or craft meanwhile is still recorded, but left out of the per-hour figures. With this off, every minute counts"
+L["C_PauseWhenAway_Desc"] = "The session's time stops while you are flagged AFK or resting in an inn or a city, and goes on once you are back, so a break does not drag down gold per hour and items per hour. What you loot or craft meanwhile is still recorded, but left out of the per-hour figures. With this off, every minute you are logged in counts"
+L["C_ContinueSession"] = "Keep the session over a reload"
+L["C_ContinueSession_Desc"] = "A /reload, or logging back in within 15 minutes, carries on with the session you were in instead of starting a new one. The time you were logged out is left out of the session's time and its per-hour figures. With this off, every login and reload starts a new session"
 L["C_ShowItemID"] = "Show Item ID"
 L["C_ShowItemID_Desc"] = "Show or hide the Item ID value"
 L["C_ShowItemTooltip"] = "Show item tooltip"
@@ -136,7 +138,7 @@ L["C_RetentionPrompt"] = function (days)
   return 'Keep only the last '..days..' days? Everything older is removed from this character\'s history and cannot be recovered.'
 end
 L["C_ClearData"] = "|cFFFF0000!!|r Clear data"
-L["C_ClearData_Desc"] = "Clear all gathered data: items and gold. Forever. This action cannot be undone"
+L["C_ClearData_Desc"] = "Clear all gathered data: items, gold, currencies and sessions. Forever. This action cannot be undone"
 
 -- faq
 L["F_WhatFor"] = "What is this addon for?"
@@ -163,7 +165,7 @@ L["F_Website_Desc"] = "The site has the full guide, the FAQ and the changelog. T
 L["F_WebsiteLabel"] = "Website"
 
 -- messages
-L["M_DataWasCleared"] = "Loot data and gold have been erased"
+L["M_DataWasCleared"] = "Loot data, gold, currencies and sessions have been erased"
 L["M_ItemHidden"] = function (item)
   return "|cFFFFD100My Loot History:|r "..item.." is hidden from the report. Unhide it under /mlh config, Hidden items."
 end
@@ -197,7 +199,7 @@ L["M_HudHidden"] = "|cFF00DD00My Loot History|r: session HUD hidden"
 L["M_HudLocked"] = "|cFF00DD00My Loot History|r: session HUD locked"
 L["M_HudUnlocked"] = "|cFF00DD00My Loot History|r: session HUD unlocked, drag it to move it"
 
-L["M_ClearDataPrompt"] = "Are you sure you want to clear the history of everything you looted? This includes items and gold and cannot be undone"
+L["M_ClearDataPrompt"] = "Are you sure you want to clear the history of everything you looted? This includes items, gold, currencies and sessions and cannot be undone"
 
 L["M_TotalDifferentItemsGathered"] = "Total different items gathered: "
 L["M_TotalQuantityGathered"] = "Total quantity gathered: "

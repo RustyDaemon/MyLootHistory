@@ -108,8 +108,8 @@ function MLH:OnInitialize()
     self:initMinimap()
     self:RegisterChatCommand("mlh", "SlashCommandListener")
 
-    self:closeSession()
-    self:beginSession()
+    -- A reload or a quick relog carries on with the session; a longer break files it and starts anew.
+    self:continueOrBeginSession()
 
     print(L["_IntroMessage"](addonName))
 end
@@ -124,6 +124,9 @@ function MLH:OnEnable()
     self:RegisterEvent("PLAYER_FLAGS_CHANGED", "onSessionPauseEvent")
     self:RegisterEvent("PLAYER_UPDATE_RESTING", "onSessionPauseEvent")
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "onSessionPauseEvent")
+
+    -- A /reload logs out too: the time noted lets the next load carry the session on.
+    self:RegisterEvent("PLAYER_LOGOUT", "noteLogout")
 
     self:applySourceTracking()
     self:applyQuestTracking()

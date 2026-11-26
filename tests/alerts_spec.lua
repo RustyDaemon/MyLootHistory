@@ -195,6 +195,24 @@ describe("recordLoot", function()
         assert.are.equal(1, #printed)
         assert.truthy(printed[1]:find("[Swift Thing]", 1, true))
     end)
+
+    it("does not record a zero-price item at all, unless the option is off", function()
+        _G.C_Item.GetItemInfo = function()
+            return "Pebble", "|cff9d9d9d|Hitem:8|h[Pebble]|h|r", 0,
+                nil, nil, nil, nil, nil, nil, 133000, 0, MISC, 0
+        end
+
+        MLH:recordLoot(8, nil, 1, 1, nil)
+
+        assert.are.equal(0, #MLH.db.char.foundItems)
+        assert.are.equal(0, #shownToasts())
+
+        MLH.db.char.config.ignoreItemsWithZeroPrice = false
+        MLH:recordLoot(8, nil, 1, 1, nil)
+
+        assert.are.equal(1, #MLH.db.char.foundItems)
+        assert.are.equal(8, MLH.db.char.foundItems[1].itemId)
+    end)
 end)
 
 describe("toasts", function()

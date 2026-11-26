@@ -1,6 +1,7 @@
 local wow = require("tests.support.wow")
 
-wow.loadThrough("data/Database.lua")
+-- Through Filters.lua: clearing the data starts a new session and puts the report back on it.
+wow.loadThrough("data/Filters.lua")
 
 local MLH = wow.addon
 
@@ -321,5 +322,24 @@ describe("MLH:resetData", function()
         assert.are.equal(0, #MLH.db.char.foundGold)
         assert.are.equal(0, #MLH.db.char.foundCurrency)
         assert.is_nil(MLH:getItemRecord(1))
+    end)
+
+    it("erases the filed sessions too and starts a new one, with no pauses", function()
+        local char = withHistory({ foundGold = { entry(1, 100) } })
+
+        char.sessions = { { id = "Tester:1", startedOn = NOW - DAY - 600, endedOn = NOW - DAY, pausedSeconds = 0 } }
+        char.sessionSerial = 2
+        char.currentSessionID = "Tester:2"
+        char.thisSessionStart = NOW - 3600
+        char.sessionPauses = { { from = NOW - 1800, to = NOW - 1200 } }
+        MLH:setFilter("session", "Tester:1")
+
+        MLH:resetData()
+
+        assert.are.equal(0, #char.sessions)
+        assert.are_not.equal("Tester:2", char.currentSessionID)
+        assert.are.equal(NOW, char.thisSessionStart)
+        assert.are.equal(0, #char.sessionPauses)
+        assert.are.equal(0, MLH:getFilters().session)
     end)
 end)

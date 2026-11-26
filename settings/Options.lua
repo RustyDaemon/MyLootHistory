@@ -124,6 +124,8 @@ local generalOptions = {
                     MLH:updateHUD()
                     MLH:refreshReport()
                 end),
+                -- Read only when the addon loads, so a change needs nothing applied now.
+                continueSessionCheckBox = toggle(4.6, config, "continueSession", "C_ContinueSession"),
                 showSessionBarCheckBox = toggle(5, config, "showSessionBar", "C_ShowSessionBar", refreshReport),
 
                 priceSourceSelect = {
@@ -341,6 +343,8 @@ local generalOptions = {
                             onAccept = function ()
                                 MLH:resetData()
                                 MLH:refreshSettings()
+                                MLH:updateHUD()
+                                MLH:refreshReport()
                             end,
                         })
                     end

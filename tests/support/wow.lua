@@ -92,17 +92,58 @@ wow.deepCopy = deepCopy
 
 wow.charKey = "Tester - Testrealm"
 
+-- As AceDB does at logout: a value equal to its default is not saved, nor a table left empty by that.
+local function removeDefaults(data, defaults)
+    for key, value in pairs(defaults) do
+        if (type(value) == "table" and type(data[key]) == "table") then
+            removeDefaults(data[key], value)
+
+            if (next(data[key]) == nil) then data[key] = nil end
+        elseif (data[key] == value) then
+            data[key] = nil
+        end
+    end
+end
+
+-- And as it does at load: whatever is missing is filled in from the defaults.
+local function copyDefaults(data, defaults)
+    for key, value in pairs(defaults) do
+        if (type(value) == "table") then
+            if (type(data[key]) ~= "table") then data[key] = {} end
+
+            copyDefaults(data[key], value)
+        elseif (data[key] == nil) then
+            data[key] = value
+        end
+    end
+end
+
+-- The character's saved data the next New starts from, as wow.logout left it; nil starts afresh.
+local savedChar = nil
+
 wow.provide("AceDB-3.0", {
     New = function(_, _, defaults)
-        local char = deepCopy(defaults and defaults.char or {})
+        local charDefaults = defaults and defaults.char or {}
+        local char = savedChar or deepCopy(charDefaults)
+
+        savedChar = nil
+        copyDefaults(char, charDefaults)
 
         return {
             char = char,
+            defaults = defaults,
             keys = { char = wow.charKey },
             sv = { char = { [wow.charKey] = char } },
         }
     end,
 })
+
+-- Plays a logout: AceDB drops what equals its default, and the next New (the next load's initDatabase)
+-- reads what is left, filling in the defaults of that load.
+function wow.logout(db)
+    removeDefaults(db.char, db.defaults and db.defaults.char or {})
+    savedChar = db.char
+end
 
 function wow.addCharacter(db, key, data)
     db.sv.char[key] = data

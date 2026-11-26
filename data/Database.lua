@@ -19,8 +19,12 @@ local defaults = {
         foundItems = {},
         foundGold = {},
         foundCurrency = {},
-        thisSessionStart = time(),
-        sessionPauses = {}, -- the live session's spans away or resting: { from = t, to = t or nil while open }
+        -- The live session's spans away, resting or logged out: { from = t, to = t or nil while open }; the
+        -- time logged out also carries offline = true, which older spans lack.
+        sessionPauses = {},
+        -- thisSessionStart has no default: AceDB does not save a value equal to its default, and one taken
+        -- at load time equals the start of a session begun in that second, which a reload would then lose.
+        -- lastSeenAt, the time of the last logout, has none either: a missing one counts as a long break.
 
         minimapData = {
             hide = false,
@@ -47,6 +51,7 @@ local defaults = {
             ignoreItemsWithZeroPrice = true,
             questRewardsInRates = false, -- quest rewards stay in the history but out of gold per hour
             pauseWhenAway = true, -- the session clock stops while the player is AFK or resting
+            continueSession = true, -- a reload, or a relog within 15 minutes, carries on with the live session
             resizableReportWindow = true,
             pixelFont = false, -- the addon's own pixel font instead of the game's; Latin letters only
             alerts = {
@@ -415,14 +420,20 @@ function MLH:pruneHistory(days)
     return removedEntries, removedRecords
 end
 
+-- Clear data: this character's items, gold and currencies, and the filed sessions, which only add those
+-- up and would be left empty. The live session starts afresh, without its pauses.
 function MLH:resetData()
     self:bumpRevision()
     self.db.char.foundItems = {}
     self.db.char.foundGold = {}
     self.db.char.foundCurrency = {}
+    self.db.char.sessions = {}
     resetIndexes()
 
     self:clearPriceCache()
+
+    self:beginSession()
+    self:setFilter("session", 0)
 
     self:debugPrint(L["M_DataWasCleared"])
 end

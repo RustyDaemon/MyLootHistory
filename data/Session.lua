@@ -15,6 +15,9 @@ local MIN_RATE_SECONDS = 60
 
 local MAX_SESSIONS = 40
 
+-- Logging back in this soon after logging out (a /reload is one too) carries on with the same session.
+local CONTINUE_SECONDS = 15 * 60
+
 -- New entries use session IDs; legacy entries fall back to timestamp windows.
 function MLH:isEntryInSession(entry, session)
     if (entry.sessionID ~= nil or session.id ~= nil) then
@@ -81,6 +84,18 @@ function MLH:shouldPauseSession()
     return isAway() or isResting()
 end
 
+-- Ends the open pause, the last one, at `at`. A pause that ended in the second it began took no time;
+-- it is dropped rather than kept.
+local function closePause(pauses, at)
+    local open = pauses[#pauses]
+
+    if (open.from >= at) then
+        pauses[#pauses] = nil
+    else
+        open.to = at
+    end
+end
+
 -- Opens a pause when the player has just gone away or started resting, and closes it once neither
 -- holds any more or the option has been turned off. Loot keeps being recorded either way.
 function MLH:updateSessionPause()
@@ -92,20 +107,61 @@ function MLH:updateSessionPause()
     local open = openPause(pauses)
     local now = time()
 
+    -- The time logged out ends once the player is back in the world; a pause from then on is its own.
+    if (open and open.offline) then
+        closePause(pauses, now)
+        open = nil
+    end
+
     if (self:shouldPauseSession()) then
         if (not open) then pauses[#pauses+1] = { from = now } end
     elseif (open) then
-        -- A pause that ended in the second it began took no time; it is dropped rather than kept.
-        if (open.from >= now) then
-            pauses[#pauses] = nil
-        else
-            open.to = now
-        end
+        closePause(pauses, now)
     end
 end
 
 function MLH:isSessionPaused()
     return openPause(self.db.char.sessionPauses) ~= nil
+end
+
+-- Logging out, which a /reload does too, notes the time, so the next load can tell a reload or a quick
+-- relog from a new day of play.
+function MLH:noteLogout()
+    self.db.char.lastSeenAt = time()
+end
+
+-- On every load: a reload, or a relog within CONTINUE_SECONDS, carries on with the session that was
+-- running, and the time logged out becomes a pause of its own, marked offline: it stays out of the
+-- clock even with pausing while away turned off. A pause still open at logout (resting in an inn, say)
+-- ends where the time logged out begins, so no second goes uncounted or counts twice. The offline one
+-- stays open until PLAYER_ENTERING_WORLD checks again, since whether the player is resting may not be
+-- known yet. A longer break, no logout time or session start saved (from a version that did not save
+-- them), or the option off files the session and starts a new one. Returns whether the session carried on.
+-- A crash saves nothing, so the next load reads the logout before it: within CONTINUE_SECONDS that still
+-- carries on, with everything since that logout paused. That keeps the rates right, as the loot of that
+-- time was lost with the crash.
+function MLH:continueOrBeginSession()
+    local char = self.db.char
+    local lastSeenAt = tonumber(char.lastSeenAt)
+    local away = lastSeenAt and time() - lastSeenAt
+
+    if (char.config.continueSession and char.thisSessionStart and away and away >= 0
+        and away <= CONTINUE_SECONDS) then
+        local pauses = char.sessionPauses or {}
+
+        char.sessionPauses = pauses
+
+        if (openPause(pauses)) then closePause(pauses, lastSeenAt) end
+
+        pauses[#pauses+1] = { from = lastSeenAt, offline = true }
+
+        return true
+    end
+
+    self:closeSession()
+    self:beginSession()
+
+    return false
 end
 
 -- The client says the player went away, came back, or walked into or out of a resting area. The flags
@@ -136,10 +192,24 @@ local function inPause(pauses, foundOn)
     return false
 end
 
+-- The time logged out is never play: those pauses count whether pausing while away is on or not.
+local function offlineOnly(pauses)
+    local kept = {}
+
+    for i = 1, #(pauses or {}) do
+        if (pauses[i].offline) then kept[#kept+1] = pauses[i] end
+    end
+
+    return #kept > 0 and kept or nil
+end
+
 -- The pauses that count against a session. A filed one keeps what it was filed with; the live one's
--- count only while the option is on, so turning it off counts every minute again.
+-- all count while the option is on, and only the time logged out while it is off, so turning it off
+-- counts every minute played again.
 function MLH:getSessionPauses(session)
-    if (session.endedOn == nil and not self.db.char.config.pauseWhenAway) then return nil end
+    if (session.endedOn == nil and not self.db.char.config.pauseWhenAway) then
+        return offlineOnly(session.pauses)
+    end
 
     return session.pauses
 end
@@ -164,20 +234,25 @@ function MLH:isPausedLoot(pauses, foundOn)
 end
 
 -- The pauses a session filed now keeps: those of the session that is running, cut to its last
--- pickup. Pauses never belong to an older start, and none are kept while the option is off.
+-- pickup. Pauses never belong to an older start, and while the option is off only the time logged out
+-- is kept.
 local function pausesToFile(self, startedOn, endedOn)
     local char = self.db.char
     local kept = {}
 
-    if (startedOn ~= char.thisSessionStart or not char.config.pauseWhenAway) then return kept end
+    if (startedOn ~= char.thisSessionStart) then return kept end
 
+    local all = char.config.pauseWhenAway
     local pauses = char.sessionPauses or {}
 
     for i = 1, #pauses do
-        local from = math.max(pauses[i].from or startedOn, startedOn)
-        local to = math.min(pauses[i].to or endedOn, endedOn)
+        local pause = pauses[i]
+        local from = math.max(pause.from or startedOn, startedOn)
+        local to = math.min(pause.to or endedOn, endedOn)
 
-        if (to >= from) then kept[#kept+1] = { from = from, to = to } end
+        if ((all or pause.offline) and to >= from) then
+            kept[#kept+1] = { from = from, to = to, offline = pause.offline }
+        end
     end
 
     return kept
@@ -502,7 +577,7 @@ function MLH:getSelectedSession()
     return self:getLiveSession()
 end
 
--- Use the last pickup as the session end because logout time is unavailable.
+-- A session ends at its last pickup rather than at logout: the time after it was not farming.
 local function lastActivity(history, startedOn, session)
     local latest = nil
 

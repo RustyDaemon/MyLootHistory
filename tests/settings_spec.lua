@@ -79,8 +79,8 @@ describe("pages", function()
 
         assert.same({
             "showLastLootedRowCheckBox", "showZoneColumnCheckBox", "ignoreItemsWithZeroSellPriceCheckBox",
-            "questRewardsInRatesCheckBox", "pauseWhenAwayCheckBox", "showSessionBarCheckBox", "priceSourceSelect",
-            "showItemIDCheckBox",
+            "questRewardsInRatesCheckBox", "pauseWhenAwayCheckBox", "continueSessionCheckBox",
+            "showSessionBarCheckBox", "priceSourceSelect", "showItemIDCheckBox",
             "showItemTooltipCheckBox", "showAdditionalTooltipDataCheckBox", "gameTooltipLineCheckBox",
             "trackCurrencyCheckBox", "iconSizeRange", "trackLootSourceCheckBox", "showSourceColumnCheckBox",
         }, keys)
@@ -264,6 +264,22 @@ describe("confirmations", function()
         _G.MyLootHistoryConfirmDialog.accept:Click()
 
         assert.equal(0, #MLH.db.char.foundGold)
+    end)
+
+    it("show the HUD and the report the fresh session once the data is cleared", function()
+        local hud, report = MLH.updateHUD, MLH.refreshReport
+        local refreshed = {}
+
+        MLH.updateHUD = function() refreshed.hud = true end
+        MLH.refreshReport = function() refreshed.report = true end
+
+        rowFor(pageIndex("C_Data"), "clearData").children[1]:Click()
+        _G.MyLootHistoryConfirmDialog.accept:Click()
+
+        MLH.updateHUD, MLH.refreshReport = hud, report
+
+        assert.is_true(refreshed.hud)
+        assert.is_true(refreshed.report)
     end)
 end)
 
