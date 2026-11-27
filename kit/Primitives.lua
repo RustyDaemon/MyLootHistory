@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.5.0
+RustyKit UI kit 1.6.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -86,14 +86,14 @@ end
 -- Which way each of a border's four lines (top, bottom, left, right) runs.
 local BORDER_SIDES = { "horizontal", "horizontal", "vertical", "vertical" }
 
--- A corner piece `size` units square at `spot`, moved by x, y. The textures are drawn for the top left
--- corner; the bottom right's is the same turned half round.
-local function cornerPiece(owner, file, size, spot, x, y, layer, subLevel)
+-- A corner piece `size` units square at `spot` of `at`, moved by x, y. The textures are drawn for the top
+-- left corner; the bottom right's is the same turned half round.
+local function cornerPiece(owner, at, file, size, spot, x, y, layer, subLevel)
     local piece = owner:CreateTexture(nil, layer, nil, subLevel)
 
     piece:SetTexture(UI.MEDIA .. file)
     piece:SetSize(size, size)
-    piece:SetPoint(spot, x, y)
+    piece:SetPoint(spot, at, spot, x, y)
 
     if (spot == "BOTTOMRIGHT") then piece:SetTexCoord(1, 0, 1, 0) end
 
@@ -134,25 +134,27 @@ for _, name in ipairs({ "GetAlpha", "IsShown" }) do forwardAll(name, true) end
 -- Fills `frame` with its top left and bottom right corners cut `cut` units in, reaching `outset` units
 -- past its edges (a shadow). Pieced so nothing overlaps, which would show darker through an alpha: a
 -- band the whole width, a strip above it right of the top-left cut, one below it left of the
--- bottom-right cut, and the two corners' inner halves.
-local function cutFill(frame, layer, subLevel, cut, outset)
+-- bottom-right cut, and the two corners' inner halves. `anchor`, a region inside the frame, is what
+-- it covers instead of the whole frame; the pieces follow it wherever it is moved.
+local function cutFill(frame, layer, subLevel, cut, outset, anchor)
     local o = outset or 0
+    local at = anchor or frame
     local strips = {}
 
     for i = 1, 3 do strips[i] = frame:CreateTexture(nil, layer, nil, subLevel) end
 
-    strips[1]:SetPoint("TOPLEFT", -o, o - cut)
-    strips[1]:SetPoint("BOTTOMRIGHT", o, cut - o)
+    strips[1]:SetPoint("TOPLEFT", at, "TOPLEFT", -o, o - cut)
+    strips[1]:SetPoint("BOTTOMRIGHT", at, "BOTTOMRIGHT", o, cut - o)
 
-    strips[2]:SetPoint("TOPLEFT", cut - o, o)
-    strips[2]:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", o, o - cut)
+    strips[2]:SetPoint("TOPLEFT", at, "TOPLEFT", cut - o, o)
+    strips[2]:SetPoint("BOTTOMRIGHT", at, "TOPRIGHT", o, o - cut)
 
-    strips[3]:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", -o, cut - o)
-    strips[3]:SetPoint("BOTTOMRIGHT", o - cut, -o)
+    strips[3]:SetPoint("TOPLEFT", at, "BOTTOMLEFT", -o, cut - o)
+    strips[3]:SetPoint("BOTTOMRIGHT", at, "BOTTOMRIGHT", o - cut, -o)
 
     local corners = {
-        cornerPiece(frame, "cut", cut, "TOPLEFT", -o, o, layer, subLevel),
-        cornerPiece(frame, "cut", cut, "BOTTOMRIGHT", o, -o, layer, subLevel),
+        cornerPiece(frame, at, "cut", cut, "TOPLEFT", -o, o, layer, subLevel),
+        cornerPiece(frame, at, "cut", cut, "BOTTOMRIGHT", o, -o, layer, subLevel),
     }
 
     local pieces = { strips[1], strips[2], strips[3], corners[1], corners[2] }
@@ -161,61 +163,87 @@ local function cutFill(frame, layer, subLevel, cut, outset)
 end
 
 -- A fill for `frame` in a palette color: one texture over all of it, or, `cut` above 0, pieced with its
--- top left and bottom right corners cut that far in (UI:cornerCut). Answers it, to paint again.
-function UI:fill(frame, colorName, alpha, layer, subLevel, cut)
+-- top left and bottom right corners cut that far in (UI:cornerCut). `anchor`, a region inside the frame,
+-- is covered instead of the whole frame. Answers it, to paint again.
+function UI:fill(frame, colorName, alpha, layer, subLevel, cut, anchor)
     local fill
 
     if (cut and cut > 0) then
-        fill = cutFill(frame, layer or "BACKGROUND", subLevel, cut)
+        fill = cutFill(frame, layer or "BACKGROUND", subLevel, cut, nil, anchor)
     else
         fill = frame:CreateTexture(nil, layer or "BACKGROUND", nil, subLevel)
-        fill:SetAllPoints()
+        fill:SetAllPoints(anchor)
     end
 
     return self:paint(fill, colorName, alpha)
 end
 
--- The four sides of a border whose top left and bottom right corners are cut `cut` units in, each
--- stopping where a cut begins, and the cuts drawn across the corners in the accent, over a hover fill.
--- Its sides are always the kit's own one-pixel lines: UI.onBorder sizes square borders only.
-local function addCutBorder(frame, r, g, b, a, cut)
+-- The four sides of a border on `owner` along `at`, whose top left and bottom right corners are cut `cut`
+-- units in, each stopping where a cut begins, and the cuts drawn across the corners in the accent. The
+-- sides are drawn at `layer`/`subLevel`, the cuts at `cutLayer`/`cutSubLevel`. Answers the pieces and
+-- a SetBorderColor, written onto nothing: the owner may be a frame of the game's own.
+local function cutBorder(owner, at, r, g, b, a, cut, layer, subLevel, cutLayer, cutSubLevel)
     local sides = {}
 
     for i = 1, 4 do
-        local line = frame:CreateTexture(nil, "BORDER")
+        local line = owner:CreateTexture(nil, layer, nil, subLevel)
         line:SetColorTexture(r, g, b, a)
         sides[i] = line
     end
 
-    sides[1]:SetPoint("TOPLEFT", cut, 0)
-    sides[1]:SetPoint("TOPRIGHT")
+    sides[1]:SetPoint("TOPLEFT", at, "TOPLEFT", cut, 0)
+    sides[1]:SetPoint("TOPRIGHT", at, "TOPRIGHT")
 
-    sides[2]:SetPoint("BOTTOMLEFT")
-    sides[2]:SetPoint("BOTTOMRIGHT", -cut, 0)
+    sides[2]:SetPoint("BOTTOMLEFT", at, "BOTTOMLEFT")
+    sides[2]:SetPoint("BOTTOMRIGHT", at, "BOTTOMRIGHT", -cut, 0)
 
-    sides[3]:SetPoint("TOPLEFT", 0, -cut)
-    sides[3]:SetPoint("BOTTOMLEFT")
+    sides[3]:SetPoint("TOPLEFT", at, "TOPLEFT", 0, -cut)
+    sides[3]:SetPoint("BOTTOMLEFT", at, "BOTTOMLEFT")
 
-    sides[4]:SetPoint("TOPRIGHT")
-    sides[4]:SetPoint("BOTTOMRIGHT", 0, cut)
+    sides[4]:SetPoint("TOPRIGHT", at, "TOPRIGHT")
+    sides[4]:SetPoint("BOTTOMRIGHT", at, "BOTTOMRIGHT", 0, cut)
 
-    for i = 1, 4 do UI:pixelLine(frame, sides[i], BORDER_SIDES[i]) end
+    for i = 1, 4 do UI:pixelLine(owner, sides[i], BORDER_SIDES[i]) end
 
     local cuts = {
-        cornerPiece(frame, "cut-edge", cut, "TOPLEFT", 0, 0, "OVERLAY", -8),
-        cornerPiece(frame, "cut-edge", cut, "BOTTOMRIGHT", 0, 0, "OVERLAY", -8),
+        cornerPiece(owner, at, "cut-edge", cut, "TOPLEFT", 0, 0, cutLayer, cutSubLevel),
+        cornerPiece(owner, at, "cut-edge", cut, "BOTTOMRIGHT", 0, 0, cutLayer, cutSubLevel),
     }
 
     for _, piece in ipairs(cuts) do piece:SetVertexColor(UI:rgb("accent")) end
 
-    frame.borderTextures = sides
-    frame.cutEdges = cuts
+    return {
+        sides = sides,
+        cuts = cuts,
+        SetBorderColor = function(_, br, bg, bb, ba)
+            for i = 1, 4 do
+                sides[i]:SetColorTexture(br, bg, bb, ba or 1)
+            end
+        end,
+    }
+end
 
-    frame.SetBorderColor = function(_, br, bg, bb, ba)
-        for i = 1, 4 do
-            sides[i]:SetColorTexture(br, bg, bb, ba or 1)
-        end
+-- A cut border in the border color on `owner`, along `anchor` (else all of it), drawn as `addBorder`
+-- draws one unless `layer` is given: then its cuts sit one sublevel over its sides. For a frame the
+-- addon does not own, as nothing is written onto `owner`. Its sides are always the kit's own one-pixel
+-- lines: UI.onBorder sizes square borders only.
+function UI:cutBorder(owner, anchor, cut, layer, subLevel)
+    local r, g, b, a = self:rgb("border")
+
+    if (layer) then
+        return cutBorder(owner, anchor or owner, r, g, b, a, cut, layer, subLevel, layer, (subLevel or 0) + 1)
     end
+
+    return cutBorder(owner, anchor or owner, r, g, b, a, cut, "BORDER", nil, "OVERLAY", -8)
+end
+
+-- A cut border on a frame of the addon's own: over a hover fill, the cuts over the hover too.
+local function addCutBorder(frame, r, g, b, a, cut)
+    local border = cutBorder(frame, frame, r, g, b, a, cut, "BORDER", nil, "OVERLAY", -8)
+
+    frame.borderTextures = border.sides
+    frame.cutEdges = border.cuts
+    frame.SetBorderColor = border.SetBorderColor
 
     return frame
 end
@@ -282,16 +310,19 @@ function UI:paint(texture, colorName, alpha)
 end
 
 -- A drop shadow in the theme's shadow color (black on dark) extending `inset` pixels past each edge
--- of the frame, its corners cut as the frame's are when given `cut`.
-function UI:addShadow(frame, inset, alpha, subLevel, cut)
+-- of the frame (or of `anchor`, a region inside it), its corners cut as the frame's are when given `cut`.
+function UI:addShadow(frame, inset, alpha, subLevel, cut, anchor)
     if (cut and cut > 0) then
         -- Pushed out by `inset`, a 45-degree cut reaches about 0.6 of that further along each side.
-        return self:paint(cutFill(frame, "BACKGROUND", subLevel or -8, cut + inset * 0.6, inset), "shadow", alpha)
+        local shadow = cutFill(frame, "BACKGROUND", subLevel or -8, cut + inset * 0.6, inset, anchor)
+
+        return self:paint(shadow, "shadow", alpha)
     end
 
+    local at = anchor or frame
     local shadow = frame:CreateTexture(nil, "BACKGROUND", nil, subLevel or -8)
-    shadow:SetPoint("TOPLEFT", -inset, inset)
-    shadow:SetPoint("BOTTOMRIGHT", inset, -inset)
+    shadow:SetPoint("TOPLEFT", at, "TOPLEFT", -inset, inset)
+    shadow:SetPoint("BOTTOMRIGHT", at, "BOTTOMRIGHT", inset, -inset)
     shadow:SetColorTexture(self:rgb("shadow", alpha))
 
     return shadow
