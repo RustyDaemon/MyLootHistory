@@ -13,18 +13,6 @@ L["_IntroMessage"] = function (addonName)
   return '|cFF00DD00'..addonName..'|r loaded. Happy looting! |cFFFF0000♥|r'
 end
 
--- debug
-L["D_AddedAndTotal"] = function (itemLink, totalAmount)
-  return 'Added '..itemLink..'. Total quantity: '..totalAmount
-end
-
-L["D_NotMyItem"] = "not my item"
-L["D_NotMyCurrency"] = "not my currency"
-L["D_QuestItem"] = "quest item"
-L["D_ZeroSellPrice"] = "sell price is 0"
-L["D_NoMoneyMatched"] = "money pattern matched nothing"
-L["D_QuestMoneyCounted"] = "quest reward money, already counted"
-
 -- minimap
 L["MM_IconTitle"] = "My Loot History"
 L["MM_Title"] = "|cFFFFFFFFMy Loot History|r"
@@ -35,9 +23,7 @@ L["MM_RightClickForSettings"] = "|cFF00FF00Right click|r to open settings"
 -- configuration
 L["C_General"] = "General"
 L["C_Report"] = "Report"
-L["C_Debug"] = "Debug"
 L["C_Statistics"] = "Statistics"
-L["C_FAQ"] = "FAQ"
 L["C_DetailedSettingsHeader"] = "Detailed settings"
 L["C_OpenSettings"] = "Open settings"
 L["C_OpenReport"] = "Open the report"
@@ -98,10 +84,6 @@ L["C_GameTooltipLine_Desc"] = "Add 'looted 47x, last on 3 Aug' to any item toolt
 L["C_PriceSource"] = "Price source"
 L["C_PriceSource_Desc"] = "Adds a second value column with auction house prices, next to the vendor price. Needs Auctionator or Auction Bourse installed; an item the chosen source has no price for shows a dash"
 L["C_IconSize"] = "Icon size"
-L["C_PrintLootedSummary"] = "Print looted summary"
-L["C_PrintLootedSummary_Desc"] = "Print looted summary in the chat window (for debug purposes). This is visible only to you"
-L["C_PrintOtherDebugInfo"] = "Print other debug info"
-L["C_PrintOtherDebugInfo_Desc"] = "Like 'not my item' or so"
 L["C_Alerts"] = "Drop alerts"
 L["C_AlertsEnabled"] = "Alert on notable drops"
 L["C_AlertsEnabled_Desc"] = "Pop up a small toast with the item and what it is worth when you loot something worth noticing, so a good drop never gets lost in the chat"
@@ -118,7 +100,6 @@ L["C_AlertsChat_Desc"] = "Add a line with the item link to the chat, so the drop
 L["C_AlertsPreview"] = "Preview"
 L["C_AlertsPreview_Desc"] = "Show an example alert, to see where it appears. With the HUD on, alerts appear under it"
 L["C_Off"] = "Off"
-L["C_Data"] = "Data"
 L["C_HiddenItems"] = "Hidden items"
 L["C_HiddenItems_Desc"] = "Items you hid from the report, on every character. Their loot is still recorded, but they stay out of the report, the CSV, the activity graph, gold per hour and drop alerts. Unhide one to bring its whole history back.\n\nTo hide an item, right-click its row in the report."
 L["C_NoHiddenItems"] = "Nothing is hidden."
@@ -139,30 +120,10 @@ L["C_RetentionPrompt"] = function (days)
 end
 L["C_ClearData"] = "|cFFFF0000!!|r Clear data"
 L["C_ClearData_Desc"] = "Clear all gathered data: items, gold, currencies and sessions. Forever. This action cannot be undone"
-
--- faq
-L["F_WhatFor"] = "What is this addon for?"
-L["F_WhatFor_Desc"] = "The addon that track everything you looted and show you the report with the gathered data. This is useful for the gold farming, for example, to track how much gold you got during the farm session. Or to track how many items you got from the specific zone, etc."
-L["F_SortingFiltering"] = "Sorting and filtering"
-L["F_SortingFiltering_Desc"] = "Everything can be filtered by a name, a date, a quality and a zone.\n\n"..
-  "* Type in the search box to keep only the items whose name contains what you typed.\n"..
-  "* Items quality can be filtered by a specific quality ('Exact quality checkbox') or by a quality range (for example, from Uncommon and further).\n"..
-  "* Dates can be filtered by a specific date or by a date range. For example, 'Today' or 'This month'. \n"..
-  "* The zone dropdown lists every zone you have ever looted in. Picking one narrows the quantities and the gold to that zone.\n\n"..
-  "Click a column header to sort by it, click it again to reverse the order. The choice is remembered per character."
-L["F_Session"] = "What is the session line at the top of the report?"
-L["F_Session_Desc"] = "It is the live half of the addon: how long you have been playing since you logged in, how many items that is per hour, and how much gold per hour "..
-  "(the value of what you looted plus the coins you picked up).\n\n"..
-  "Click the line to start a new session from that moment, which is what you want when you move to a new farming spot. "..
-  "The same numbers are on the minimap button tooltip and behind '/mlh session'.\n\n"..
-  "The time stops while you are AFK or resting in an inn or a city, unless you turn that off in the Report settings."
-L["F_CanILinkToChat"] = "Can I link the item from the report?"
-L["F_CanILinkToChat_Desc"] = "Yes, you can. Just Shift+click on the item icon and it will be linked to the chat. The chat should be opened."
-L["F_Restrinctions"] = "Any known restrictions?"
-L["F_Restrinctions_Desc"] = "Loot picked up before you installed the addon, or before a feature arrived, can't be filled in afterwards: it has no source, and an upgraded drop from before 2.4.0 is valued as the item it was first recorded as."
-L["F_Website"] = "Where can I read more?"
-L["F_Website_Desc"] = "The site has the full guide, the FAQ and the changelog. The address is in the box below - click it and press Ctrl+C to copy it."
-L["F_WebsiteLabel"] = "Website"
+L["C_HistoryHeader"] = "Your history"
+L["C_WebsiteHeader"] = "Where can I read more?"
+L["C_Website_Desc"] = "The site has the full guide, the FAQ and the changelog. The address is in the box below - click it and press Ctrl+C to copy it."
+L["C_WebsiteLabel"] = "Website"
 
 -- messages
 L["M_DataWasCleared"] = "Loot data, gold, currencies and sessions have been erased"
@@ -209,7 +170,6 @@ L["M_TotalCurrenciesGathered"] = "Total different currencies gathered: "
 -- report
 L["R_ReportDateRange"] = "Report date range"
 L["R_MinimumItemQuality"] = "Minimum Item quality"
-L["R_ExactItemQuality"] = "Exact item quality"
 L["R_LootSomething"] = "Loot something"
 L["R_Items"] = "Items: "
 L["R_Quantity"] = "Quantity: "

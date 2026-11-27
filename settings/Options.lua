@@ -26,10 +26,6 @@ local function alertsConfig()
     return MLH.db.char.config.alerts
 end
 
-local function debugConfig()
-    return MLH.db.char.config.debug
-end
-
 local function alertsDisabled()
     return not alertsConfig().enabled
 end
@@ -284,13 +280,25 @@ local generalOptions = {
                 },
             }
         },
-        groupData = {
+        -- What is stored, then how long to keep it and how to wipe it, then where to read more.
+        groupStatistics = {
             type = 'group',
-            order = 23,
-            name = L["C_Data"],
+            order = 32,
+            name = L["C_Statistics"],
             args = {
-                retentionSelect = {
+                statisticsText = {
                     order = 1,
+                    type = 'description',
+                    fontSize = 'medium',
+                    name = function() return MLH:getStatisticsText() end,
+                },
+                historyHeader = {
+                    order = 10,
+                    type = 'header',
+                    name = L["C_HistoryHeader"],
+                },
+                retentionSelect = {
+                    order = 11,
                     type = "select",
                     name = L["C_RetentionDays"],
                     desc = L["C_RetentionDays_Desc"],
@@ -329,7 +337,7 @@ local generalOptions = {
                     end
                 },
                 clearData = {
-                    order = 10,
+                    order = 12,
                     type = "execute",
                     name = L["C_ClearData"],
                     desc = L["C_ClearData_Desc"],
@@ -348,20 +356,27 @@ local generalOptions = {
                             end,
                         })
                     end
-                }
+                },
+                websiteHeader = {
+                    order = 20,
+                    type = 'header',
+                    name = L["C_WebsiteHeader"],
+                },
+                websiteText = {
+                    order = 21,
+                    type = 'description',
+                    name = L["C_Website_Desc"],
+                },
+                inputWebsite = {
+                    order = 22,
+                    type = 'input',
+                    name = L["C_WebsiteLabel"],
+                    readOnly = true, -- the settings window's own key: a box to copy from
+                    get = function () return MLH.website end,
+                    set = function () end,
+                },
             }
         },
-        groupDebug = {
-            type = 'group',
-            order = 24,
-            name = L["C_Debug"],
-            args = {
-                printDebugLootedInfo = toggle(1, debugConfig, "printLootedSummary", "C_PrintLootedSummary"),
-                printDebugOtherInfo = toggle(2, debugConfig, "printOtherDebugInfo", "C_PrintOtherDebugInfo"),
-            }
-        },
-        groupStatistics = MLH.groupStatistics,
-        groupFaq = MLH.groupFaq,
     }
 }
 

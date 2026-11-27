@@ -307,6 +307,12 @@ describe("MLH:pruneHistory and the history revision", function()
 end)
 
 describe("MLH:resetData", function()
+    -- Clear data says so in chat; the specs here look only at what it erases.
+    local print = _G.print
+
+    before_each(function() _G.print = function() end end)
+    after_each(function() _G.print = print end)
+
     it("clears all three histories and the index with them", function()
         withHistory({
             foundItems = { record(1, { entry(1) }) },

@@ -40,7 +40,6 @@ local function seed()
     MLH:setFilter("session", 0)
     MLH:setFilter("range", MLH.RANGE_ALL)
     MLH:setFilter("quality", 0)
-    MLH:setFilter("exactQuality", false)
     MLH:setFilter("zone", 0)
     MLH:setFilter("search", "")
 

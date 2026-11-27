@@ -57,7 +57,6 @@ local function seed()
 
     MLH:setFilter("range", 6)
     MLH:setFilter("quality", 0)
-    MLH:setFilter("exactQuality", false)
     MLH:setFilter("zone", 0)
     MLH:setFilter("search", "")
     MLH:setFilter("sortKey", "quantity")
@@ -145,15 +144,8 @@ describe("the filters", function()
         assert.are.equal(0, MLH:buildReport().gold)
     end)
 
-    it("treats the quality filter as a minimum by default", function()
+    it("treats the quality filter as a minimum", function()
         MLH:setFilter("quality", 4)
-
-        assert.are.equal(1, #MLH:collectItems())
-    end)
-
-    it("matches one quality exactly when asked to", function()
-        MLH:setFilter("exactQuality", true)
-        MLH:setFilter("quality", 1)
 
         assert.are.equal(1, #MLH:collectItems())
     end)

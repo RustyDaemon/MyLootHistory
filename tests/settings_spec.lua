@@ -22,7 +22,6 @@ local MLH = wow.addon
 function MLH:setTooltipSuppressed() end
 
 wow.load("settings/Statistics.lua")
-wow.load("settings/Faq.lua")
 wow.loadThrough("ui/Alerts.lua")
 wow.load("settings/Options.lua")
 wow.load("settings/Window.lua")
@@ -68,8 +67,18 @@ describe("pages", function()
 
         for i, p in ipairs(window().pages) do names[i] = tostring(p.name) end
 
-        assert.same({ "C_General", "C_Report", "C_Alerts", "C_HiddenItems", "C_Data", "C_Debug",
-            "C_Statistics", "C_FAQ" }, names)
+        assert.same({ "C_General", "C_Report", "C_Alerts", "C_HiddenItems", "C_Statistics" }, names)
+    end)
+
+    it("puts what is stored, then keeping and clearing it, then the website on Statistics", function()
+        local keys = {}
+
+        for i, row in ipairs(page(pageIndex("C_Statistics")).frame.rows) do keys[i] = row.info[1] end
+
+        assert.same({
+            "statisticsText", "historyHeader", "retentionSelect", "clearData",
+            "websiteHeader", "websiteText", "inputWebsite",
+        }, keys)
     end)
 
     it("lays the report options out in their order", function()
@@ -100,6 +109,24 @@ describe("pages", function()
         MLH:openSettings()
 
         assert.equal(report, window().current)
+    end)
+
+    it("remembers the page by its name, not its place", function()
+        MLH:openSettings(pageIndex("C_Statistics"))
+        window():Hide()
+
+        assert.equal("groupStatistics", MLH.db.char.ui.settingsPageKey)
+        assert.is_nil(MLH.db.char.ui.settingsPage)
+    end)
+
+    it("opens on the page that took over from one saved by its old place", function()
+        window():Hide()
+        MLH.db.char.ui.settingsPageKey = nil
+        MLH.db.char.ui.settingsPage = 7 -- Statistics, when Data and Debug came before it
+
+        MLH:openSettings()
+
+        assert.equal(pageIndex("C_Statistics"), window().current)
     end)
 end)
 
@@ -185,7 +212,7 @@ describe("read-only inputs", function()
     it("put the text back when it is typed over", function()
         MLH.website = "https://example.test"
 
-        local row = rowFor(pageIndex("C_FAQ"), "inputWebsite")
+        local row = rowFor(pageIndex("C_Statistics"), "inputWebsite")
         local editBox = row.children[1].editBox
 
         assert.equal("https://example.test", editBox:GetText())
@@ -198,8 +225,19 @@ describe("read-only inputs", function()
 end)
 
 describe("confirmations", function()
+    local print, printed = _G.print, {}
+
+    before_each(function()
+        printed = {}
+        _G.print = function(message) printed[#printed + 1] = tostring(message) end
+    end)
+
+    after_each(function()
+        _G.print = print
+    end)
+
     local function pickRetention(days)
-        local dropdown = rowFor(pageIndex("C_Data"), "retentionSelect").children[1]
+        local dropdown = rowFor(pageIndex("C_Statistics"), "retentionSelect").children[1]
 
         frames.firstButton(dropdown):Click()
 
@@ -253,7 +291,7 @@ describe("confirmations", function()
     it("clear the data only once accepted", function()
         MLH.db.char.foundGold = { { quantity = 5, foundOn = 1 } }
 
-        local clear = rowFor(pageIndex("C_Data"), "clearData").children[1]
+        local clear = rowFor(pageIndex("C_Statistics"), "clearData").children[1]
 
         clear:Click()
         _G.MyLootHistoryConfirmDialog.cancel:Click()
@@ -266,6 +304,13 @@ describe("confirmations", function()
         assert.equal(0, #MLH.db.char.foundGold)
     end)
 
+    it("say in chat that the data was cleared", function()
+        rowFor(pageIndex("C_Statistics"), "clearData").children[1]:Click()
+        _G.MyLootHistoryConfirmDialog.accept:Click()
+
+        assert.same({ "M_DataWasCleared" }, printed)
+    end)
+
     it("show the HUD and the report the fresh session once the data is cleared", function()
         local hud, report = MLH.updateHUD, MLH.refreshReport
         local refreshed = {}
@@ -273,7 +318,7 @@ describe("confirmations", function()
         MLH.updateHUD = function() refreshed.hud = true end
         MLH.refreshReport = function() refreshed.report = true end
 
-        rowFor(pageIndex("C_Data"), "clearData").children[1]:Click()
+        rowFor(pageIndex("C_Statistics"), "clearData").children[1]:Click()
         _G.MyLootHistoryConfirmDialog.accept:Click()
 
         MLH.updateHUD, MLH.refreshReport = hud, report

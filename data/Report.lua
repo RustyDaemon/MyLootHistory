@@ -231,12 +231,6 @@ local function mergeMatchingItems(self)
     return items, hiddenCount
 end
 
-local function qualityMatches(quality, active)
-    if (active.exactQuality) then return quality == active.quality end
-
-    return quality >= active.quality
-end
-
 -- The variant a row stands for: the best quality, then the most looted.
 local function bestVariant(variants)
     local best = nil
@@ -357,7 +351,7 @@ function MLH:collectItems()
     for i = 1, #items do
         local newItem = items[i]
         local quality = newItem.quality or 0 -- records written before 1.1.0 can hold a nil quality
-        local keep = qualityMatches(quality, active)
+        local keep = quality >= active.quality
 
         -- The search matches the cached name, so the cache is applied first.
         applyItemCache(newItem, quality)

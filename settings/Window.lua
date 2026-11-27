@@ -61,12 +61,12 @@ end
 
 -- The top level's loose options are the General page; every group is a page of its own.
 local function collectPages(options)
-    local general = { name = L["C_General"], entries = {} }
+    local general = { key = "general", name = L["C_General"], entries = {} }
     local pages = { general }
 
     for _, arg in ipairs(sortedArgs(options.args)) do
         if (arg.option.type == "group") then
-            pages[#pages+1] = { name = arg.option.name, entries = sortedArgs(arg.option.args) }
+            pages[#pages+1] = { key = arg.key, name = arg.option.name, entries = sortedArgs(arg.option.args) }
         else
             general.entries[#general.entries+1] = arg
         end
@@ -398,7 +398,8 @@ local function selectPage(index)
     for i, nav in ipairs(window.nav) do nav:SetActive(i == index) end
 
     MLH.db.char.ui = MLH.db.char.ui or {}
-    MLH.db.char.ui.settingsPage = index
+    MLH.db.char.ui.settingsPageKey = page.key
+    MLH.db.char.ui.settingsPage = nil
 
     refreshPage()
 end
@@ -511,6 +512,24 @@ local function buildWindow()
     return frame
 end
 
+-- Up to 2.9.0 the last page was saved by its position, among pages since merged into Statistics or
+-- removed (Data, Debug, FAQ): each old position names the page that now holds what it held.
+local LEGACY_PAGE_KEYS = {
+    "general", "groupReport", "groupAlerts", "groupHidden",
+    "groupStatistics", "general", "groupStatistics", "groupStatistics",
+}
+
+-- The position of the page a key names, so a page added or removed later does not open another one.
+local function pageIndexFor(key)
+    if (not key) then return nil end
+
+    for i, page in ipairs(window.pages) do
+        if (page.key == key) then return i end
+    end
+
+    return nil
+end
+
 function MLH:openSettings(pageIndex)
     if (not window) then window = buildWindow() end
 
@@ -521,7 +540,7 @@ function MLH:openSettings(pageIndex)
     window:Show()
     window:Raise()
 
-    local page = pageIndex or ui.settingsPage or 1
+    local page = pageIndex or pageIndexFor(ui.settingsPageKey or LEGACY_PAGE_KEYS[ui.settingsPage]) or 1
 
     selectPage(window.pages[page] and page or 1)
 

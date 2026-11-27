@@ -30,7 +30,6 @@ local function seed()
     MLH:setFilter("session", 0)
     MLH:setFilter("range", MLH.RANGE_ALL)
     MLH:setFilter("quality", 0)
-    MLH:setFilter("exactQuality", false)
     MLH:setFilter("zone", 0)
     MLH:setFilter("search", "")
 end
@@ -72,7 +71,7 @@ describe("storing a drop's own link", function()
     it("stamps an upgraded drop with its link and quality", function()
         MLH:addItem(212000, 1, BASE, 1, 3, "Void Blade", 1, 1000)
 
-        local _, entry = MLH:addItem(212000, 1, UPGRADED, 1, 4, "Void Blade", 1, 2500)
+        local entry = MLH:addItem(212000, 1, UPGRADED, 1, 4, "Void Blade", 1, 2500)
 
         assert.are.equal(UPGRADED, entry.itemLink)
         assert.are.equal(4, entry.quality)

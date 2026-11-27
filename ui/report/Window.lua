@@ -84,7 +84,7 @@ local function filtersNarrow()
 
     if (active.range ~= MLH.RANGE_ALL or active.zone ~= 0 or active.search ~= "") then return true end
 
-    return not View.isCurrencyView() and (active.quality ~= 0 or active.exactQuality == true)
+    return not View.isCurrencyView() and active.quality ~= 0
 end
 
 -- What an empty list says, and whether resetting the filters would help: nothing looted yet, everything
@@ -96,7 +96,7 @@ local function emptyMessage()
 
     local active = MLH:getFilters()
     local hidden = not View.isCurrencyView() and (View.report.hiddenCount or 0) > 0
-        and active.search == "" and active.quality == 0 and not active.exactQuality
+        and active.search == "" and active.quality == 0
 
     if (hidden) then return L["R_EverythingHidden"], false end
 
@@ -137,7 +137,6 @@ function View.refreshReport(keepScroll)
     View.window.sessionDropdown:SetText(MLH:getSelectedSessionName())
     View.window.scopeDropdown:SetText(MLH:getScopeName())
     View.window.rangeControl:Refresh()
-    View.window.exactToggle:Refresh()
     View.window.viewControl:Refresh()
 
     View.window:UpdateLayout()
@@ -308,25 +307,18 @@ local function buildWindow()
             MLH:setFilter("scope", value)
             View.refreshReport()
         end)
-    local exactToggle = UI:toggle(filterBar, L["R_ExactItemQuality"],
-        function() return MLH:getFilters().exactQuality end,
-        function(value)
-            MLH:setFilter("exactQuality", value)
-            View.refreshReport()
-        end)
 
     local function layoutFilters()
         local available = math.max(filterBar:GetWidth(), 1)
         local flow = {
             search, rangeControl, sessionDropdown, qualityDropdown, zoneDropdown,
-            scopeDropdown, exactToggle,
+            scopeDropdown,
         }
 
         sessionDropdown:SetShown(MLH:getFilters().range == MLH.RANGE_SESSION)
         scopeDropdown:SetShown(MLH:getCharacterCount() > 1)
 
         qualityDropdown:SetShown(not View.isCurrencyView())
-        exactToggle:SetShown(not View.isCurrencyView())
 
         local placements = {}
         local lineCount, x = 1, 0
@@ -352,10 +344,9 @@ local function buildWindow()
             local placement = placements[i]
             local control = placement.control
             local y = (lineCount - placement.row) * FILTER_ROW
-            local nudge = control == exactToggle and 3 or 0
 
             control:ClearAllPoints()
-            control:SetPoint("BOTTOMLEFT", filterBar, "BOTTOMLEFT", placement.x, y + nudge)
+            control:SetPoint("BOTTOMLEFT", filterBar, "BOTTOMLEFT", placement.x, y)
         end
 
         filterBar:SetHeight(FILTER_HEIGHT + (lineCount - 1) * FILTER_ROW)
@@ -487,7 +478,6 @@ local function buildWindow()
     frame.zoneDropdown = zoneDropdown
     frame.sessionDropdown = sessionDropdown
     frame.scopeDropdown = scopeDropdown
-    frame.exactToggle = exactToggle
     frame.header = header
     frame.list = list
     frame.scrollbar = scrollbar

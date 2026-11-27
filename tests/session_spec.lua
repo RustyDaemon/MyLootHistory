@@ -35,7 +35,6 @@ local function seed()
     MLH:setFilter("session", 0)
     MLH:setFilter("range", 6)
     MLH:setFilter("quality", 0)
-    MLH:setFilter("exactQuality", false)
     MLH:setFilter("zone", 0)
     MLH:setFilter("search", "")
 end
@@ -755,6 +754,13 @@ end)
 
 describe("pickups at a session boundary", function()
     before_each(seed)
+
+    -- Clear data says so in chat; the specs here look only at what it erases.
+    local print = _G.print
+
+    before_each(function() _G.print = function() end end)
+    after_each(function() _G.print = print end)
+
 
     it("keeps all three loot types in exactly one session during same-second resets", function()
         MLH:resetData()

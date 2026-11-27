@@ -62,10 +62,6 @@ local defaults = {
                 sound = true,
                 chat = false,
             },
-            debug = {
-                printLootedSummary = false,
-                printOtherDebugInfo = false,
-            },
         },
 
         sessions = {},
@@ -76,7 +72,6 @@ local defaults = {
             selectedSession = 0,    -- live, a session ID, or a legacy startedOn stamp
             selectedRangeValue = 2, -- MLH.RANGE_TODAY; defined in data/Filters.lua, which loads later
             selectedQualityValue = 0,
-            selectedExactItemQuality = false,
             selectedZoneID = 0, -- 0 is "any zone"
             searchText = "",
             sortKey = "quantity",
@@ -189,16 +184,6 @@ local function buildIndex(records, key)
     return index
 end
 
-local function totalQuantity(lootData)
-    local total = 0
-
-    for i = 1, #lootData do
-        total = total + (tonumber(lootData[i].quantity) or 1)
-    end
-
-    return total
-end
-
 local function getIndex(records, key)
     if (not indexes[key]) then
         indexes[key] = buildIndex(records, key)
@@ -272,7 +257,7 @@ function MLH:addGold(quantity, zoneID, source)
     return entry
 end
 
--- Returns the item's total quantity and the entry just added.
+-- Returns the entry just added.
 function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemName, zoneID, sellPrice, source)
     local foundItems = self.db.char.foundItems
     local index = getIndex(foundItems, "itemId")[itemID]
@@ -295,7 +280,7 @@ function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemN
         table.insert(foundItems, newItem)
         indexes.itemId[itemID] = #foundItems
 
-        return quantity, newLootDataObj
+        return newLootDataObj
     end
 
     local record = foundItems[index]
@@ -313,10 +298,10 @@ function MLH:addItem(itemID, quantity, itemLink, itemTexture, itemQuality, itemN
 
     table.insert(lootData, newLootDataObj)
 
-    return totalQuantity(lootData), newLootDataObj
+    return newLootDataObj
 end
 
--- Returns the currency's total quantity and the entry just added.
+-- Returns the entry just added.
 function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, currencyQuality, zoneID, source)
     local foundCurrency = self.db.char.foundCurrency
     local index = getIndex(foundCurrency, "currencyId")[currencyID]
@@ -336,7 +321,7 @@ function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, curre
 
         indexes.currencyId[currencyID] = #foundCurrency
 
-        return quantity, newLootDataObj
+        return newLootDataObj
     end
 
     local record = foundCurrency[index]
@@ -348,7 +333,7 @@ function MLH:addCurrency(currencyID, quantity, currencyName, currencyIcon, curre
 
     table.insert(lootData, newLootDataObj)
 
-    return totalQuantity(lootData), newLootDataObj
+    return newLootDataObj
 end
 
 -- Drops the elements failing keep(), in place, preserving order. keep() runs once per element,
@@ -435,5 +420,5 @@ function MLH:resetData()
     self:beginSession()
     self:setFilter("session", 0)
 
-    self:debugPrint(L["M_DataWasCleared"])
+    print(L["M_DataWasCleared"])
 end

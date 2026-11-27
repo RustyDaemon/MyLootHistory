@@ -48,7 +48,6 @@ ui\Tooltip.lua
 ui\Minimap.lua
 
 settings\Statistics.lua
-settings\Faq.lua
 settings\Options.lua
 settings\Window.lua
 settings\GameOptions.lua

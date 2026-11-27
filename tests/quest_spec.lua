@@ -36,7 +36,7 @@ end
 after_each(function() wow.unfreeze() end)
 
 local function pushedItem(quantity, sellPrice)
-    local _, entry = MLH:addItem(100, quantity, nil, 1, 1, "Supply Crate", 1, sellPrice or 0,
+    local entry = MLH:addItem(100, quantity, nil, 1, 1, "Supply Crate", 1, sellPrice or 0,
         MLH:getQuestSource() or { kind = "pushed" })
 
     MLH:noteQuestCandidate(entry)
@@ -121,7 +121,7 @@ describe("quest items and currencies", function()
     end)
 
     it("claims an item still loading when the turn-in happened", function()
-        local _, entry = MLH:addItem(100, 1, nil, 1, 1, "Supply Crate", 1, 0, { kind = "pushed" })
+        local entry = MLH:addItem(100, 1, nil, 1, 1, "Supply Crate", 1, 0, { kind = "pushed" })
 
         MLH:QUEST_TURNED_IN(QUEST, 0, 0)
         MLH:noteQuestCandidate(entry)
@@ -139,7 +139,7 @@ describe("quest items and currencies", function()
     end)
 
     it("leaves loot traced to a creature alone", function()
-        local _, entry = MLH:addItem(100, 1, nil, 1, 1, "Supply Crate", 1, 0, { kind = "creature", id = 5 })
+        local entry = MLH:addItem(100, 1, nil, 1, 1, "Supply Crate", 1, 0, { kind = "creature", id = 5 })
 
         MLH:noteQuestCandidate(entry)
         MLH:QUEST_TURNED_IN(QUEST, 0, 0)
@@ -150,7 +150,7 @@ describe("quest items and currencies", function()
     it("claims currency arriving with the reward", function()
         MLH:QUEST_TURNED_IN(QUEST, 0, 0)
 
-        local _, entry = MLH:addCurrency(3008, 10, "Valorstones", 1, 1, 1, MLH:getQuestSource())
+        local entry = MLH:addCurrency(3008, 10, "Valorstones", 1, 1, 1, MLH:getQuestSource())
 
         assert.are.equal("quest", entry.source.kind)
     end)

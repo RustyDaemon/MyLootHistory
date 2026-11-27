@@ -39,16 +39,3 @@ function MLH:getStatisticsText()
         ..'\n'..L["M_TotalCurrenciesGathered"]..currencyTypesAmount
     ..'\n\n'..self:getSessionLine()
 end
-
-MLH.groupStatistics = {
-    type = 'group',
-    order = 32,
-    name = L["C_Statistics"],
-    args = {
-        statisticsText = {
-            type = 'description',
-            fontSize = 'medium',
-            name = function() return MLH:getStatisticsText() end,
-        }
-    }
-}

@@ -138,7 +138,6 @@ local paramKeys = {
     session = "selectedSession",
     range = "selectedRangeValue",
     quality = "selectedQualityValue",
-    exactQuality = "selectedExactItemQuality",
     zone = "selectedZoneID",
     search = "searchText",
     sortKey = "sortKey",
@@ -163,7 +162,6 @@ function MLH:getFilters()
         session = params.selectedSession or 0,
         range = params.selectedRangeValue or MLH.RANGE_TODAY,
         quality = params.selectedQualityValue or 0,
-        exactQuality = params.selectedExactItemQuality or false,
         zone = params.selectedZoneID or 0,
         search = params.searchText or "",
         sortKey = params.sortKey or "quantity",
@@ -186,7 +184,6 @@ end
 function MLH:resetFilters()
     self:setFilter("range", MLH.RANGE_ALL)
     self:setFilter("quality", 0)
-    self:setFilter("exactQuality", false)
     self:setFilter("zone", 0)
     self:setFilter("search", "")
 end
@@ -194,7 +191,7 @@ end
 function MLH:hasActiveFilters()
     local active = self:getFilters()
 
-    return active.range ~= MLH.RANGE_ALL or active.quality ~= 0 or active.exactQuality
+    return active.range ~= MLH.RANGE_ALL or active.quality ~= 0
         or active.zone ~= 0 or active.search ~= ""
 end
 

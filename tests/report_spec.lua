@@ -563,16 +563,6 @@ describe("the filter bar", function()
         MLH:refreshReport()
     end)
 
-    it("toggles exact quality", function()
-        window.exactToggle:Click()
-
-        assert.is_true(MLH:getFilters().exactQuality)
-
-        window.exactToggle:Click()
-
-        assert.is_false(MLH:getFilters().exactQuality)
-    end)
-
     it("only offers the session picker while the range is a session", function()
         MLH:setFilter("range", 6)
         MLH:refreshReport()

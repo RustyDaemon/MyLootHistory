@@ -136,25 +136,10 @@ function MLH:OnEnable()
     self:updateBrokerText()
 end
 
-function MLH:debugPrint(message)
-    if (self.db.char.config.debug.printOtherDebugInfo) then
-        print(message)
-    end
-end
-
-function MLH:debugSummary(message)
-    if (self.db.char.config.debug.printLootedSummary) then
-        print(message)
-    end
-end
-
 function MLH:CHAT_MSG_LOOT(_, message, ...)
     local itemLink, quantity, itemID, messageKind = self:getLootDetails(message)
 
-    if (not itemID) then
-        self:debugPrint(L["D_NotMyItem"])
-        return
-    end
+    if (not itemID) then return end
 
     -- Capture zone and source before asynchronous item loading.
     local zoneID = self:getZoneID()
@@ -181,10 +166,7 @@ function MLH:recordLoot(itemID, itemLink, quantity, zoneID, source, messageKind)
     local itemName, cachedLink, itemQuality, _, _, _, _, _, _, itemTexture, sellPrice, classID, subClassID =
         readItemInfo(itemID, itemLink)
 
-    if (self:isQuestItem(classID, subClassID)) then
-        self:debugPrint(L["D_QuestItem"])
-        return
-    end
+    if (self:isQuestItem(classID, subClassID)) then return end
 
     sellPrice = sellPrice or 0
     itemLink = itemLink or cachedLink
@@ -198,17 +180,12 @@ function MLH:recordLoot(itemID, itemLink, quantity, zoneID, source, messageKind)
         self:alertDrop(itemLink, itemTexture, itemQuality, quantity, alert)
     end
 
-    if (sellPrice == 0 and self.db.char.config.ignoreItemsWithZeroPrice) then
-        self:debugPrint(L["D_ZeroSellPrice"])
-        return
-    end
+    if (sellPrice == 0 and self.db.char.config.ignoreItemsWithZeroPrice) then return end
 
-    local totalAmount, entry = self:addItem(itemID, quantity, itemLink, itemTexture, itemQuality,
+    local entry = self:addItem(itemID, quantity, itemLink, itemTexture, itemQuality,
         itemName, zoneID, sellPrice, source)
 
     if (messageKind == "pushed") then self:noteQuestCandidate(entry) end
-
-    self:debugSummary(L["D_AddedAndTotal"](itemLink, totalAmount))
 end
 
 function MLH:CHAT_MSG_MONEY(_, message, ...)
@@ -232,15 +209,9 @@ function MLH:CHAT_MSG_MONEY(_, message, ...)
             end
         end
     end
-    if (money > 0) then
-        if (self:claimQuestMoney(money)) then
-            self:debugPrint(L["D_QuestMoneyCounted"])
-            return
-        end
-
+    -- Quest reward money is already counted with the quest, so it is not added again.
+    if (money > 0 and not self:claimQuestMoney(money)) then
         self:noteQuestCandidate(self:addGold(money, self:getZoneID()), money)
-    else
-        self:debugPrint(L["D_NoMoneyMatched"])
     end
 end
 
@@ -249,20 +220,13 @@ function MLH:CHAT_MSG_CURRENCY(_, message, ...)
 
     local currencyID, quantity = self:getCurrencyDetails(message)
 
-    if (not currencyID) then
-        self:debugPrint(L["D_NotMyCurrency"])
-        return
-    end
+    if (not currencyID) then return end
 
     local info = C_CurrencyInfo.GetCurrencyInfo(currencyID)
-    local totalAmount, entry = self:addCurrency(currencyID, quantity, info and info.name,
+    local entry = self:addCurrency(currencyID, quantity, info and info.name,
         info and info.iconFileID, info and info.quality, self:getZoneID(), self:getQuestSource())
 
     self:noteQuestCandidate(entry)
-
-    local link = C_CurrencyInfo.GetCurrencyLink(currencyID, quantity)
-
-    self:debugSummary(L["D_AddedAndTotal"](link or (info and info.name) or currencyID, totalAmount))
 end
 
 function MLH:isQuestItem(classID, subClassID)
