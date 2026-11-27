@@ -52,14 +52,25 @@ function Step($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
 function Warn($msg) { Write-Host "  ! $msg" -ForegroundColor Yellow }
 
 # True when a repo-relative path must not be packaged. `$rel` uses the platform
-# separator, as produced by trimming $Root off a full path.
+# separator, as produced by trimming $Root off a full path. The excluded folders'
+# names are pruned at any depth, as build.sh's `find -name ... -prune` does.
 function Test-Excluded([string]$rel) {
     foreach ($part in ($rel -split '[\\/]')) {
         if ($part.StartsWith('.')) { return $true }
+        if ($ExcludeDirs -ccontains $part) { return $true }
     }
-    foreach ($d in $ExcludeDirs)  { if ($rel -like "$d\*" -or $rel -like "$d/*") { return $true } }
     foreach ($f in $ExcludeFiles) { if ((Split-Path $rel -Leaf) -eq $f)          { return $true } }
 
+    return $false
+}
+
+# True when a file is a link, or sits under a linked folder: build.sh's
+# `find -type f` packs regular files only and never follows a link.
+function Test-Linked([System.IO.FileSystemInfo]$item) {
+    while ($item -and $item.FullName.Length -gt $Root.Length) {
+        if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { return $true }
+        if ($item -is [System.IO.FileInfo]) { $item = $item.Directory } else { $item = $item.Parent }
+    }
     return $false
 }
 
@@ -199,6 +210,7 @@ $copied = 0
 Get-ChildItem $Root -Recurse -File -Force | ForEach-Object {
     $rel = $_.FullName.Substring($Root.Length + 1)
     if (Test-Excluded $rel) { return }
+    if (Test-Linked $_) { return }
 
     $dest = Join-Path $StageDir $rel
     $destDir = Split-Path $dest -Parent
