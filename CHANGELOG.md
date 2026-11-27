@@ -1,3 +1,10 @@
+## 2.10.0
+
+- The settings are down to five pages. **Keep history for** and **Clear data** moved onto **Statistics**, with the website address; the Data, Debug and FAQ pages are gone.
+- The report's quality filter is now always a minimum: the **Exact item quality** checkbox is gone. Sort by the Quality column to see one tier together.
+- **Clear data** says in chat that your history was erased.
+- The settings reopen on the page you left, even after an update moves the pages around.
+
 ## 2.9.0
 
 - A `/reload`, or logging back in within 15 minutes, keeps your session going instead of starting a new one. The time you were logged out never counts against gold per hour. **Keep the session over a reload** turns it off.
