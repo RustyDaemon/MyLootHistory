@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.4.1
+RustyKit UI kit 1.5.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -37,16 +37,16 @@ local function buildConfirm()
     box:SetPoint("CENTER", 0, 80)
     box:EnableMouse(true)
 
-    UI:addShadow(box, 6, 0.5)
+    -- Its top left and bottom right corners cut on a theme that cuts them; the stripe starts past the cut.
+    local cut = UI:cornerCut()
+    local r, g, b, a = UI:rgb("borderLight")
 
-    local bg = box:CreateTexture(nil, "BACKGROUND", nil, -7)
-    bg:SetAllPoints()
-    UI:paint(bg, "window", 0.98)
-
-    UI:addBorder(box, UI:rgb("borderLight"))
+    UI:addShadow(box, 6, 0.5, nil, cut)
+    UI:fill(box, "window", 0.98, "BACKGROUND", -7, cut)
+    UI:addBorder(box, r, g, b, a, cut)
 
     local stripe = box:CreateTexture(nil, "ARTWORK")
-    stripe:SetPoint("TOPLEFT", 1, -1)
+    stripe:SetPoint("TOPLEFT", math.max(cut, 1), -1)
     stripe:SetPoint("TOPRIGHT", -1, -1)
     stripe:SetHeight(2)
 

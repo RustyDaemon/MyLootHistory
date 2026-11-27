@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.4.1
+RustyKit UI kit 1.5.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -17,12 +17,13 @@ function UI:button(parent, text, width, height, onClick)
 
     button:SetSize(width or 100, height or 24)
 
-    local bg = button:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    self:paint(bg, "raised")
+    -- Its corners cut on a theme that cuts them, by its shorter side.
+    local cut = self:cornerCut(math.min(width or 100, height or 24))
+    local bg = self:fill(button, "raised", nil, "BACKGROUND", nil, cut)
+    local r, g, b, a = self:rgb("border")
 
-    UI:addBorder(button, self:rgb("border"))
-    UI:attachHover(button, "buttonHover", 0.55)
+    UI:addBorder(button, r, g, b, a, cut)
+    UI:attachHover(button, "buttonHover", 0.55, nil, cut)
 
     local label = self:text(button, 12, "text")
     label:SetPoint("CENTER", 0, 0)
@@ -84,7 +85,7 @@ function UI:iconButton(parent, size, texture, onClick, texCoord)
 end
 
 function UI:searchBox(parent, width, height, placeholder, onChange)
-    local frame = self:panel(parent, "window", true)
+    local frame = self:panel(parent, "window", true, nil, self:cornerCut(math.min(width, height or 26)))
     frame:SetSize(width, height or 26)
 
     local glass = frame:CreateTexture(nil, "ARTWORK")
@@ -150,13 +151,15 @@ end
 -- Open it with { text, value } items; `selected` is the value to mark, if any.
 function UI:menu()
     -- Parent to UIParent so the menu can draw above the rows.
-    local menu = self:panel(UIParent, "window", true)
+    -- Cut as a row of it would be: a menu can be as short as one entry.
+    local cut = self:cornerCut(22)
+    local menu = self:panel(UIParent, "window", true, nil, cut)
     menu:SetFrameStrata("FULLSCREEN_DIALOG")
     menu:SetClampedToScreen(true)
     menu:Hide()
     menu:EnableMouse(true)
 
-    self:addShadow(menu, 4, 0.5, -1)
+    self:addShadow(menu, 4, 0.5, -1, cut)
 
     local entries = {}
 
@@ -172,7 +175,7 @@ function UI:menu()
                 entry:SetHeight(rowHeight)
                 entry:SetPoint("LEFT", 1, 0)
                 entry:SetPoint("RIGHT", -1, 0)
-                UI:attachHover(entry, "raised", 1, "BACKGROUND")
+                UI:attachHover(entry, "raised", 1, "BACKGROUND", cut)
 
                 -- Parent markers to entries so hiding spare entries also hides their markers.
                 entry.check = entry:CreateTexture(nil, "OVERLAY")
@@ -231,12 +234,13 @@ function UI:menu()
 end
 
 function UI:dropdown(parent, width, height, label, getItems, getValue, onSelect)
-    local frame = self:panel(parent, "raised", true)
+    local cut = self:cornerCut(math.min(width, height or 26))
+    local frame = self:panel(parent, "raised", true, nil, cut)
     frame:SetSize(width, height or 26)
 
     local button = CreateFrame("Button", nil, frame)
     button:SetAllPoints()
-    UI:attachHover(button, "panelHover", 0.7, "BACKGROUND")
+    UI:attachHover(button, "panelHover", 0.7, "BACKGROUND", cut)
 
     local caption = self:text(frame, 11, "textFaint")
     caption:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 1, 4)
@@ -550,7 +554,7 @@ end
 -- A single-line text field with a caption above it, like the dropdown's. A read-only field keeps
 -- its text but can still be selected and copied.
 function UI:inputBox(parent, width, height, label, getValue, onCommit, readOnly)
-    local frame = self:panel(parent, "window", true)
+    local frame = self:panel(parent, "window", true, nil, self:cornerCut(math.min(width, height or 26)))
     frame:SetSize(width, height or 26)
 
     local caption = self:text(frame, 11, "textFaint")

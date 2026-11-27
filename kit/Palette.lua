@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.4.1
+RustyKit UI kit 1.5.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -148,38 +148,44 @@ UI.accents = {
 -- Each theme gives every color but the accent, which comes from its own accent preset until the
 -- addon picks one of UI.accents, and those every theme shares (below). A color given as another's
 -- name follows that one, accent borders included. fadeTo is what a shade of the accent recedes toward
--- (the plain accent border), and numberFlags the outline numbers draw with.
+-- (the plain accent border), and numberFlags the outline numbers draw with. cut, when a theme has one,
+-- is how far windows and the controls that ask (UI:cornerCut) cut their top left and bottom right
+-- corners in, in UI units; a theme without one keeps every corner square.
+
+-- Dark's colors, which Tactical shares: it differs in its corners, not its colors.
+local DARK_COLORS = {
+    shadow      = { 0.00, 0.00, 0.00 },
+    window      = { 0.043, 0.047, 0.055 },
+    panel       = { 0.082, 0.086, 0.098 },
+    panelHover  = { 0.114, 0.122, 0.141 },
+    raised      = { 0.129, 0.137, 0.157 },
+    border      = { 0.176, 0.188, 0.216 },
+    borderLight = { 0.239, 0.255, 0.290 },
+
+    text        = { 0.918, 0.925, 0.945 },
+    textDim     = { 0.596, 0.620, 0.678 },
+    textFaint   = { 0.396, 0.416, 0.463 },
+    textShadow  = { 0.00, 0.00, 0.00, 0.9 },
+
+    money       = { 1.000, 0.839, 0.286 },
+    good        = { 0.400, 0.851, 0.482 },
+    bad         = { 0.925, 0.373, 0.373 },
+
+    -- A window's title bar fades from its bottom color up to its top one.
+    titleBottom = { 0.055, 0.059, 0.070 },
+    titleTop    = { 0.114, 0.106, 0.075 },
+
+    -- A button lit up under the mouse.
+    buttonHover = "borderLight",
+}
+
 UI.themes = {
     {
         value = "dark", text = "Dark",
         accent = UI.accents[1],
         fadeTo = { 0, 0, 0 },
         numberFlags = "OUTLINE",
-        colors = {
-            shadow      = { 0.00, 0.00, 0.00 },
-            window      = { 0.043, 0.047, 0.055 },
-            panel       = { 0.082, 0.086, 0.098 },
-            panelHover  = { 0.114, 0.122, 0.141 },
-            raised      = { 0.129, 0.137, 0.157 },
-            border      = { 0.176, 0.188, 0.216 },
-            borderLight = { 0.239, 0.255, 0.290 },
-
-            text        = { 0.918, 0.925, 0.945 },
-            textDim     = { 0.596, 0.620, 0.678 },
-            textFaint   = { 0.396, 0.416, 0.463 },
-            textShadow  = { 0.00, 0.00, 0.00, 0.9 },
-
-            money       = { 1.000, 0.839, 0.286 },
-            good        = { 0.400, 0.851, 0.482 },
-            bad         = { 0.925, 0.373, 0.373 },
-
-            -- A window's title bar fades from its bottom color up to its top one.
-            titleBottom = { 0.055, 0.059, 0.070 },
-            titleTop    = { 0.114, 0.106, 0.075 },
-
-            -- A button lit up under the mouse.
-            buttonHover = "borderLight",
-        },
+        colors = DARK_COLORS,
     },
     {
         -- Cream paper, brown ink, borders in faded ink and rubric red for the accent. Text carries no
@@ -212,6 +218,17 @@ UI.themes = {
 
             buttonHover = { 0.769, 0.678, 0.502 },
         },
+    },
+    {
+        -- Dark with its corners cut: a window's and a control's top left and bottom right corners cut
+        -- in on the diagonal, the cuts drawn in the accent. Its title bar is flat, the window's own
+        -- dark, as a fade could not follow the cut.
+        value = "tactical", text = "Tactical",
+        accent = UI.accents[1],
+        fadeTo = { 0, 0, 0 },
+        numberFlags = "OUTLINE",
+        cut = 10,
+        colors = DARK_COLORS,
     },
 }
 
@@ -280,6 +297,7 @@ function UI:setTheme(key)
 
             self.theme = theme.value
             self.numberFlags = theme.numberFlags
+            self.cut = theme.cut or 0
             paintAccent()
             return
         end
@@ -320,6 +338,21 @@ end
 -- call takes the surface the next time its color changes (SetPanelColor, say), not before.
 function UI:setSurface(file)
     self.surface = (type(file) == "string" and file ~= "") and file or nil
+end
+
+-- The kit's own textures: the corner pieces a cut theme draws, 64x64 white TGAs the game tints (the
+-- same as RustyUI's HUD corners, drawn by its tools/make-hud-textures.py).
+UI.MEDIA = KIT_PATH .. "media\\"
+
+-- How far a corner `size` units across (a control's height, say) is cut in under the current theme: 0
+-- on a theme without cuts, else the theme's cut, held to a quarter of the size so a small control
+-- keeps most of its edge. With no size, the theme's whole cut, for a window or a panel.
+function UI:cornerCut(size)
+    if (self.cut <= 0) then return 0 end
+
+    if (size == nil) then return self.cut end
+
+    return math.max(math.min(self.cut, math.floor(size / 4)), 0)
 end
 
 -- Every addon starts dark, on gold, the kit's own look.

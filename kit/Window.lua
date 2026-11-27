@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.4.1
+RustyKit UI kit 1.5.0
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -32,11 +32,12 @@ end
 function UI:chrome(frame, options)
     local compact = options.compact and true or false
 
-    local bg = frame:CreateTexture(nil, "BACKGROUND", nil, -7)
-    bg:SetAllPoints()
-    self:paint(bg, "window", 0.97)
+    -- Its top left and bottom right corners cut on a theme that cuts them.
+    local cut = self:cornerCut()
+    local r, g, b, a = self:rgb("borderLight")
 
-    self:addBorder(frame, self:rgb("borderLight"))
+    self:fill(frame, "window", 0.97, "BACKGROUND", -7, cut)
+    self:addBorder(frame, r, g, b, a, cut)
 
     local titleBar = CreateFrame("Frame", nil, frame)
     titleBar:SetPoint("TOPLEFT", 1, -1)
@@ -44,17 +45,19 @@ function UI:chrome(frame, options)
     titleBar:SetHeight(compact and 36 or 44)
 
     -- The title bar fades between the theme's two title colors, over the surface texture when the
-    -- addon set one.
-    local titleFill = titleBar:CreateTexture(nil, "BACKGROUND")
+    -- addon set one. With the corners cut it is the window's own fill: a fade could not follow the cut.
+    if (cut <= 0) then
+        local titleFill = titleBar:CreateTexture(nil, "BACKGROUND")
 
-    if (self.surface) then
-        titleFill:SetTexture(self.surface)
-    else
-        titleFill:SetColorTexture(1, 1, 1, 1)
+        if (self.surface) then
+            titleFill:SetTexture(self.surface)
+        else
+            titleFill:SetColorTexture(1, 1, 1, 1)
+        end
+
+        titleFill:SetGradient("VERTICAL", CreateColor(self:rgb("titleBottom")), CreateColor(self:rgb("titleTop")))
+        titleFill:SetAllPoints()
     end
-
-    titleFill:SetGradient("VERTICAL", CreateColor(self:rgb("titleBottom")), CreateColor(self:rgb("titleTop")))
-    titleFill:SetAllPoints()
 
     local title = self:text(titleBar, compact and 13 or 15, "text")
     title:SetText(options.title or "")
@@ -124,7 +127,7 @@ function UI:window(options)
     frame:EnableMouse(true)
     frame:Hide()
 
-    self:addShadow(frame, 6, 0.45)
+    self:addShadow(frame, 6, 0.45, nil, self:cornerCut())
     self:chrome(frame, options)
 
     local titleBar = frame.titleBar
