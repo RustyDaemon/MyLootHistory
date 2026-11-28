@@ -1,5 +1,5 @@
 --[[
-RustyKit UI kit 1.6.0
+RustyKit UI kit 1.6.1
 Copyright (C) 2026 RustyDaemon (https://github.com/RustyDaemon)
 
 See License file for details.
@@ -172,7 +172,8 @@ function UI:fill(frame, colorName, alpha, layer, subLevel, cut, anchor)
         fill = cutFill(frame, layer or "BACKGROUND", subLevel, cut, nil, anchor)
     else
         fill = frame:CreateTexture(nil, layer or "BACKGROUND", nil, subLevel)
-        fill:SetAllPoints(anchor)
+        -- Named, never nil: WoW Forever takes SetAllPoints(nil) for the whole screen.
+        fill:SetAllPoints(anchor or frame)
     end
 
     return self:paint(fill, colorName, alpha)
